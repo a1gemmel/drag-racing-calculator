@@ -1,5 +1,8 @@
 from fastapi import FastAPI
+import os
 from typing import Dict, List
+
+import uvicorn
 
 from backend.calculations import gear_speeds
 
@@ -21,3 +24,11 @@ def calculate_speeds(payload: dict) -> List[dict]:
         transfer_case_ratios=tuple(payload.get("transfer_case_ratios", [])),
     )
     return [result.__dict__ for result in results]
+
+
+if __name__ == "__main__":
+    uvicorn.run(
+        app,
+        host=os.getenv("HOST", "127.0.0.1"),
+        port=int(os.getenv("PORT", "8000")),
+    )
