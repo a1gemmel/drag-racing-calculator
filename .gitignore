@@ -1,0 +1,9 @@
+.direnv/
+.venv/
+env/cache/
+env/nvm/
+bazel-*
+node_modules/
+frontend/dist/
+__pycache__/
+*.pyc

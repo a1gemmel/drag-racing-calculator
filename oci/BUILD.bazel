@@ -1,0 +1,28 @@
+load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+
+package(default_visibility = ["//:__subpackages__"])
+
+pkg_tar(
+    name = "application_files",
+    srcs = [
+        "//backend:sources",
+        "//tools:oci_entrypoint.sh",
+    ],
+    deps = ["//frontend:bundle"],
+    package_dir = "/app",
+)
+
+oci_image(
+    name = "application_image",
+    os = "linux",
+    architecture = "amd64",
+    tars = [":application_files"],
+    entrypoint = ["/app/tools/oci_entrypoint.sh"],
+)
+
+oci_load(
+    name = "application_tarball",
+    image = ":application_image",
+    repo_tags = ["transmission-ratio-viz:dev"],
+)

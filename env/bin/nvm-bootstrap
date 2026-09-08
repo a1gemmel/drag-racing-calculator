@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_dir="$(git -C "$(dirname "$0")/../.." rev-parse --show-toplevel)"
+nvm_dir="${NVM_DIR:-${repo_dir}/env/nvm}"
+nvm_version="${NVM_VERSION:-v0.40.1}"
+version_file="${repo_dir}/.nvmrc"
+
+download() {
+  local url="$1"
+  local destination="$2"
+  if command -v curl >/dev/null 2>&1; then
+    curl --fail --location --silent --show-error "$url" --output "$destination"
+  elif command -v wget >/dev/null 2>&1; then
+    wget --quiet --output-document="$destination" "$url"
+  else
+    echo "NVM bootstrap requires curl or wget" >&2
+    exit 1
+  fi
+}
+
+if [[ ! -s "${nvm_dir}/nvm.sh" ]]; then
+  mkdir -p "${nvm_dir}"
+  installer="$(mktemp)"
+  trap 'rm -f "$installer"' EXIT
+  download "https://raw.githubusercontent.com/nvm-sh/nvm/${nvm_version}/install.sh" "${installer}"
+  NVM_DIR="${nvm_dir}" PROFILE=/dev/null bash "${installer}" || true
+  if [[ ! -s "${nvm_dir}/nvm.sh" ]]; then
+    echo "NVM installation failed in ${nvm_dir}" >&2
+    exit 1
+  fi
+fi
+
+# nvm.sh inspects positional parameters while it is sourced. Clear them so a
+# wrapper invocation is not mistaken for an nvm command during initialization.
+nvm_args=("$@")
+set --
+original_path="${PATH}"
+PATH="${PATH//${repo_dir}\/env\/bin:/}"
+# shellcheck disable=SC1090
+source "${nvm_dir}/nvm.sh" --no-use
+PATH="${original_path}"
+set -- "${nvm_args[@]}"
+
+if [[ "${1:-}" == "nvm" ]]; then
+  shift
+  nvm "$@"
+  exit $?
+fi
+
+if [[ ! -f "${version_file}" ]]; then
+  echo "Missing ${version_file}; add the project's Node.js version there" >&2
+  exit 1
+fi
+
+node_version="$(<"${version_file}")"
+nvm install --no-progress "${node_version}" >/dev/null 2>&1
+nvm exec "${node_version}" "$@"

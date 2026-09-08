@@ -1,0 +1,9 @@
+py_test(
+    name = "calculations_test",
+    main = "test_calculations.py",
+    srcs = ["test_calculations.py"],
+    deps = [
+        "//backend:calculations",
+        "@python_deps//pytest:pkg",
+    ],
+)

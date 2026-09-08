@@ -1,0 +1,8 @@
+package(default_visibility = ["//:__subpackages__"])
+
+sh_binary(
+    name = "frontend_bundle",
+    srcs = ["frontend_bundle.sh"],
+)
+
+exports_files(["oci_entrypoint.sh"])

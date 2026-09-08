@@ -1,0 +1,21 @@
+package(default_visibility = ["//:__subpackages__"])
+
+filegroup(
+    name = "sources",
+    srcs = glob([
+        "*.json",
+        "*.ts",
+        "src/**/*.tsx",
+        "src/**/*.ts",
+        "src/**/*.css",
+        "index.html",
+    ]),
+)
+
+genrule(
+    name = "bundle",
+    srcs = [":sources"],
+    outs = ["frontend_bundle.tar"],
+    cmd = "$(location //tools:frontend_bundle) $@ $(SRCS)",
+    tools = ["//tools:frontend_bundle"],
+)

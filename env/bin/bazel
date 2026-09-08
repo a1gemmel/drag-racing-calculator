@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_dir="$(git -C "$(dirname "$0")/../.." rev-parse --show-toplevel)"
+version="${BAZELISK_VERSION:-v1.26.0}"
+cache_dir="${BAZELISK_CACHE_DIR:-${repo_dir}/env/cache}"
+binary="${cache_dir}/bazelisk-${version}"
+
+mkdir -p "${cache_dir}"
+if [[ ! -x "${binary}" ]]; then
+  os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+  arch="$(uname -m)"
+  case "${arch}" in
+    x86_64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *) echo "Unsupported Bazelisk architecture: ${arch}" >&2; exit 1 ;;
+  esac
+  url="https://github.com/bazelbuild/bazelisk/releases/download/${version}/bazelisk-${os}-${arch}"
+  tmp="${binary}.tmp"
+  if command -v curl >/dev/null 2>&1; then
+    curl --fail --location --silent --show-error "${url}" --output "${tmp}"
+  elif command -v wget >/dev/null 2>&1; then
+    wget --quiet --output-document="${tmp}" "${url}"
+  else
+    echo "Bazelisk bootstrap requires curl or wget" >&2
+    exit 1
+  fi
+  chmod +x "${tmp}"
+  mv "${tmp}" "${binary}"
+fi
+
+exec "${binary}" "$@"
