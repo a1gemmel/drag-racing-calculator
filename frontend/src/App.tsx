@@ -1,12 +1,392 @@
-const gears = [
-  { label: "1st", ratio: 3.27, speed: 34.6 },
-  { label: "2nd", ratio: 1.98, speed: 57.2 },
-  { label: "3rd", ratio: 1.34, speed: 84.6 },
-  { label: "4th", ratio: 1, speed: 113.2 },
-  { label: "5th", ratio: 0.72, speed: 157.2 },
-];
+import { useEffect, useMemo, useState } from "react";
+
+type Point = { x: number; y: number };
+type HoverState = { gearLabel: string; point: Point; rpm: number; speed: number } | null;
+
+type TransmissionVariant = {
+  name: string;
+  gear_ratios: number[];
+  application_manufacturers: string[];
+  reverse_ratio?: number | null;
+};
+
+type TransmissionFamily = {
+  manufacturer: string;
+  model: string;
+  variants: TransmissionVariant[];
+};
+
+type Gear = { label: string; ratio: number };
+
+const defaultConfig = {
+  tireDiameter: 26,
+  axleRatio: 4.1,
+  minRpm: 1500,
+  maxRpm: 6500,
+};
+
+function speedForRpm(rpm: number, ratio: number, tireDiameter: number, axleRatio: number) {
+  return (rpm * tireDiameter) / (ratio * axleRatio * 336.13);
+}
+
+function gearLabel(index: number) {
+  const labels = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
+  return labels[index] ?? `${index + 1}`;
+}
 
 export function App() {
+  const [draft, setDraft] = useState(defaultConfig);
+  const [config, setConfig] = useState(defaultConfig);
+  const [hover, setHover] = useState<HoverState>(null);
+  const [families, setFamilies] = useState<TransmissionFamily[]>([]);
+  const [primarySelection, setPrimarySelection] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
+  const [selectedVariantName, setSelectedVariantName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [gearsetView, setGearsetView] = useState<"overview" | "cruising">("overview");
+  const [rpmMode, setRpmMode] = useState<"range" | "shift">("range");
+  const [shiftRpm, setShiftRpm] = useState(6500);
+  const shiftPointEnabled = rpmMode === "shift";
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadTransmissions() {
+      try {
+        const response = await fetch("/api/transmissions");
+        if (!response.ok) {
+          throw new Error(`Request failed: ${response.status}`);
+        }
+        const data = (await response.json()) as TransmissionFamily[];
+        if (!isMounted) return;
+        setFamilies(data);
+      } catch (error) {
+        console.error("Unable to load transmissions", error);
+        if (isMounted) {
+          setFamilies([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadTransmissions();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const manufacturerOptions = useMemo(
+    () => Array.from(new Set(families.map((family) => family.manufacturer))).sort(),
+    [families],
+  );
+
+  const brandOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          families.flatMap((family) =>
+            family.variants.flatMap((variant) => variant.application_manufacturers),
+          ),
+        ),
+      ).sort(),
+    [families],
+  );
+
+  const scopeOptions = useMemo(
+    () => [
+      { value: "all", label: "All" },
+      ...manufacturerOptions.map((manufacturer) => ({
+        value: `manufacturer:${manufacturer}`,
+        label: `Manufacturer: ${manufacturer}`,
+      })),
+      ...brandOptions.map((brand) => ({ value: `brand:${brand}`, label: `Brand: ${brand}` })),
+    ],
+    [brandOptions, manufacturerOptions],
+  );
+
+  const hasPrimarySelection = primarySelection !== "";
+  const primaryMode = !hasPrimarySelection
+    ? null
+    : primarySelection === "all"
+      ? "all"
+      : primarySelection.startsWith("manufacturer:")
+        ? "manufacturer"
+        : "brand";
+
+  const selectedManufacturer = primaryMode === "manufacturer" ? primarySelection.replace("manufacturer:", "") : "";
+  const selectedBrand = primaryMode === "brand" ? primarySelection.replace("brand:", "") : "";
+
+  const modelOptions = useMemo(() => {
+    if (primaryMode === "manufacturer") {
+      return families
+        .filter((family) => family.manufacturer === selectedManufacturer)
+        .map((family) => ({ value: family.model, label: family.model }));
+    }
+
+    if (primaryMode === "all") {
+      return families.map((family) => ({ value: family.model, label: family.model }));
+    }
+
+    return [];
+  }, [families, primaryMode, selectedManufacturer]);
+
+  const formatVariantLabel = (familyModel: string, variant: TransmissionVariant) => {
+    const ratios = variant.gear_ratios.join(" / ");
+    return `${familyModel} / ${variant.name} (${ratios})`;
+  };
+
+  const brandVariantOptions = useMemo(() => {
+    if (!selectedBrand) {
+      return [];
+    }
+
+    return families
+      .flatMap((family) =>
+        family.variants
+          .filter((variant) => variant.application_manufacturers.includes(selectedBrand))
+          .map((variant) => ({
+            value: `${family.model}::${variant.name}`,
+            label: formatVariantLabel(family.model, variant),
+          })),
+      )
+      .sort((left, right) => left.label.localeCompare(right.label));
+  }, [families, selectedBrand]);
+
+  useEffect(() => {
+    if (!families.length) return;
+
+    if (!hasPrimarySelection) {
+      setSelectedModel("");
+      setSelectedVariantName("");
+      return;
+    }
+
+    if (primaryMode === "all") {
+      const firstFamily = families[0];
+      if (!firstFamily) {
+        setSelectedModel("");
+        setSelectedVariantName("");
+        return;
+      }
+
+      setSelectedModel((current) => {
+        if (!current || !families.some((family) => family.model === current)) {
+          return firstFamily.model;
+        }
+        return current;
+      });
+      setSelectedVariantName((current) => {
+        if (!current || !firstFamily.variants.some((variant) => variant.name === current)) {
+          return firstFamily.variants[0]?.name ?? "";
+        }
+        return current;
+      });
+      return;
+    }
+
+    if (primaryMode === "manufacturer") {
+      const family = families.find((item) => item.manufacturer === selectedManufacturer);
+      if (!family) {
+        setSelectedModel("");
+        setSelectedVariantName("");
+        return;
+      }
+
+      setSelectedModel(family.model);
+      setSelectedVariantName(family.variants[0]?.name ?? "");
+      return;
+    }
+
+    const firstMatch = families
+      .flatMap((family) => family.variants.map((variant) => ({ family, variant })))
+      .find(({ variant }) => variant.application_manufacturers.includes(selectedBrand));
+
+    if (!firstMatch) {
+      setSelectedModel("");
+      setSelectedVariantName("");
+      return;
+    }
+
+    setSelectedModel(firstMatch.family.model);
+    setSelectedVariantName(firstMatch.variant.name);
+  }, [families, hasPrimarySelection, primaryMode, selectedBrand, selectedManufacturer]);
+
+  const activeFamily = useMemo(
+    () => families.find((family) => family.model === selectedModel) ?? families[0] ?? null,
+    [families, selectedModel],
+  );
+
+  const activeVariants = activeFamily?.variants ?? [];
+  const activeVariant = useMemo(
+    () => activeVariants.find((variant) => variant.name === selectedVariantName) ?? activeVariants[0] ?? null,
+    [activeVariants, selectedVariantName],
+  );
+
+  useEffect(() => {
+    if (!activeFamily) return;
+    if (!selectedVariantName || !activeFamily.variants.some((variant) => variant.name === selectedVariantName)) {
+      setSelectedVariantName(activeFamily.variants[0]?.name ?? "");
+    }
+  }, [activeFamily, selectedVariantName]);
+
+  const gearSet = useMemo<Gear[]>(() => {
+    if (!activeVariant) return [];
+    return activeVariant.gear_ratios.map((ratio, index) => ({
+      label: gearLabel(index),
+      ratio,
+    }));
+  }, [activeVariant]);
+
+  const minRpm = Math.min(config.minRpm, config.maxRpm);
+  const maxRpm = Math.max(config.minRpm, config.maxRpm);
+  const safeShiftRpm = Math.min(Math.max(shiftRpm, minRpm), maxRpm);
+  const maxSpeedRaw = Math.max(
+    ...gearSet.map((gear) => speedForRpm(maxRpm, gear.ratio, config.tireDiameter, config.axleRatio)),
+    200,
+  );
+  const maxSpeed = Math.ceil(maxSpeedRaw / 50) * 50;
+  const rpmFloor = 0;
+  const rpmCeiling = Math.max(Math.ceil(maxRpm / 1000) * 1000, 1000);
+
+  const chartLines = useMemo(
+    () =>
+      gearSet.map((gear, index) => {
+        if (!shiftPointEnabled) {
+          const start = speedForRpm(minRpm, gear.ratio, config.tireDiameter, config.axleRatio);
+          const end = speedForRpm(maxRpm, gear.ratio, config.tireDiameter, config.axleRatio);
+
+          return {
+            ...gear,
+            start: { x: start, y: minRpm },
+            end: { x: end, y: maxRpm },
+          };
+        }
+
+        const startSpeed = index === 0 ? 0 : speedForRpm(safeShiftRpm, gearSet[index - 1].ratio, config.tireDiameter, config.axleRatio);
+        const startRpm = index === 0 ? 0 : (startSpeed * gear.ratio * config.axleRatio * 336.13) / config.tireDiameter;
+        const endSpeed = speedForRpm(safeShiftRpm, gear.ratio, config.tireDiameter, config.axleRatio);
+
+        return {
+          ...gear,
+          start: { x: startSpeed, y: startRpm },
+          end: { x: endSpeed, y: safeShiftRpm },
+        };
+      }),
+    [config, gearSet, maxRpm, minRpm, safeShiftRpm, shiftPointEnabled],
+  );
+
+  const shiftConnectors = useMemo(() => {
+    if (!shiftPointEnabled || gearSet.length < 2) {
+      return [];
+    }
+
+    return gearSet.slice(1).map((gear, index) => {
+      const previousGear = gearSet[index];
+      const shiftSpeed = speedForRpm(safeShiftRpm, previousGear.ratio, config.tireDiameter, config.axleRatio);
+      const nextGearRpmAtShiftSpeed = (shiftSpeed * gear.ratio * config.axleRatio * 336.13) / config.tireDiameter;
+
+      return {
+        previousGear,
+        gear,
+        start: {
+          x: shiftSpeed,
+          y: safeShiftRpm,
+        },
+        end: {
+          x: shiftSpeed,
+          y: nextGearRpmAtShiftSpeed,
+        },
+      };
+    });
+  }, [config.axleRatio, config.tireDiameter, gearSet, safeShiftRpm, shiftPointEnabled]);
+
+  const cruisingRows = useMemo(() => {
+    const speeds = Array.from({ length: 8 }, (_, index) => (index + 1) * 10);
+
+    return speeds.map((speed) => ({
+      speed,
+      rpmByGear: gearSet.reduce<Record<string, number>>((accumulator, gear) => {
+        accumulator[gear.label] = (speed * gear.ratio * config.axleRatio * 336.13) / config.tireDiameter;
+        return accumulator;
+      }, {}),
+    }));
+  }, [config.axleRatio, config.tireDiameter, gearSet]);
+
+  const formatCruisingRpm = (rpm: number) => {
+    if (rpm < minRpm || rpm > maxRpm) {
+      return "—";
+    }
+
+    return `${Math.round(rpm).toLocaleString()} rpm`;
+  };
+
+  const xScale = (speed: number) => (speed / maxSpeed) * 540;
+  const yScale = (rpm: number) => 260 - ((rpm - rpmFloor) / Math.max(rpmCeiling - rpmFloor, 1)) * 220;
+
+  const getPointForMouse = (gear: { label: string; ratio: number; start: Point; end: Point }, relativeX: number) => {
+    const x1 = xScale(gear.start.x) + 60;
+    const x2 = xScale(gear.end.x) + 60;
+    const y1 = yScale(gear.start.y);
+    const y2 = yScale(gear.end.y);
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+
+    const t = dx === 0 ? 0 : (relativeX - x1) / dx;
+    const clampedT = Math.min(1, Math.max(0, t));
+    const speed = gear.start.x + (gear.end.x - gear.start.x) * clampedT;
+    const rpm = gear.start.y + (gear.end.y - gear.start.y) * clampedT;
+    const point = { x: speed, y: rpm };
+
+    return {
+      gearLabel: gear.label,
+      point,
+      speed,
+      rpm,
+      x: x1 + dx * clampedT,
+      y: y1 + dy * clampedT,
+    };
+  };
+
+  const finalizeDraft = () => setConfig(draft);
+
+  const handlePrimarySelectionChange = (nextValue: string) => {
+    setPrimarySelection(nextValue);
+
+    if (nextValue === "all") {
+      const firstFamily = families[0];
+      if (firstFamily) {
+        setSelectedModel(firstFamily.model);
+        setSelectedVariantName(firstFamily.variants[0]?.name ?? "");
+      }
+      return;
+    }
+
+    if (nextValue.startsWith("manufacturer:")) {
+      const manufacturer = nextValue.replace("manufacturer:", "");
+      const family = families.find((item) => item.manufacturer === manufacturer) ?? families[0];
+      if (family) {
+        setSelectedModel(family.model);
+        setSelectedVariantName(family.variants[0]?.name ?? "");
+      }
+      return;
+    }
+
+    if (nextValue.startsWith("brand:")) {
+      const brand = nextValue.replace("brand:", "");
+      const matching = families
+        .flatMap((family) => family.variants.map((variant) => ({ family, variant })))
+        .find(({ variant }) => variant.application_manufacturers.includes(brand));
+
+      if (matching) {
+        setSelectedModel(matching.family.model);
+        setSelectedVariantName(matching.variant.name);
+      }
+    }
+  };
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -34,31 +414,187 @@ export function App() {
             <span>01</span>
             <h3>Configuration</h3>
           </div>
+
           <label>
-            Transmission
-            <select defaultValue="tkx-wide">
-              <option value="tkx-wide">TKX / wide ratio</option>
-              <option value="custom">Custom gearset</option>
+            Transmission search
+            <select value={primarySelection} onChange={(event) => handlePrimarySelectionChange(event.target.value)}>
+              {scopeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
+
+          {hasPrimarySelection && primaryMode !== "brand" ? (
+            <label>
+              Transmission model
+              <select
+                value={selectedModel}
+                onChange={(event) => {
+                  const nextModel = event.target.value;
+                  const nextFamily = families.find((family) => family.model === nextModel);
+                  setSelectedModel(nextModel);
+                  setSelectedVariantName(nextFamily?.variants[0]?.name ?? "");
+                }}
+                disabled={loading || modelOptions.length === 0}
+              >
+                {modelOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {hasPrimarySelection && primaryMode === "brand" && brandVariantOptions.length > 1 ? (
+            <label>
+              Transmission variant
+              <select
+                value={
+                  brandVariantOptions.find((option) => option.value === `${selectedModel}::${selectedVariantName}`)?.value ??
+                  brandVariantOptions[0]?.value ??
+                  ""
+                }
+                onChange={(event) => {
+                  const value = event.target.value;
+                  const [nextModel, nextVariant] = value.split("::");
+                  if (nextModel && nextVariant) {
+                    setSelectedModel(nextModel);
+                    setSelectedVariantName(nextVariant);
+                  }
+                }}
+                disabled={loading || brandVariantOptions.length === 0}
+              >
+                {brandVariantOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
+          {hasPrimarySelection && primaryMode !== "brand" && activeFamily && activeVariants.length > 1 ? (
+            <label>
+              Variant
+              <select
+                value={selectedVariantName}
+                onChange={(event) => setSelectedVariantName(event.target.value)}
+                disabled={loading || activeVariants.length === 0}
+              >
+                {activeVariants.map((variant) => (
+                  <option key={variant.name} value={variant.name}>
+                    {variant.name} ({variant.gear_ratios.join(" / ")})
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
           <div className="field-row">
             <label>
               Tire diameter
-              <input defaultValue="26" type="number" />
+              <input
+                value={draft.tireDiameter}
+                type="number"
+                onChange={(event) => {
+                  const value = Number.parseFloat(event.target.value);
+                  setDraft((current) => ({ ...current, tireDiameter: Number.isFinite(value) ? value : 0 }));
+                }}
+                onBlur={finalizeDraft}
+              />
             </label>
             <label>
               Rear axle
-              <input defaultValue="4.10" type="number" step="0.01" />
+              <input
+                value={draft.axleRatio}
+                type="number"
+                step="0.01"
+                onChange={(event) => {
+                  const value = Number.parseFloat(event.target.value);
+                  setDraft((current) => ({ ...current, axleRatio: Number.isFinite(value) ? value : 0 }));
+                }}
+                onBlur={finalizeDraft}
+              />
             </label>
           </div>
-          <label>
-            Engine redline <strong>6,000 RPM</strong>
-            <input defaultValue="6000" type="range" min="3000" max="9000" step="100" />
-          </label>
+
+          <div className="rpm-mode-panel">
+            <div className="rpm-mode-header">
+              <span className="label-small">INPUT MODE</span>
+            </div>
+            <div className="mode-toggle" role="tablist" aria-label="RPM input mode selector">
+              <button
+                type="button"
+                className={rpmMode === "range" ? "mode-toggle-btn active" : "mode-toggle-btn"}
+                onClick={() => setRpmMode("range")}
+              >
+                RPM Range
+              </button>
+              <button
+                type="button"
+                className={rpmMode === "shift" ? "mode-toggle-btn active" : "mode-toggle-btn"}
+                onClick={() => setRpmMode("shift")}
+              >
+                Shift Point
+              </button>
+            </div>
+          </div>
+
+          {rpmMode === "range" ? (
+            <fieldset className="rpm-range">
+              <legend>RPM range</legend>
+              <div className="field-row">
+                <label>
+                  Min RPM
+                  <input
+                    value={draft.minRpm}
+                    type="number"
+                    onChange={(event) => {
+                      const value = Number.parseInt(event.target.value, 10);
+                      setDraft((current) => ({ ...current, minRpm: Number.isFinite(value) ? value : 0 }));
+                    }}
+                    onBlur={finalizeDraft}
+                  />
+                </label>
+                <label>
+                  Max RPM
+                  <input
+                    value={draft.maxRpm}
+                    type="number"
+                    onChange={(event) => {
+                      const value = Number.parseInt(event.target.value, 10);
+                      setDraft((current) => ({ ...current, maxRpm: Number.isFinite(value) ? value : 0 }));
+                    }}
+                    onBlur={finalizeDraft}
+                  />
+                </label>
+              </div>
+            </fieldset>
+          ) : (
+            <div className="shift-point-panel">
+              <label>
+                Shift RPM
+                <input
+                  type="number"
+                  value={shiftRpm}
+                  min={minRpm}
+                  max={maxRpm}
+                  onChange={(event) => {
+                    const value = Number.parseInt(event.target.value, 10);
+                    setShiftRpm(Number.isFinite(value) ? value : minRpm);
+                  }}
+                />
+              </label>
+            </div>
+          )}
+
           <div className="transfer-case">
             <div>
               <span className="label-small">AUXILIARY STAGE</span>
-              <strong>No transfer case</strong>
+              <strong>{activeFamily ? `${activeFamily.manufacturer} ${activeFamily.model}` : "No transmission selected"}</strong>
             </div>
             <button className="text-button">+ Add stage</button>
           </div>
@@ -68,22 +604,169 @@ export function App() {
           <div className="panel-title chart-title">
             <div>
               <span>02</span>
-              <h3>Road speed at redline</h3>
+              <h3>Road speed vs RPM</h3>
             </div>
-            <span className="unit-chip">MPH</span>
+            <span className="unit-chip">MPH / RPM</span>
           </div>
-          <div className="chart" aria-label="Bar chart of road speed by gear">
-            {gears.map((gear) => (
-              <div className="bar-group" key={gear.label}>
-                <span className="bar-value">{gear.speed.toFixed(0)}</span>
-                <div className="bar-track">
-                  <div className="bar" style={{ height: `${(gear.speed / 160) * 100}%` }} />
-                </div>
-                <strong>{gear.label}</strong>
-                <span className="ratio">{gear.ratio.toFixed(2)}:1</span>
-              </div>
-            ))}
-          </div>
+
+          {loading ? (
+            <div className="loading-state">Loading transmission catalog…</div>
+          ) : (
+            <div className="chart-frame">
+              <svg className="chart-svg" viewBox="0 0 640 320" aria-label="Road speed vs RPM by gear">
+                {[0, 1, 2, 3, 4].map((i) => {
+                  const y = 30 + i * 50;
+                  const rpm = Math.round(rpmFloor + ((rpmCeiling - rpmFloor) * (1 - i / 4)));
+                  return (
+                    <g key={`grid-y-${rpm}`}>
+                      <line className="grid-line" x1="60" x2="600" y1={y} y2={y} />
+                      <text className="axis-label" x="14" y={y + 4}>
+                        {rpm.toLocaleString()}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {[0, 1, 2, 3, 4].map((i) => {
+                  const x = 60 + i * 135;
+                  const speed = Math.round((i / 4) * maxSpeed);
+                  return (
+                    <g key={`grid-x-${speed}`}>
+                      <line className="grid-line" x1={x} x2={x} y1="30" y2="280" />
+                      <text className="axis-label" x={x - 10} y="300">
+                        {speed}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                <line className="axis" x1="60" x2="60" y1="30" y2="280" />
+                <line className="axis" x1="60" x2="600" y1="280" y2="280" />
+
+                {shiftPointEnabled &&
+                  shiftConnectors.map((connector) => {
+                    const startX = xScale(connector.start.x) + 60;
+                    const startY = yScale(connector.start.y);
+                    const endX = xScale(connector.end.x) + 60;
+                    const endY = yScale(connector.end.y);
+
+                    return (
+                      <path
+                        key={`${connector.previousGear.label}-${connector.gear.label}-shift`}
+                        className="shift-connector"
+                        d={`M ${startX} ${startY} L ${endX} ${endY}`}
+                      />
+                    );
+                  })}
+
+                {chartLines.map((gear, index) => {
+                  const lineStartX = xScale(gear.start.x) + 60;
+                  const lineStartY = yScale(gear.start.y);
+                  const lineEndX = xScale(gear.end.x) + 60;
+                  const lineEndY = yScale(gear.end.y);
+                  const isActive = hover?.gearLabel === gear.label;
+                  const shiftLabelX = lineStartX > 420 ? lineStartX - 12 : lineStartX + 12;
+                  const shiftLabelY = lineStartY < 70 ? lineStartY + 16 : lineStartY - 12;
+                  const gearLabelX = lineEndX > 500 ? lineEndX - 10 : lineEndX + 10;
+                  const gearLabelY = lineEndY < 60 ? lineEndY + 16 : lineEndY - 8;
+                  const gearTextAnchor = lineEndX > 500 ? "end" : "start";
+                  const shiftTextAnchor = lineStartX > 420 ? "end" : "start";
+                  const lowerShiftRpm = index === 0 ? 0 : Math.round(((gear.start.x * gear.ratio * config.axleRatio * 336.13) / config.tireDiameter));
+
+                  return (
+                    <g key={gear.label}>
+                      <path
+                        className="hover-hit-area"
+                        d={`M ${lineStartX} ${lineStartY} L ${lineEndX} ${lineEndY}`}
+                        strokeWidth={22}
+                        stroke="transparent"
+                        fill="none"
+                        onMouseMove={(event) => {
+                          const svg = event.currentTarget.ownerSVGElement;
+                          const rect = svg?.getBoundingClientRect();
+                          if (!rect) return;
+
+                          const relativeX = ((event.clientX - rect.left) / rect.width) * 640;
+                          const marker = getPointForMouse(gear, relativeX);
+                          setHover({
+                            gearLabel: gear.label,
+                            point: marker.point,
+                            rpm: marker.rpm,
+                            speed: marker.speed,
+                          });
+                        }}
+                        onMouseLeave={() => setHover(null)}
+                      />
+                      <path
+                        className={isActive ? "gear-line active" : "gear-line"}
+                        d={`M ${lineStartX} ${lineStartY} L ${lineEndX} ${lineEndY}`}
+                        onMouseMove={(event) => {
+                          const svg = event.currentTarget.ownerSVGElement;
+                          const rect = svg?.getBoundingClientRect();
+                          if (!rect) return;
+
+                          const relativeX = ((event.clientX - rect.left) / rect.width) * 640;
+                          const marker = getPointForMouse(gear, relativeX);
+                          setHover({
+                            gearLabel: gear.label,
+                            point: marker.point,
+                            rpm: marker.rpm,
+                            speed: marker.speed,
+                          });
+                        }}
+                        onMouseLeave={() => setHover(null)}
+                      />
+                      {isActive && hover && (
+                        <g>
+                          <circle
+                            className="hover-dot"
+                            cx={xScale(hover.point.x) + 60}
+                            cy={yScale(hover.point.y)}
+                            r={5}
+                          />
+                          <rect
+                            className="hover-box"
+                            x={xScale(hover.point.x) + 70}
+                            y={yScale(hover.point.y) - 28}
+                            width="118"
+                            height="42"
+                            rx="8"
+                          />
+                          <text className="hover-text" x={xScale(hover.point.x) + 82} y={yScale(hover.point.y) - 6}>
+                            {gear.label}
+                          </text>
+                          <text className="hover-text" x={xScale(hover.point.x) + 82} y={yScale(hover.point.y) + 10}>
+                            {Math.round(hover.rpm).toLocaleString()} RPM / {hover.speed.toFixed(1)} MPH
+                          </text>
+                        </g>
+                      )}
+                      {shiftPointEnabled && gear.label !== "1st" && (
+                        <g>
+                          <circle
+                            className="shift-point-marker"
+                            cx={lineStartX}
+                            cy={lineStartY}
+                            r={4}
+                          />
+                          <text
+                            className="shift-label"
+                            x={shiftLabelX}
+                            y={shiftLabelY}
+                            textAnchor={shiftTextAnchor}
+                          >
+                            {`${lowerShiftRpm.toLocaleString()} RPM / ${gear.start.x.toFixed(1)} MPH`}
+                          </text>
+                        </g>
+                      )}
+                      <text className="gear-label" x={gearLabelX} y={gearLabelY} textAnchor={gearTextAnchor}>
+                        {gear.label}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+          )}
         </section>
       </section>
 
@@ -93,18 +776,61 @@ export function App() {
             <span>03</span>
             <h3>Gearset overview</h3>
           </div>
-          <button className="text-button">Edit ratios</button>
+          <div className="gearset-tabs" role="tablist" aria-label="Gearset overview tabs">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={gearsetView === "overview"}
+              className={gearsetView === "overview" ? "gearset-tab active" : "gearset-tab"}
+              onClick={() => setGearsetView("overview")}
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={gearsetView === "cruising"}
+              className={gearsetView === "cruising" ? "gearset-tab active" : "gearset-tab"}
+              onClick={() => setGearsetView("cruising")}
+            >
+              Cruising RPM
+            </button>
+          </div>
         </div>
-        <div className="ratio-table">
-          {gears.map((gear, index) => (
-            <div className="ratio-row" key={gear.label}>
-              <span>{gear.label}</span>
-              <strong>{gear.ratio.toFixed(2)}</strong>
-              <span>{index === 0 ? "Starting gear" : `${Math.round((1 - gear.ratio / gears[index - 1].ratio) * 100)}% drop`}</span>
-              <span>{gear.speed.toFixed(1)} mph</span>
+
+        {gearsetView === "overview" ? (
+          <div className="ratio-table">
+            {gearSet.map((gear, index) => (
+              <div className="ratio-row" key={gear.label}>
+                <span>{gear.label}</span>
+                <strong>{gear.ratio.toFixed(2)}</strong>
+                <span>
+                  {index === 0 ? "Starting gear" : `${Math.round((1 - gear.ratio / gearSet[index - 1].ratio) * 100)}% drop`}
+                </span>
+                <span>{speedForRpm(maxRpm, gear.ratio, config.tireDiameter, config.axleRatio).toFixed(1)} mph</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="ratio-table cruising-table">
+            <div className="ratio-row cruising-header">
+              <span>Gear</span>
+              {cruisingRows.map((row) => (
+                <strong key={`speed-${row.speed}`}>{row.speed} mph</strong>
+              ))}
             </div>
-          ))}
-        </div>
+            {gearSet.map((gear) => (
+              <div className="ratio-row cruising-row" key={gear.label}>
+                <span>{gear.label}</span>
+                {cruisingRows.map((row) => (
+                  <span key={`${gear.label}-${row.speed}`}>
+                    {formatCruisingRpm(row.rpmByGear[gear.label] ?? 0)}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

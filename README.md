@@ -52,9 +52,27 @@ pytest
 
 ## Frontend
 
+Build the production bundle with Bazel:
+
+```bash
+bazel build //frontend:bundle
+```
+
+This creates the bundled frontend output in `bazel-bin/frontend/dist`.
+
+For local frontend development, install the frontend dependencies and run Vite directly:
+
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
+If you want to run the app through Bazel-managed JS tooling instead of a raw npm dev server, the frontend build target is:
+
+```bash
+bazel build //frontend:bundle
+```
+
+The generated bundle is suitable for production and can be served by the backend or by a static host as needed.
 

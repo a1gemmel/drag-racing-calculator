@@ -6,6 +6,7 @@ module(
 bazel_dep(name = "rules_oci", version = "2.2.6")
 bazel_dep(name = "rules_pkg", version = "1.0.1")
 bazel_dep(name = "rules_python", version = "0.36.0")
+bazel_dep(name = "aspect_rules_js", version = "2.7.0")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
@@ -20,3 +21,10 @@ pip.parse(
     requirements_lock = "//:requirements_lock.txt",
 )
 use_repo(pip, "python_deps")
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(
+    name = "npm",
+    pnpm_lock = "//frontend:pnpm-lock.yaml",
+)
+use_repo(npm, "npm")

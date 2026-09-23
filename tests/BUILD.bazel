@@ -7,3 +7,14 @@ py_test(
         "@python_deps//pytest:pkg",
     ],
 )
+
+py_test(
+    name = "app_test",
+    main = "test_app.py",
+    srcs = ["test_app.py"],
+    deps = [
+        "//backend:server",
+        "@python_deps//fastapi:pkg",
+        "@python_deps//pytest:pkg",
+    ],
+)
