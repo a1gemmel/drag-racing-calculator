@@ -3,5 +3,4 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     ".bazelversion",
     "README.md",
-    "requirements_lock.txt",
 ])

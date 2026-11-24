@@ -15,6 +15,7 @@ filegroup(
     srcs = glob([
         "*.json",
         "*.ts",
+        "*.tsx",
         "src/**/*.tsx",
         "src/**/*.ts",
         "src/**/*.css",
@@ -29,4 +30,19 @@ js_run_binary(
     args = ["build", "--outDir", "dist"],
     chdir = "frontend",
     out_dirs = ["dist"],
+)
+
+genrule(
+    name = "standalone",
+    srcs = [":bundle"],
+    outs = ["static/index.html"],
+    cmd = "cp $(location :bundle)/index.html $@",
+)
+
+sh_test(
+    name = "static_artifact_test",
+    srcs = ["static_artifact_test.sh"],
+    args = ["$(location :standalone)"],
+    data = [":standalone"],
+    size = "small",
 )

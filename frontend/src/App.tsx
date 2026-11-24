@@ -1,20 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { transmissionFamilies, type TransmissionFamily, type TransmissionVariant } from "./catalog";
+import { rpmForSpeed, speedMph } from "./calculations";
 
 type Point = { x: number; y: number };
 type HoverState = { gearLabel: string; point: Point; rpm: number; speed: number } | null;
-
-type TransmissionVariant = {
-  name: string;
-  gear_ratios: number[];
-  application_manufacturers: string[];
-  reverse_ratio?: number | null;
-};
-
-type TransmissionFamily = {
-  manufacturer: string;
-  model: string;
-  variants: TransmissionVariant[];
-};
 
 type Gear = { label: string; ratio: number };
 
@@ -25,10 +14,6 @@ const defaultConfig = {
   maxRpm: 6500,
 };
 
-function speedForRpm(rpm: number, ratio: number, tireDiameter: number, axleRatio: number) {
-  return (rpm * tireDiameter) / (ratio * axleRatio * 336.13);
-}
-
 function gearLabel(index: number) {
   const labels = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
   return labels[index] ?? `${index + 1}`;
@@ -38,45 +23,14 @@ export function App() {
   const [draft, setDraft] = useState(defaultConfig);
   const [config, setConfig] = useState(defaultConfig);
   const [hover, setHover] = useState<HoverState>(null);
-  const [families, setFamilies] = useState<TransmissionFamily[]>([]);
+  const families = transmissionFamilies;
   const [primarySelection, setPrimarySelection] = useState("");
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedVariantName, setSelectedVariantName] = useState("");
-  const [loading, setLoading] = useState(true);
   const [gearsetView, setGearsetView] = useState<"overview" | "cruising">("overview");
   const [rpmMode, setRpmMode] = useState<"range" | "shift">("range");
   const [shiftRpm, setShiftRpm] = useState(6500);
   const shiftPointEnabled = rpmMode === "shift";
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadTransmissions() {
-      try {
-        const response = await fetch("/api/transmissions");
-        if (!response.ok) {
-          throw new Error(`Request failed: ${response.status}`);
-        }
-        const data = (await response.json()) as TransmissionFamily[];
-        if (!isMounted) return;
-        setFamilies(data);
-      } catch (error) {
-        console.error("Unable to load transmissions", error);
-        if (isMounted) {
-          setFamilies([]);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadTransmissions();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const manufacturerOptions = useMemo(
     () => Array.from(new Set(families.map((family) => family.manufacturer))).sort(),
@@ -244,7 +198,7 @@ export function App() {
   const maxRpm = Math.max(config.minRpm, config.maxRpm);
   const safeShiftRpm = Math.min(Math.max(shiftRpm, minRpm), maxRpm);
   const maxSpeedRaw = Math.max(
-    ...gearSet.map((gear) => speedForRpm(maxRpm, gear.ratio, config.tireDiameter, config.axleRatio)),
+    ...gearSet.map((gear) => speedMph(maxRpm, config.tireDiameter, gear.ratio, config.axleRatio)),
     200,
   );
   const maxSpeed = Math.ceil(maxSpeedRaw / 50) * 50;
@@ -255,8 +209,8 @@ export function App() {
     () =>
       gearSet.map((gear, index) => {
         if (!shiftPointEnabled) {
-          const start = speedForRpm(minRpm, gear.ratio, config.tireDiameter, config.axleRatio);
-          const end = speedForRpm(maxRpm, gear.ratio, config.tireDiameter, config.axleRatio);
+          const start = speedMph(minRpm, config.tireDiameter, gear.ratio, config.axleRatio);
+          const end = speedMph(maxRpm, config.tireDiameter, gear.ratio, config.axleRatio);
 
           return {
             ...gear,
@@ -265,9 +219,9 @@ export function App() {
           };
         }
 
-        const startSpeed = index === 0 ? 0 : speedForRpm(safeShiftRpm, gearSet[index - 1].ratio, config.tireDiameter, config.axleRatio);
-        const startRpm = index === 0 ? 0 : (startSpeed * gear.ratio * config.axleRatio * 336.13) / config.tireDiameter;
-        const endSpeed = speedForRpm(safeShiftRpm, gear.ratio, config.tireDiameter, config.axleRatio);
+        const startSpeed = index === 0 ? 0 : speedMph(safeShiftRpm, config.tireDiameter, gearSet[index - 1].ratio, config.axleRatio);
+        const startRpm = index === 0 ? 0 : rpmForSpeed(startSpeed, config.tireDiameter, gear.ratio, config.axleRatio);
+        const endSpeed = speedMph(safeShiftRpm, config.tireDiameter, gear.ratio, config.axleRatio);
 
         return {
           ...gear,
@@ -285,8 +239,8 @@ export function App() {
 
     return gearSet.slice(1).map((gear, index) => {
       const previousGear = gearSet[index];
-      const shiftSpeed = speedForRpm(safeShiftRpm, previousGear.ratio, config.tireDiameter, config.axleRatio);
-      const nextGearRpmAtShiftSpeed = (shiftSpeed * gear.ratio * config.axleRatio * 336.13) / config.tireDiameter;
+      const shiftSpeed = speedMph(safeShiftRpm, config.tireDiameter, previousGear.ratio, config.axleRatio);
+      const nextGearRpmAtShiftSpeed = rpmForSpeed(shiftSpeed, config.tireDiameter, gear.ratio, config.axleRatio);
 
       return {
         previousGear,
@@ -309,7 +263,7 @@ export function App() {
     return speeds.map((speed) => ({
       speed,
       rpmByGear: gearSet.reduce<Record<string, number>>((accumulator, gear) => {
-        accumulator[gear.label] = (speed * gear.ratio * config.axleRatio * 336.13) / config.tireDiameter;
+        accumulator[gear.label] = rpmForSpeed(speed, config.tireDiameter, gear.ratio, config.axleRatio);
         return accumulator;
       }, {}),
     }));
@@ -437,7 +391,7 @@ export function App() {
                   setSelectedModel(nextModel);
                   setSelectedVariantName(nextFamily?.variants[0]?.name ?? "");
                 }}
-                disabled={loading || modelOptions.length === 0}
+                disabled={modelOptions.length === 0}
               >
                 {modelOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -465,7 +419,7 @@ export function App() {
                     setSelectedVariantName(nextVariant);
                   }
                 }}
-                disabled={loading || brandVariantOptions.length === 0}
+                disabled={brandVariantOptions.length === 0}
               >
                 {brandVariantOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -482,7 +436,7 @@ export function App() {
               <select
                 value={selectedVariantName}
                 onChange={(event) => setSelectedVariantName(event.target.value)}
-                disabled={loading || activeVariants.length === 0}
+                disabled={activeVariants.length === 0}
               >
                 {activeVariants.map((variant) => (
                   <option key={variant.name} value={variant.name}>
@@ -609,10 +563,7 @@ export function App() {
             <span className="unit-chip">MPH / RPM</span>
           </div>
 
-          {loading ? (
-            <div className="loading-state">Loading transmission catalog…</div>
-          ) : (
-            <div className="chart-frame">
+          <div className="chart-frame">
               <svg className="chart-svg" viewBox="0 0 640 320" aria-label="Road speed vs RPM by gear">
                 {[0, 1, 2, 3, 4].map((i) => {
                   const y = 30 + i * 50;
@@ -671,7 +622,7 @@ export function App() {
                   const gearLabelY = lineEndY < 60 ? lineEndY + 16 : lineEndY - 8;
                   const gearTextAnchor = lineEndX > 500 ? "end" : "start";
                   const shiftTextAnchor = lineStartX > 420 ? "end" : "start";
-                  const lowerShiftRpm = index === 0 ? 0 : Math.round(((gear.start.x * gear.ratio * config.axleRatio * 336.13) / config.tireDiameter));
+                    const lowerShiftRpm = index === 0 ? 0 : Math.round(rpmForSpeed(gear.start.x, config.tireDiameter, gear.ratio, config.axleRatio));
 
                   return (
                     <g key={gear.label}>
@@ -765,8 +716,7 @@ export function App() {
                   );
                 })}
               </svg>
-            </div>
-          )}
+          </div>
         </section>
       </section>
 
@@ -807,7 +757,7 @@ export function App() {
                 <span>
                   {index === 0 ? "Starting gear" : `${Math.round((1 - gear.ratio / gearSet[index - 1].ratio) * 100)}% drop`}
                 </span>
-                <span>{speedForRpm(maxRpm, gear.ratio, config.tireDiameter, config.axleRatio).toFixed(1)} mph</span>
+                <span>{speedMph(maxRpm, config.tireDiameter, gear.ratio, config.axleRatio).toFixed(1)} mph</span>
               </div>
             ))}
           </div>

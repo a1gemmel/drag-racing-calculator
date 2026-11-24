@@ -1,1 +1,0 @@
-"""Transmission ratio calculation service."""
