@@ -1,616 +1,439 @@
 import { useMemo, useState } from "react";
-import { transmissionFamilies } from "./catalog";
-import { ALL_SCOPE, filterFamilies, resolveSelection, scopeOptions } from "./transmissionSearch";
 import { rpmForSpeed, speedMph } from "./calculations";
+import { transmissionFamilies } from "./catalog";
+import { CrawlView } from "./components/CrawlView";
+import { GearChart, type Gear } from "./components/GearChart";
+import { NumberField } from "./components/NumberField";
+import { Segmented } from "./components/Segmented";
+import { TireField, type TireMode } from "./components/TireField";
+import { parseTireSize } from "./tires";
+import { ALL_SCOPE, filterFamilies, resolveSelection, scopeOptions } from "./transmissionSearch";
 
-type Point = { x: number; y: number };
-type HoverState = { gearLabel: string; point: Point; rpm: number; speed: number } | null;
+type AppMode = "race" | "crawl";
+type RpmMode = "shift" | "range";
 
-type Gear = { label: string; ratio: number };
-
-const defaultConfig = {
-  tireDiameter: 26,
-  axleRatio: 4.1,
-  minRpm: 1500,
-  maxRpm: 6500,
-};
-
-// SVG viewBox is 640x320; the plot area sits inside these edges.
-const PLOT = { left: 60, right: 600, top: 30, bottom: 280 };
-const HOVER_BOX_WIDTH = 160;
-
-// Largest "nice" step (1, 2, 2.5, 5 x 10^n) that splits `max` into at most `maxTicks` intervals.
-function niceStep(max: number, maxTicks: number) {
-  const rough = max / maxTicks;
-  const magnitude = 10 ** Math.floor(Math.log10(rough));
-  const multiplier = [1, 2, 2.5, 5, 10].find((m) => m * magnitude >= rough) ?? 10;
-  return multiplier * magnitude;
-}
-
-function gearLabel(index: number) {
-  const labels = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
-  return labels[index] ?? `${index + 1}`;
-}
+// Gear colors in fixed order (validated for CVD separation on the dark chart surface).
+// Color follows the gear, so 1st is always the same blue whatever transmission is shown.
+const GEAR_COLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#0ca30c", "#9085e9", "#e66767"];
+const ORDINALS = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
+const CRUISE_SPEEDS = [10, 20, 30, 40, 50, 60, 70, 80];
+const HIGHWAY_MPH = 65;
+const LUGGING_RPM = 800;
+const CRUISE_FLOOR_RPM = 1200;
 
 export function App() {
-  const [draft, setDraft] = useState(defaultConfig);
-  const [config, setConfig] = useState(defaultConfig);
-  const [hover, setHover] = useState<HoverState>(null);
   const families = transmissionFamilies;
+  const [appMode, setAppMode] = useState<AppMode>("race");
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState(ALL_SCOPE);
   // The user's last pick. If a search or filter hides it, resolveSelection falls back to the first match.
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedVariantName, setSelectedVariantName] = useState("");
-  const [gearsetView, setGearsetView] = useState<"overview" | "cruising">("overview");
-  const [rpmMode, setRpmMode] = useState<"range" | "shift">("shift");
+  const [tireMode, setTireMode] = useState<TireMode>("diameter");
+  const [tireDiameterIn, setTireDiameterIn] = useState(26);
+  const [tireSize, setTireSize] = useState("275/55R15");
+  const parsedTire = tireMode === "size" ? parseTireSize(tireSize) : null;
+  // Speed math uses the rolling diameter: as entered in diameter mode, size math minus the rolling correction otherwise.
+  const tireDiameter = parsedTire ? parsedTire.effectiveDiameterIn : tireDiameterIn;
+  const tireLabel = parsedTire ? `${parsedTire.label} (${tireDiameter.toFixed(1)}″)` : `${tireDiameter}″ tire`;
+  const [axleRatio, setAxleRatio] = useState(4.1);
+  const [rpmMode, setRpmMode] = useState<RpmMode>("shift");
   const [shiftRpm, setShiftRpm] = useState(6500);
-  const shiftPointEnabled = rpmMode === "shift";
+  const [minRpm, setMinRpm] = useState(1500);
+  const [maxRpm, setMaxRpm] = useState(6500);
+  const [gearsetView, setGearsetView] = useState<"ladder" | "cruising">("ladder");
+  const [lowRange, setLowRange] = useState(2.72);
+  const [crawlRpm, setCrawlRpm] = useState(1000);
 
   const scopes = useMemo(() => scopeOptions(families), [families]);
   const filteredFamilies = useMemo(() => filterFamilies(families, scope, query), [families, scope, query]);
   const selection = resolveSelection(filteredFamilies, selectedModel, selectedVariantName);
-  const activeFamily = selection?.family ?? null;
-  const activeVariant = selection?.variant ?? null;
 
-  const gearSet = useMemo<Gear[]>(() => {
-    if (!activeVariant) return [];
-    return activeVariant.gear_ratios.map((ratio, index) => ({
-      label: gearLabel(index),
-      ratio,
-    }));
-  }, [activeVariant]);
-
-  const minRpm = Math.min(config.minRpm, config.maxRpm);
-  const maxRpm = Math.max(config.minRpm, config.maxRpm);
-  const safeShiftRpm = Math.min(Math.max(shiftRpm, minRpm), maxRpm);
-  const maxSpeedRaw = Math.max(
-    ...gearSet.map((gear) => speedMph(maxRpm, config.tireDiameter, gear.ratio, config.axleRatio)),
-    1,
-  );
-  const speedStep = niceStep(maxSpeedRaw, 8);
-  const maxSpeed = Math.ceil(maxSpeedRaw / speedStep) * speedStep;
-  const speedTicks = Array.from({ length: Math.round(maxSpeed / speedStep) + 1 }, (_, i) => i * speedStep);
-  const rpmFloor = 0;
-  const rpmCeiling = Math.max(Math.ceil(maxRpm / 1000) * 1000, 1000);
-  const rpmStep = niceStep(rpmCeiling, 8);
-  const rpmTicks = Array.from({ length: Math.floor(rpmCeiling / rpmStep) + 1 }, (_, i) => i * rpmStep);
-
-  const chartLines = useMemo(
+  const gears = useMemo<Gear[]>(
     () =>
-      gearSet.map((gear, index) => {
-        if (!shiftPointEnabled) {
-          const start = speedMph(minRpm, config.tireDiameter, gear.ratio, config.axleRatio);
-          const end = speedMph(maxRpm, config.tireDiameter, gear.ratio, config.axleRatio);
-
-          return {
-            ...gear,
-            start: { x: start, y: minRpm },
-            end: { x: end, y: maxRpm },
-          };
-        }
-
-        const startSpeed = index === 0 ? 0 : speedMph(safeShiftRpm, config.tireDiameter, gearSet[index - 1].ratio, config.axleRatio);
-        const startRpm = index === 0 ? 0 : rpmForSpeed(startSpeed, config.tireDiameter, gear.ratio, config.axleRatio);
-        const endSpeed = speedMph(safeShiftRpm, config.tireDiameter, gear.ratio, config.axleRatio);
-
-        return {
-          ...gear,
-          start: { x: startSpeed, y: startRpm },
-          end: { x: endSpeed, y: safeShiftRpm },
-        };
-      }),
-    [config, gearSet, maxRpm, minRpm, safeShiftRpm, shiftPointEnabled],
+      (selection?.variant.gear_ratios ?? []).map((ratio, index) => ({
+        label: ORDINALS[index] ?? `${index + 1}`,
+        ratio,
+        color: GEAR_COLORS[index % GEAR_COLORS.length],
+      })),
+    [selection?.variant],
   );
 
-  const shiftConnectors = useMemo(() => {
-    if (!shiftPointEnabled || gearSet.length < 2) {
-      return [];
+  const low = Math.min(minRpm, maxRpm);
+  const high = Math.max(minRpm, maxRpm);
+  const topRpm = rpmMode === "shift" ? shiftRpm : high;
+  const speedAt = (rpm: number, ratio: number) => speedMph(rpm, tireDiameter, ratio, axleRatio);
+  const rpmAt = (mph: number, ratio: number) => rpmForSpeed(mph, tireDiameter, ratio, axleRatio);
+
+  // RPM after each upshift made at topRpm, and the size of the drop.
+  const shifts = gears.slice(1).map((gear, index) => {
+    const from = gears[index];
+    const landing = rpmAt(speedAt(topRpm, from.ratio), gear.ratio);
+    return { from, to: gear, landing, drop: topRpm - landing, step: 1 - gear.ratio / from.ratio };
+  });
+  const biggestShift = shifts.reduce<(typeof shifts)[number] | null>(
+    (best, shift) => (best === null || shift.drop > best.drop ? shift : best),
+    null,
+  );
+  const topGear = gears[gears.length - 1];
+
+  // Best cruising gear per speed: the lowest RPM that is still >= CRUISE_FLOOR_RPM and <= topRpm.
+  const bestCruiseGear = new Map<number, string>();
+  for (const mph of CRUISE_SPEEDS) {
+    let best: { label: string; rpm: number } | null = null;
+    for (const gear of gears) {
+      const rpm = rpmAt(mph, gear.ratio);
+      if (rpm >= CRUISE_FLOOR_RPM && rpm <= topRpm && (best === null || rpm < best.rpm)) best = { label: gear.label, rpm };
     }
-
-    return gearSet.slice(1).map((gear, index) => {
-      const previousGear = gearSet[index];
-      const shiftSpeed = speedMph(safeShiftRpm, config.tireDiameter, previousGear.ratio, config.axleRatio);
-      const nextGearRpmAtShiftSpeed = rpmForSpeed(shiftSpeed, config.tireDiameter, gear.ratio, config.axleRatio);
-
-      return {
-        previousGear,
-        gear,
-        start: {
-          x: shiftSpeed,
-          y: safeShiftRpm,
-        },
-        end: {
-          x: shiftSpeed,
-          y: nextGearRpmAtShiftSpeed,
-        },
-      };
-    });
-  }, [config.axleRatio, config.tireDiameter, gearSet, safeShiftRpm, shiftPointEnabled]);
-
-  const cruisingRows = useMemo(() => {
-    const speeds = Array.from({ length: 8 }, (_, index) => (index + 1) * 10);
-
-    return speeds.map((speed) => ({
-      speed,
-      rpmByGear: gearSet.reduce<Record<string, number>>((accumulator, gear) => {
-        accumulator[gear.label] = rpmForSpeed(speed, config.tireDiameter, gear.ratio, config.axleRatio);
-        return accumulator;
-      }, {}),
-    }));
-  }, [config.axleRatio, config.tireDiameter, gearSet]);
-
-  const formatCruisingRpm = (rpm: number) => {
-    if (rpm < minRpm || rpm > maxRpm) {
-      return "—";
-    }
-
-    return `${Math.round(rpm).toLocaleString()} rpm`;
-  };
-
-  const xScale = (speed: number) => PLOT.left + (speed / maxSpeed) * (PLOT.right - PLOT.left);
-  const yScale = (rpm: number) =>
-    PLOT.bottom - ((rpm - rpmFloor) / Math.max(rpmCeiling - rpmFloor, 1)) * (PLOT.bottom - PLOT.top);
-
-  const getPointForMouse = (gear: { label: string; ratio: number; start: Point; end: Point }, relativeX: number) => {
-    const x1 = xScale(gear.start.x);
-    const x2 = xScale(gear.end.x);
-    const y1 = yScale(gear.start.y);
-    const y2 = yScale(gear.end.y);
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-
-    const t = dx === 0 ? 0 : (relativeX - x1) / dx;
-    const clampedT = Math.min(1, Math.max(0, t));
-    const speed = gear.start.x + (gear.end.x - gear.start.x) * clampedT;
-    const rpm = gear.start.y + (gear.end.y - gear.start.y) * clampedT;
-    const point = { x: speed, y: rpm };
-
-    return {
-      gearLabel: gear.label,
-      point,
-      speed,
-      rpm,
-      x: x1 + dx * clampedT,
-      y: y1 + dy * clampedT,
-    };
-  };
-
-  // Commit only valid values; an empty or non-positive field keeps the last good value
-  // (zero tire diameter or axle ratio would make the speed math throw).
-  const finalizeDraft = () => {
-    const next = {
-      tireDiameter: draft.tireDiameter > 0 ? draft.tireDiameter : config.tireDiameter,
-      axleRatio: draft.axleRatio > 0 ? draft.axleRatio : config.axleRatio,
-      minRpm: draft.minRpm >= 0 ? draft.minRpm : config.minRpm,
-      maxRpm: draft.maxRpm > 0 ? draft.maxRpm : config.maxRpm,
-    };
-    setDraft(next);
-    setConfig(next);
-  };
+    if (best) bestCruiseGear.set(mph, best.label);
+  }
 
   return (
-    <main className="app-shell">
+    <div className="app" data-mode={appMode}>
       <header className="topbar">
-        <div>
-          <p className="eyebrow">DRIVETRAIN LAB / 01</p>
+        <div className="brand">
+          <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M4 26 L12 14 L18 18 L28 5" />
+            <circle cx="12" cy="14" r="2.5" />
+            <circle cx="18" cy="18" r="2.5" />
+          </svg>
           <h1>Transmission Ratio Viz</h1>
         </div>
-        <button className="save-button">Save build</button>
+        <Segmented
+          label="App mode"
+          className="mode-switch"
+          value={appMode}
+          onChange={setAppMode}
+          options={[
+            { value: "race", label: "Race", hint: "Shift points & road speed" },
+            { value: "crawl", label: "Crawl", hint: "Crawl ratio & low range" },
+          ]}
+        />
       </header>
 
-      <section className="workspace-heading">
-        <div>
-          <p className="eyebrow">GEARING WORKSPACE</p>
-          <h2>See the shape of every shift.</h2>
-        </div>
-        <p className="intro">
-          Model the relationship between engine speed, gearing, and road speed
-          before the first test drive.
-        </p>
-      </section>
+      <div className="layout">
+        <aside className="sidebar" aria-label="Configuration">
+          <section className="group">
+            <h2 className="group-title">Transmission</h2>
+            <div className="field">
+              <label htmlFor="trans-search">Search</label>
+              <input
+                id="trans-search"
+                type="search"
+                value={query}
+                placeholder="T5 Ford, NV4500, 2.95…"
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor="trans-scope">Filter by</label>
+              <select id="trans-scope" value={scope} onChange={(event) => setScope(event.target.value)}>
+                {scopes.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-      <section className="workspace-grid">
-        <aside className="panel controls-panel">
-          <div className="panel-title">
-            <span>01</span>
-            <h3>Configuration</h3>
-          </div>
-
-          <label>
-            Search transmissions
-            <input
-              type="search"
-              value={query}
-              placeholder="e.g. T5 Ford, NV4500, 2.95"
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-
-          <label>
-            Filter by
-            <select value={scope} onChange={(event) => setScope(event.target.value)}>
-              {scopes.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {selection ? (
-            <>
-              <label>
-                Transmission model
-                <select
-                  value={selection.family.model}
-                  onChange={(event) => {
-                    setSelectedModel(event.target.value);
-                    setSelectedVariantName("");
-                  }}
-                >
-                  {filteredFamilies.map((family) => (
-                    <option key={family.model} value={family.model}>
-                      {family.manufacturer} {family.model}
-                      {family.variants.length > 1 ? ` (${family.variants.length})` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {selection.family.variants.length > 1 ? (
-                <label>
-                  Variant
+            {selection ? (
+              <>
+                <div className="field">
+                  <label htmlFor="trans-model">Model</label>
                   <select
-                    value={selection.variant.name}
+                    id="trans-model"
+                    value={selection.family.model}
                     onChange={(event) => {
-                      setSelectedModel(selection.family.model);
-                      setSelectedVariantName(event.target.value);
+                      setSelectedModel(event.target.value);
+                      setSelectedVariantName("");
                     }}
                   >
-                    {selection.family.variants.map((variant) => (
-                      <option key={variant.name} value={variant.name}>
-                        {variant.name} ({variant.gear_ratios.join(" / ")})
+                    {filteredFamilies.map((family) => (
+                      <option key={family.model} value={family.model}>
+                        {family.manufacturer} {family.model}
+                        {family.variants.length > 1 ? ` (${family.variants.length})` : ""}
                       </option>
                     ))}
                   </select>
-                </label>
-              ) : null}
-            </>
-          ) : (
-            <p className="search-empty" role="status">
-              No transmissions match this search.
-            </p>
-          )}
+                </div>
+                {selection.family.variants.length > 1 ? (
+                  <div className="field">
+                    <label htmlFor="trans-variant">Variant</label>
+                    <select
+                      id="trans-variant"
+                      value={selection.variant.name}
+                      onChange={(event) => {
+                        setSelectedModel(selection.family.model);
+                        setSelectedVariantName(event.target.value);
+                      }}
+                    >
+                      {selection.family.variants.map((variant) => (
+                        <option key={variant.name} value={variant.name}>
+                          {variant.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+                <ol className="ratio-chips" aria-label="Gear ratios">
+                  {gears.map((gear) => (
+                    <li key={gear.label} style={{ borderColor: gear.color }}>
+                      <span>{gear.label}</span>
+                      {gear.ratio.toFixed(2)}
+                    </li>
+                  ))}
+                </ol>
+                {selection.variant.source ? (
+                  <details className="source">
+                    <summary>Ratio source</summary>
+                    <p>{selection.variant.source}</p>
+                  </details>
+                ) : null}
+              </>
+            ) : (
+              <p className="empty" role="status">
+                No transmissions match this search.
+              </p>
+            )}
+          </section>
 
-          <div className="field-row">
-            <label>
-              Tire diameter
-              <input
-                value={draft.tireDiameter}
-                type="number"
-                onChange={(event) => {
-                  const value = Number.parseFloat(event.target.value);
-                  setDraft((current) => ({ ...current, tireDiameter: Number.isFinite(value) ? value : 0 }));
-                }}
-                onBlur={finalizeDraft}
+          <section className="group">
+            <h2 className="group-title">Tires &amp; axle</h2>
+            <TireField
+              mode={tireMode}
+              onModeChange={setTireMode}
+              diameterIn={tireDiameterIn}
+              onDiameterChange={setTireDiameterIn}
+              size={tireSize}
+              onSizeChange={setTireSize}
+            />
+            <NumberField label="Axle ratio" unit=":1" step={0.01} min={0.5} value={axleRatio} onCommit={setAxleRatio} />
+          </section>
+
+          {appMode === "race" ? (
+            <section className="group">
+              <h2 className="group-title">Engine</h2>
+              <Segmented
+                label="RPM input"
+                value={rpmMode}
+                onChange={setRpmMode}
+                options={[
+                  { value: "shift", label: "Shift point" },
+                  { value: "range", label: "RPM range" },
+                ]}
               />
-            </label>
-            <label>
-              Rear axle
-              <input
-                value={draft.axleRatio}
-                type="number"
-                step="0.01"
-                onChange={(event) => {
-                  const value = Number.parseFloat(event.target.value);
-                  setDraft((current) => ({ ...current, axleRatio: Number.isFinite(value) ? value : 0 }));
-                }}
-                onBlur={finalizeDraft}
-              />
-            </label>
-          </div>
-
-          <div className="rpm-mode-panel">
-            <div className="rpm-mode-header">
-              <span className="label-small">INPUT MODE</span>
-            </div>
-            <div className="mode-toggle" role="tablist" aria-label="RPM input mode selector">
-              <button
-                type="button"
-                className={rpmMode === "range" ? "mode-toggle-btn active" : "mode-toggle-btn"}
-                onClick={() => setRpmMode("range")}
-              >
-                RPM Range
-              </button>
-              <button
-                type="button"
-                className={rpmMode === "shift" ? "mode-toggle-btn active" : "mode-toggle-btn"}
-                onClick={() => setRpmMode("shift")}
-              >
-                Shift Point
-              </button>
-            </div>
-          </div>
-
-          {rpmMode === "range" ? (
-            <fieldset className="rpm-range">
-              <legend>RPM range</legend>
-              <div className="field-row">
-                <label>
-                  Min RPM
-                  <input
-                    value={draft.minRpm}
-                    type="number"
-                    onChange={(event) => {
-                      const value = Number.parseInt(event.target.value, 10);
-                      setDraft((current) => ({ ...current, minRpm: Number.isFinite(value) ? value : 0 }));
-                    }}
-                    onBlur={finalizeDraft}
-                  />
-                </label>
-                <label>
-                  Max RPM
-                  <input
-                    value={draft.maxRpm}
-                    type="number"
-                    onChange={(event) => {
-                      const value = Number.parseInt(event.target.value, 10);
-                      setDraft((current) => ({ ...current, maxRpm: Number.isFinite(value) ? value : 0 }));
-                    }}
-                    onBlur={finalizeDraft}
-                  />
-                </label>
-              </div>
-            </fieldset>
-          ) : (
-            <div className="shift-point-panel">
-              <label>
-                Shift RPM
-                <input
-                  type="number"
+              {rpmMode === "shift" ? (
+                <NumberField
+                  label="Shift at"
+                  unit="rpm"
+                  step={100}
+                  min={500}
+                  max={20000}
                   value={shiftRpm}
-                  min={minRpm}
-                  max={maxRpm}
-                  onChange={(event) => {
-                    const value = Number.parseInt(event.target.value, 10);
-                    setShiftRpm(Number.isFinite(value) ? value : minRpm);
-                  }}
+                  onCommit={setShiftRpm}
+                  hint="Every upshift happens at this RPM."
                 />
-              </label>
-            </div>
-          )}
-
-          <div className="transfer-case">
-            <div>
-              <span className="label-small">AUXILIARY STAGE</span>
-              <strong>{activeFamily ? `${activeFamily.manufacturer} ${activeFamily.model}` : "No transmission selected"}</strong>
-            </div>
-            <button className="text-button">+ Add stage</button>
-          </div>
+              ) : (
+                <div className="field-row">
+                  <NumberField label="Min" unit="rpm" step={100} value={minRpm} onCommit={setMinRpm} />
+                  <NumberField label="Max" unit="rpm" step={100} min={500} max={20000} value={maxRpm} onCommit={setMaxRpm} />
+                </div>
+              )}
+            </section>
+          ) : null}
         </aside>
 
-        <section className="panel chart-panel">
-          <div className="panel-title chart-title">
-            <div>
-              <span>02</span>
-              <h3>Road speed vs RPM</h3>
-            </div>
-            <span className="unit-chip">MPH / RPM</span>
-          </div>
+        <main className="content">
+          {gears.length === 0 ? (
+            <section className="card empty-card">
+              <h2>Pick a transmission</h2>
+              <p>Search or change the filter in the sidebar to see its gearing.</p>
+            </section>
+          ) : appMode === "crawl" ? (
+            <CrawlView
+              gears={gears}
+              tireDiameter={tireDiameter}
+              axleRatio={axleRatio}
+              lowRange={lowRange}
+              crawlRpm={crawlRpm}
+              onLowRangeChange={setLowRange}
+              onCrawlRpmChange={setCrawlRpm}
+            />
+          ) : (
+            <>
+              <section className="stats" aria-label="Key numbers">
+                <div className="stat">
+                  <p className="stat-label">Top speed</p>
+                  <p className="stat-value">
+                    {speedAt(topRpm, topGear.ratio).toFixed(0)}
+                    <span>mph</span>
+                  </p>
+                  <p className="stat-note">
+                    {topGear.label} at {topRpm.toLocaleString()} rpm
+                  </p>
+                </div>
+                <div className="stat">
+                  <p className="stat-label">1st gear runs to</p>
+                  <p className="stat-value">
+                    {speedAt(topRpm, gears[0].ratio).toFixed(0)}
+                    <span>mph</span>
+                  </p>
+                  <p className="stat-note">Ratio {gears[0].ratio.toFixed(2)}</p>
+                </div>
+                <div className="stat">
+                  <p className="stat-label">Biggest RPM drop</p>
+                  <p className="stat-value">
+                    {biggestShift ? `−${Math.round(biggestShift.drop).toLocaleString()}` : "—"}
+                    <span>rpm</span>
+                  </p>
+                  <p className="stat-note">
+                    {biggestShift ? `${biggestShift.from.label} → ${biggestShift.to.label}` : "Single-speed"}
+                  </p>
+                </div>
+                <div className="stat">
+                  <p className="stat-label">Cruise at {HIGHWAY_MPH} mph</p>
+                  <p className="stat-value">
+                    {Math.round(rpmAt(HIGHWAY_MPH, topGear.ratio)).toLocaleString()}
+                    <span>rpm</span>
+                  </p>
+                  <p className="stat-note">In {topGear.label}</p>
+                </div>
+              </section>
 
-          <div className="chart-frame">
-              <svg className="chart-svg" viewBox="0 0 640 320" aria-label="Road speed vs RPM by gear">
-                {rpmTicks.map((rpm) => {
-                  const y = yScale(rpm);
-                  return (
-                    <g key={`grid-y-${rpm}`}>
-                      <line className="grid-line" x1={PLOT.left} x2={PLOT.right} y1={y} y2={y} />
-                      <text className="axis-label" x={PLOT.left - 8} y={y + 4} textAnchor="end">
-                        {rpm.toLocaleString()}
-                      </text>
-                    </g>
-                  );
-                })}
+              <section className="card">
+                <header className="card-header">
+                  <div>
+                    <h2>RPM vs road speed</h2>
+                    <p className="card-subtitle">
+                      {selection?.family.manufacturer} {selection?.family.model} · {selection?.variant.name} ·{" "}
+                      {axleRatio.toFixed(2)} axle · {tireLabel}
+                    </p>
+                  </div>
+                </header>
+                <GearChart
+                  gears={gears}
+                  tireDiameter={tireDiameter}
+                  axleRatio={axleRatio}
+                  mode={rpmMode}
+                  minRpm={low}
+                  maxRpm={high}
+                  shiftRpm={shiftRpm}
+                />
+              </section>
 
-                {speedTicks.map((speed) => {
-                  const x = xScale(speed);
-                  return (
-                    <g key={`grid-x-${speed}`}>
-                      <line className="grid-line" x1={x} x2={x} y1={PLOT.top} y2={PLOT.bottom} />
-                      <text className="axis-label" x={x} y={PLOT.bottom + 20} textAnchor="middle">
-                        {speed}
-                      </text>
-                    </g>
-                  );
-                })}
+              <section className="card">
+                <header className="card-header">
+                  <h2>Gearset</h2>
+                  <Segmented
+                    label="Gearset view"
+                    size="small"
+                    value={gearsetView}
+                    onChange={setGearsetView}
+                    options={[
+                      { value: "ladder", label: "Ratio ladder" },
+                      { value: "cruising", label: "Cruising RPM" },
+                    ]}
+                  />
+                </header>
 
-                <line className="axis" x1={PLOT.left} x2={PLOT.left} y1={PLOT.top} y2={PLOT.bottom} />
-                <line className="axis" x1={PLOT.left} x2={PLOT.right} y1={PLOT.bottom} y2={PLOT.bottom} />
-
-                {shiftPointEnabled &&
-                  shiftConnectors.map((connector) => {
-                    const startX = xScale(connector.start.x);
-                    const startY = yScale(connector.start.y);
-                    const endX = xScale(connector.end.x);
-                    const endY = yScale(connector.end.y);
-
-                    return (
-                      <path
-                        key={`${connector.previousGear.label}-${connector.gear.label}-shift`}
-                        className="shift-connector"
-                        d={`M ${startX} ${startY} L ${endX} ${endY}`}
-                      />
-                    );
-                  })}
-
-                {chartLines.map((gear, index) => {
-                  const lineStartX = xScale(gear.start.x);
-                  const lineStartY = yScale(gear.start.y);
-                  const lineEndX = xScale(gear.end.x);
-                  const lineEndY = yScale(gear.end.y);
-                  const isActive = hover?.gearLabel === gear.label;
-                  const shiftLabelX = lineStartX > 420 ? lineStartX - 12 : lineStartX + 12;
-                  const shiftLabelY = lineStartY < 70 ? lineStartY + 16 : lineStartY - 12;
-                  const gearLabelX = lineEndX > 500 ? lineEndX - 10 : lineEndX + 10;
-                  const gearLabelY = lineEndY < 60 ? lineEndY + 16 : lineEndY - 8;
-                  const gearTextAnchor = lineEndX > 500 ? "end" : "start";
-                  const shiftTextAnchor = lineStartX > 420 ? "end" : "start";
-                    const lowerShiftRpm = index === 0 ? 0 : Math.round(rpmForSpeed(gear.start.x, config.tireDiameter, gear.ratio, config.axleRatio));
-
-                  return (
-                    <g key={gear.label}>
-                      <path
-                        className="hover-hit-area"
-                        d={`M ${lineStartX} ${lineStartY} L ${lineEndX} ${lineEndY}`}
-                        strokeWidth={22}
-                        stroke="transparent"
-                        fill="none"
-                        onMouseMove={(event) => {
-                          const svg = event.currentTarget.ownerSVGElement;
-                          const rect = svg?.getBoundingClientRect();
-                          if (!rect) return;
-
-                          const relativeX = ((event.clientX - rect.left) / rect.width) * 640;
-                          const marker = getPointForMouse(gear, relativeX);
-                          setHover({
-                            gearLabel: gear.label,
-                            point: marker.point,
-                            rpm: marker.rpm,
-                            speed: marker.speed,
-                          });
-                        }}
-                        onMouseLeave={() => setHover(null)}
-                      />
-                      <path
-                        className={isActive ? "gear-line active" : "gear-line"}
-                        d={`M ${lineStartX} ${lineStartY} L ${lineEndX} ${lineEndY}`}
-                        onMouseMove={(event) => {
-                          const svg = event.currentTarget.ownerSVGElement;
-                          const rect = svg?.getBoundingClientRect();
-                          if (!rect) return;
-
-                          const relativeX = ((event.clientX - rect.left) / rect.width) * 640;
-                          const marker = getPointForMouse(gear, relativeX);
-                          setHover({
-                            gearLabel: gear.label,
-                            point: marker.point,
-                            rpm: marker.rpm,
-                            speed: marker.speed,
-                          });
-                        }}
-                        onMouseLeave={() => setHover(null)}
-                      />
-                      {isActive && hover && (() => {
-                        const dotX = xScale(hover.point.x);
-                        const dotY = yScale(hover.point.y);
-                        // Keep the tooltip inside the plot: flip left near the right edge, push down near the top.
-                        const boxX = dotX + 10 + HOVER_BOX_WIDTH > PLOT.right ? dotX - 10 - HOVER_BOX_WIDTH : dotX + 10;
-                        const boxY = Math.max(dotY - 28, 4);
-                        return (
-                          <g>
-                            <circle className="hover-dot" cx={dotX} cy={dotY} r={5} />
-                            <rect className="hover-box" x={boxX} y={boxY} width={HOVER_BOX_WIDTH} height="42" rx="8" />
-                            <text className="hover-text" x={boxX + 12} y={boxY + 22}>
+                {gearsetView === "ladder" ? (
+                  <div className="table-scroll">
+                    <table className="data-table ladder">
+                      <thead>
+                        <tr>
+                          <th scope="col">Gear</th>
+                          <th scope="col" className="num">
+                            Ratio
+                          </th>
+                          <th scope="col" className="bar-col">
+                            <span className="visually-hidden">Ratio relative to 1st</span>
+                          </th>
+                          <th scope="col" className="num">
+                            Step
+                          </th>
+                          <th scope="col" className="num">
+                            Lands at
+                          </th>
+                          <th scope="col" className="num">
+                            Speed at {topRpm.toLocaleString()}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gears.map((gear, index) => {
+                          const shift = index === 0 ? null : shifts[index - 1];
+                          return (
+                            <tr key={gear.label}>
+                              <th scope="row">
+                                <span className="legend-swatch" style={{ background: gear.color }} />
+                                {gear.label}
+                              </th>
+                              <td className="num strong">{gear.ratio.toFixed(2)}</td>
+                              <td className="bar-col">
+                                <span
+                                  className="ratio-bar"
+                                  style={{ width: `${(gear.ratio / gears[0].ratio) * 100}%`, background: gear.color }}
+                                />
+                              </td>
+                              <td className="num">{shift ? `−${Math.round(shift.step * 100)}%` : "—"}</td>
+                              <td className="num">{shift ? `${Math.round(shift.landing).toLocaleString()} rpm` : "—"}</td>
+                              <td className="num">{speedAt(topRpm, gear.ratio).toFixed(1)} mph</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="table-scroll">
+                    <table className="data-table cruising">
+                      <thead>
+                        <tr>
+                          <th scope="col">Gear</th>
+                          {CRUISE_SPEEDS.map((mph) => (
+                            <th scope="col" className="num" key={mph}>
+                              {mph} mph
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gears.map((gear) => (
+                          <tr key={gear.label}>
+                            <th scope="row">
+                              <span className="legend-swatch" style={{ background: gear.color }} />
                               {gear.label}
-                            </text>
-                            <text className="hover-text" x={boxX + 12} y={boxY + 38}>
-                              {Math.round(hover.rpm).toLocaleString()} RPM / {hover.speed.toFixed(1)} MPH
-                            </text>
-                          </g>
-                        );
-                      })()}
-                      {shiftPointEnabled && gear.label !== "1st" && (
-                        <g>
-                          <circle
-                            className="shift-point-marker"
-                            cx={lineStartX}
-                            cy={lineStartY}
-                            r={4}
-                          />
-                          <text
-                            className="shift-label"
-                            x={shiftLabelX}
-                            y={shiftLabelY}
-                            textAnchor={shiftTextAnchor}
-                          >
-                            {`${lowerShiftRpm.toLocaleString()} RPM / ${gear.start.x.toFixed(1)} MPH`}
-                          </text>
-                        </g>
-                      )}
-                      <text className="gear-label" x={gearLabelX} y={gearLabelY} textAnchor={gearTextAnchor}>
-                        {gear.label}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
-          </div>
-        </section>
-      </section>
-
-      <section className="panel ratio-panel">
-        <div className="panel-title">
-          <div>
-            <span>03</span>
-            <h3>Gearset overview</h3>
-          </div>
-          <div className="gearset-tabs" role="tablist" aria-label="Gearset overview tabs">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={gearsetView === "overview"}
-              className={gearsetView === "overview" ? "gearset-tab active" : "gearset-tab"}
-              onClick={() => setGearsetView("overview")}
-            >
-              Overview
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={gearsetView === "cruising"}
-              className={gearsetView === "cruising" ? "gearset-tab active" : "gearset-tab"}
-              onClick={() => setGearsetView("cruising")}
-            >
-              Cruising RPM
-            </button>
-          </div>
-        </div>
-
-        {gearsetView === "overview" ? (
-          <div className="ratio-table">
-            {gearSet.map((gear, index) => (
-              <div className="ratio-row" key={gear.label}>
-                <span>{gear.label}</span>
-                <strong>{gear.ratio.toFixed(2)}</strong>
-                <span>
-                  {index === 0 ? "Starting gear" : `${Math.round((1 - gear.ratio / gearSet[index - 1].ratio) * 100)}% drop`}
-                </span>
-                <span>{speedMph(maxRpm, config.tireDiameter, gear.ratio, config.axleRatio).toFixed(1)} mph</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="ratio-table cruising-table">
-            <div className="ratio-row cruising-header">
-              <span>Gear</span>
-              {cruisingRows.map((row) => (
-                <strong key={`speed-${row.speed}`}>{row.speed} mph</strong>
-              ))}
-            </div>
-            {gearSet.map((gear) => (
-              <div className="ratio-row cruising-row" key={gear.label}>
-                <span>{gear.label}</span>
-                {cruisingRows.map((row) => (
-                  <span key={`${gear.label}-${row.speed}`}>
-                    {formatCruisingRpm(row.rpmByGear[gear.label] ?? 0)}
-                  </span>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </main>
+                            </th>
+                            {CRUISE_SPEEDS.map((mph) => {
+                              const rpm = rpmAt(mph, gear.ratio);
+                              const usable = rpm >= LUGGING_RPM && rpm <= topRpm;
+                              const best = bestCruiseGear.get(mph) === gear.label;
+                              return (
+                                <td
+                                  className={best ? "num best" : usable ? "num" : "num muted"}
+                                  key={mph}
+                                  aria-label={best ? `${Math.round(rpm)} rpm, best gear at ${mph} mph` : undefined}
+                                >
+                                  {usable ? Math.round(rpm).toLocaleString() : "—"}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <p className="footnote">
+                      <strong>Bold</strong> is the best cruising gear at each speed: the lowest RPM that stays at or above{" "}
+                      {CRUISE_FLOOR_RPM.toLocaleString()}. RPM is shown between {LUGGING_RPM.toLocaleString()} and{" "}
+                      {topRpm.toLocaleString()}; outside that range the gear lugs or over-revs.
+                    </p>
+                  </div>
+                )}
+              </section>
+            </>
+          )}
+        </main>
+      </div>
+    </div>
   );
 }

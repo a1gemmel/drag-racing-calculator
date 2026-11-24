@@ -40,14 +40,20 @@ frontend/
   vite.config.ts     React plugin + custom `inlineAssets` plugin (inlines JS/CSS, deletes other bundle files)
   scripts/check-artifact.mjs  asserts dist/ is only index.html, no external script/link refs, app name present
   src/main.tsx       React 18 root
-  src/App.tsx        ~790-line single component: all state, selection logic, chart, tables
+  src/App.tsx        app state, Race/Crawl shell, sidebar, stats strip, ratio ladder + cruising tables
+  src/components/GearChart.tsx   SVG RPM-vs-speed chart (legend, shift drops, hover crosshair/tooltip)
+  src/components/CrawlView.tsx   crawl ratio hero + gear × range matrix (manual low-range ratio for now)
+  src/components/NumberField.tsx numeric input: local draft, commits on blur/Enter, reverts invalid values
+  src/components/Segmented.tsx   radio-group segmented control (arrow keys)
+  src/components/TireField.tsx   tire input: diameter (used as entered) or size (275/55R15, 35x12.50R17)
+  src/tires.ts       parseTireSize; ROLLING_DIAMETER_FACTOR = 0.97 applied to size-derived diameters only
   src/catalog.ts     typed transmission catalog (TransmissionFamily -> variants -> gear_ratios)
   src/calculations.ts pure math: totalRatio, speedMph, rpmForSpeed, gearSpeeds
   src/calculations.test.ts  vitest (4 tests)
   src/transmissionSearch.ts  pure filtering: scope (All/manufacturer/brand) + text query; resolveSelection fallback
   src/transmissionSearch.test.ts
   src/catalog.test.ts  catalog invariants
-  src/styles.css     dark theme, single file
+  src/styles.css     design tokens + all styles; accent switches per mode via .app[data-mode]
 ```
 
 ## Commands
@@ -73,17 +79,12 @@ into the UI**.
 
 Build & tooling
 - No CI and no deploy pipeline yet; no lint/format tooling.
-- `index.html` lacks `<!doctype html>`, `<meta charset>`, viewport meta, and `<title>`.
 - No git remote; only branch is `master`.
 
 App behavior
-- Tire/axle/RPM inputs commit only on blur (`finalizeDraft`); Enter does nothing. Shift RPM updates live.
-  Invalid values revert to the last good value on blur; there is still no error boundary.
-- `Save build` and `+ Add stage` buttons are no-ops. "Auxiliary stage" panel only shows the trans name.
+- No error boundary.
 - Reverse ratio exists in catalog but is unused.
-- Duplicate `onMouseMove` handlers on hit-area and visible path; `gearSpeeds` unused by the app.
-- Mode toggle uses `role="tablist"` without `role="tab"` children.
-- App.tsx is still one large component (chart, tables and inputs).
+- `gearSpeeds` in calculations.ts is unused by the app.
 
 Data
 - Catalog (2026-11-24): TKX, T5 (24 NWC/WC variants), T56, T56 Magnum, NV3500, NV4500, Aisin
@@ -118,6 +119,15 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
 - **Catalog data: research & cite.** Look up ratios from public manufacturer/supplier specs and set
   the `source` field on every variant. Don't add a variant without a source.
 
+- **Two app modes:** Race (shift points, road speed, quarter mile) and Crawl (crawl ratio, transfer-case
+  catalog incl. stacked doublers, gear × range matrix).
+- **Power input methods** (for the quarter-mile sim): (1) car weight + 1/4-mile trap MPH estimate,
+  (2) peak HP/torque @ RPM, (3) dyno table, with CSV/paste import feeding the same table.
+- **Quarter-mile sim: mid-fidelity** — weight, drivetrain loss, traction limit, aero drag, rolling
+  resistance, shift time. Outputs ET, trap, 60 ft, speed/RPM vs time.
+- **Visual redesign: full freedom.**
+- **Tire rolling correction (3%) applies to size mode only;** a typed diameter is used as entered.
+
 ## Open questions for the owner
 
 - Hosting target (GitHub Pages, Netlify, Cloudflare Pages, …)? Determines CI/deploy setup.
@@ -125,3 +135,11 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
 - Priority order for PLAN.md product work.
 - Which transmissions to add to the catalog (and transfer cases / axles)?
 - Repo directory name is misspelled (`transmssion`); rename intended?
+
+## Design system (2026-11-24 redesign)
+
+- Dark only. Tokens live at the top of `styles.css`; chart surface is `--surface` #15181b.
+- Gear colors: fixed order in `GEAR_COLORS` (App.tsx), the dark-mode categorical palette from the dataviz
+  skill, validated for CVD separation against #15181b. Color follows the gear index — never reorder.
+- Mode accent: Race #ff5a36, Crawl #3ec9a7. UI chrome only; never use the accent for data marks.
+- Text in charts uses text tokens, never series colors. System font stacks only (single offline file).
