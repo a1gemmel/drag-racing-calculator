@@ -73,14 +73,10 @@ Build & tooling
 - No git remote; only branch is `master`.
 
 App behavior
-- **Chart y-axis misaligned:** gridlines/labels span y=30..230 but `yScale` maps 0..rpmCeiling to
-  y=260..40, and the x-axis is drawn at y=280. Plotted lines don't match the RPM labels.
-- X axis has a hard floor of 200 mph (`Math.max(..., 200)`), so low-speed setups are squashed.
 - Initial `primarySelection` is `""`, which is not an option in the select; the browser shows "All"
   but no model selector appears and the chart silently shows `families[0]` (Tremec TKX).
 - Tire/axle/RPM inputs commit only on blur (`finalizeDraft`); Enter does nothing. Shift RPM updates live.
-  Invalid input becomes `0`, and `speedMph` throws on 0 tire/axle → **likely crashes the whole app**
-  (no error boundary).
+  Invalid values revert to the last good value on blur; there is still no error boundary.
 - `Save build` and `+ Add stage` buttons are no-ops. "Auxiliary stage" panel only shows the trans name.
 - Reverse ratio exists in catalog but is unused.
 - Duplicate `onMouseMove` handlers on hit-area and visible path; `gearSpeeds` unused by the app.
@@ -89,10 +85,15 @@ App behavior
   `handlePrimarySelectionChange`.
 
 Data
-- **All four Tremec TKX variants have identical ratios** (2.87/1.89/1.28/1.00/0.81 is the close ratio).
-  Wide ratio TKX is believed to be 3.27/1.98/1.34/1.00/0.72 — note the test fixture uses 3.27/1.98.
-  Needs owner confirmation before changing.
-- Catalog is small (Tremec TKX, Aisin L43/L45/L50/W56, Muncie M20). Source of ratios is undocumented.
+- Catalog (2026-11-24): TKX, T5 (24 NWC/WC variants), T56, T56 Magnum, NV3500, NV4500, Aisin
+  L43/L45/L50/W56, Muncie M20 — 56 variants. Each variant has an optional `source` citation; only the
+  four Aisin entries still lack one. TKX wide-ratio sets fixed to 3.27/1.98/1.34/1.00/0.72.
+- Public sources disagree on several values (T5 Ford 5.0 year breaks and ODs, NV4500 reverse ratios,
+  T56 Cobra 5th gear). Choices made are documented per entry in `source` strings; treat these as the
+  first entries to re-check if a user reports a wrong ratio.
+- Not yet covered: TR6060 (public data unreliable), T5 AMC/Jeep XJ, NV3550.
+- `src/catalog.test.ts` enforces invariants: unique model names, unique variant names per family,
+  positive ratios, strictly descending forward ratios, no `::` in names (App.tsx uses it as a key separator).
 
 ## Roadmap
 
@@ -113,8 +114,8 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
 - **Backend removal committed** as `1a8d6bd` — frontend-only is the baseline.
 - **Bazel dropped**: plain npm + Vite; `package-lock.json` is the only lockfile. The Bazel artifact
   test became `frontend/scripts/check-artifact.mjs`, run at the end of `npm run build`.
-- **Catalog data: research & cite.** Agents should look up ratios from public manufacturer specs and
-  record a source per entry (e.g. a `source` field in `catalog.ts`). Fix TKX wide-ratio variants first.
+- **Catalog data: research & cite.** Look up ratios from public manufacturer/supplier specs and set
+  the `source` field on every variant. Don't add a variant without a source.
 
 ## Open questions for the owner
 

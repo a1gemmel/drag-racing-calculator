@@ -14,6 +14,18 @@ const defaultConfig = {
   maxRpm: 6500,
 };
 
+// SVG viewBox is 640x320; the plot area sits inside these edges.
+const PLOT = { left: 60, right: 600, top: 30, bottom: 280 };
+const HOVER_BOX_WIDTH = 160;
+
+// Largest "nice" step (1, 2, 2.5, 5 x 10^n) that splits `max` into at most `maxTicks` intervals.
+function niceStep(max: number, maxTicks: number) {
+  const rough = max / maxTicks;
+  const magnitude = 10 ** Math.floor(Math.log10(rough));
+  const multiplier = [1, 2, 2.5, 5, 10].find((m) => m * magnitude >= rough) ?? 10;
+  return multiplier * magnitude;
+}
+
 function gearLabel(index: number) {
   const labels = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
   return labels[index] ?? `${index + 1}`;
@@ -199,11 +211,15 @@ export function App() {
   const safeShiftRpm = Math.min(Math.max(shiftRpm, minRpm), maxRpm);
   const maxSpeedRaw = Math.max(
     ...gearSet.map((gear) => speedMph(maxRpm, config.tireDiameter, gear.ratio, config.axleRatio)),
-    200,
+    1,
   );
-  const maxSpeed = Math.ceil(maxSpeedRaw / 50) * 50;
+  const speedStep = niceStep(maxSpeedRaw, 8);
+  const maxSpeed = Math.ceil(maxSpeedRaw / speedStep) * speedStep;
+  const speedTicks = Array.from({ length: Math.round(maxSpeed / speedStep) + 1 }, (_, i) => i * speedStep);
   const rpmFloor = 0;
   const rpmCeiling = Math.max(Math.ceil(maxRpm / 1000) * 1000, 1000);
+  const rpmStep = niceStep(rpmCeiling, 8);
+  const rpmTicks = Array.from({ length: Math.floor(rpmCeiling / rpmStep) + 1 }, (_, i) => i * rpmStep);
 
   const chartLines = useMemo(
     () =>
@@ -277,12 +293,13 @@ export function App() {
     return `${Math.round(rpm).toLocaleString()} rpm`;
   };
 
-  const xScale = (speed: number) => (speed / maxSpeed) * 540;
-  const yScale = (rpm: number) => 260 - ((rpm - rpmFloor) / Math.max(rpmCeiling - rpmFloor, 1)) * 220;
+  const xScale = (speed: number) => PLOT.left + (speed / maxSpeed) * (PLOT.right - PLOT.left);
+  const yScale = (rpm: number) =>
+    PLOT.bottom - ((rpm - rpmFloor) / Math.max(rpmCeiling - rpmFloor, 1)) * (PLOT.bottom - PLOT.top);
 
   const getPointForMouse = (gear: { label: string; ratio: number; start: Point; end: Point }, relativeX: number) => {
-    const x1 = xScale(gear.start.x) + 60;
-    const x2 = xScale(gear.end.x) + 60;
+    const x1 = xScale(gear.start.x);
+    const x2 = xScale(gear.end.x);
     const y1 = yScale(gear.start.y);
     const y2 = yScale(gear.end.y);
     const dx = x2 - x1;
@@ -304,7 +321,18 @@ export function App() {
     };
   };
 
-  const finalizeDraft = () => setConfig(draft);
+  // Commit only valid values; an empty or non-positive field keeps the last good value
+  // (zero tire diameter or axle ratio would make the speed math throw).
+  const finalizeDraft = () => {
+    const next = {
+      tireDiameter: draft.tireDiameter > 0 ? draft.tireDiameter : config.tireDiameter,
+      axleRatio: draft.axleRatio > 0 ? draft.axleRatio : config.axleRatio,
+      minRpm: draft.minRpm >= 0 ? draft.minRpm : config.minRpm,
+      maxRpm: draft.maxRpm > 0 ? draft.maxRpm : config.maxRpm,
+    };
+    setDraft(next);
+    setConfig(next);
+  };
 
   const handlePrimarySelectionChange = (nextValue: string) => {
     setPrimarySelection(nextValue);
@@ -565,40 +593,38 @@ export function App() {
 
           <div className="chart-frame">
               <svg className="chart-svg" viewBox="0 0 640 320" aria-label="Road speed vs RPM by gear">
-                {[0, 1, 2, 3, 4].map((i) => {
-                  const y = 30 + i * 50;
-                  const rpm = Math.round(rpmFloor + ((rpmCeiling - rpmFloor) * (1 - i / 4)));
+                {rpmTicks.map((rpm) => {
+                  const y = yScale(rpm);
                   return (
                     <g key={`grid-y-${rpm}`}>
-                      <line className="grid-line" x1="60" x2="600" y1={y} y2={y} />
-                      <text className="axis-label" x="14" y={y + 4}>
+                      <line className="grid-line" x1={PLOT.left} x2={PLOT.right} y1={y} y2={y} />
+                      <text className="axis-label" x={PLOT.left - 8} y={y + 4} textAnchor="end">
                         {rpm.toLocaleString()}
                       </text>
                     </g>
                   );
                 })}
 
-                {[0, 1, 2, 3, 4].map((i) => {
-                  const x = 60 + i * 135;
-                  const speed = Math.round((i / 4) * maxSpeed);
+                {speedTicks.map((speed) => {
+                  const x = xScale(speed);
                   return (
                     <g key={`grid-x-${speed}`}>
-                      <line className="grid-line" x1={x} x2={x} y1="30" y2="280" />
-                      <text className="axis-label" x={x - 10} y="300">
+                      <line className="grid-line" x1={x} x2={x} y1={PLOT.top} y2={PLOT.bottom} />
+                      <text className="axis-label" x={x} y={PLOT.bottom + 20} textAnchor="middle">
                         {speed}
                       </text>
                     </g>
                   );
                 })}
 
-                <line className="axis" x1="60" x2="60" y1="30" y2="280" />
-                <line className="axis" x1="60" x2="600" y1="280" y2="280" />
+                <line className="axis" x1={PLOT.left} x2={PLOT.left} y1={PLOT.top} y2={PLOT.bottom} />
+                <line className="axis" x1={PLOT.left} x2={PLOT.right} y1={PLOT.bottom} y2={PLOT.bottom} />
 
                 {shiftPointEnabled &&
                   shiftConnectors.map((connector) => {
-                    const startX = xScale(connector.start.x) + 60;
+                    const startX = xScale(connector.start.x);
                     const startY = yScale(connector.start.y);
-                    const endX = xScale(connector.end.x) + 60;
+                    const endX = xScale(connector.end.x);
                     const endY = yScale(connector.end.y);
 
                     return (
@@ -611,9 +637,9 @@ export function App() {
                   })}
 
                 {chartLines.map((gear, index) => {
-                  const lineStartX = xScale(gear.start.x) + 60;
+                  const lineStartX = xScale(gear.start.x);
                   const lineStartY = yScale(gear.start.y);
-                  const lineEndX = xScale(gear.end.x) + 60;
+                  const lineEndX = xScale(gear.end.x);
                   const lineEndY = yScale(gear.end.y);
                   const isActive = hover?.gearLabel === gear.label;
                   const shiftLabelX = lineStartX > 420 ? lineStartX - 12 : lineStartX + 12;
@@ -667,30 +693,25 @@ export function App() {
                         }}
                         onMouseLeave={() => setHover(null)}
                       />
-                      {isActive && hover && (
-                        <g>
-                          <circle
-                            className="hover-dot"
-                            cx={xScale(hover.point.x) + 60}
-                            cy={yScale(hover.point.y)}
-                            r={5}
-                          />
-                          <rect
-                            className="hover-box"
-                            x={xScale(hover.point.x) + 70}
-                            y={yScale(hover.point.y) - 28}
-                            width="118"
-                            height="42"
-                            rx="8"
-                          />
-                          <text className="hover-text" x={xScale(hover.point.x) + 82} y={yScale(hover.point.y) - 6}>
-                            {gear.label}
-                          </text>
-                          <text className="hover-text" x={xScale(hover.point.x) + 82} y={yScale(hover.point.y) + 10}>
-                            {Math.round(hover.rpm).toLocaleString()} RPM / {hover.speed.toFixed(1)} MPH
-                          </text>
-                        </g>
-                      )}
+                      {isActive && hover && (() => {
+                        const dotX = xScale(hover.point.x);
+                        const dotY = yScale(hover.point.y);
+                        // Keep the tooltip inside the plot: flip left near the right edge, push down near the top.
+                        const boxX = dotX + 10 + HOVER_BOX_WIDTH > PLOT.right ? dotX - 10 - HOVER_BOX_WIDTH : dotX + 10;
+                        const boxY = Math.max(dotY - 28, 4);
+                        return (
+                          <g>
+                            <circle className="hover-dot" cx={dotX} cy={dotY} r={5} />
+                            <rect className="hover-box" x={boxX} y={boxY} width={HOVER_BOX_WIDTH} height="42" rx="8" />
+                            <text className="hover-text" x={boxX + 12} y={boxY + 22}>
+                              {gear.label}
+                            </text>
+                            <text className="hover-text" x={boxX + 12} y={boxY + 38}>
+                              {Math.round(hover.rpm).toLocaleString()} RPM / {hover.speed.toFixed(1)} MPH
+                            </text>
+                          </g>
+                        );
+                      })()}
                       {shiftPointEnabled && gear.label !== "1st" && (
                         <g>
                           <circle
