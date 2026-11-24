@@ -4,26 +4,22 @@ Transmission Ratio Viz is a frontend-only gearing workspace. The transmission ca
 
 ## Build and Test
 
-The repository uses Bazelisk for the reproducible production build:
+Node.js is pinned in `.nvmrc`. With direnv, the repository shims in `env/bin` install and use that version automatically through a repo-local nvm:
 
 ```bash
 direnv allow
-bazelisk build //frontend:bundle
 ```
 
-The generated artifact is `bazel-bin/frontend/static/index.html`.
-
-For local frontend development and tests:
+Then, from `frontend/`:
 
 ```bash
-cd frontend
-npm install
+npm ci
 npm run dev
 npm test
 npm run build
 ```
 
-The checked-in `package-lock.json` makes the npm path reproducible. The generated HTML contains its JavaScript, CSS, and catalog data inline and does not require an API or network connection at runtime.
+`npm run build` type-checks, builds `frontend/dist/index.html`, and runs `scripts/check-artifact.mjs` to verify the output is one HTML file with its JavaScript, CSS, and catalog data inline. It needs no API or network connection at runtime. `package-lock.json` is the only lockfile.
 
 ## Domain Formula
 

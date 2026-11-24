@@ -6,7 +6,7 @@
 - Local typed transmission catalog
 - Pure browser-side drivetrain calculations
 - Single-file offline production artifact
-- Bazelisk production build and npm frontend tests
+- npm + Vite build and Vitest tests
 
 ## Completed Migration
 
@@ -16,6 +16,7 @@
 - [x] Inline JavaScript and CSS into the generated HTML.
 - [x] Remove Python, FastAPI, Uvicorn, and OCI packaging infrastructure.
 - [x] Add frontend calculation tests.
+- [x] Remove Bazel; npm/Vite is the only build, with a post-build single-file artifact check.
 
 ## Product Work
 
