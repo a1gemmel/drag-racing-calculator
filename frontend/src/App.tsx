@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
-import { transmissionFamilies, type TransmissionFamily, type TransmissionVariant } from "./catalog";
+import { useMemo, useState } from "react";
+import { transmissionFamilies } from "./catalog";
+import { ALL_SCOPE, filterFamilies, resolveSelection, scopeOptions } from "./transmissionSearch";
 import { rpmForSpeed, speedMph } from "./calculations";
 
 type Point = { x: number; y: number };
@@ -36,167 +37,21 @@ export function App() {
   const [config, setConfig] = useState(defaultConfig);
   const [hover, setHover] = useState<HoverState>(null);
   const families = transmissionFamilies;
-  const [primarySelection, setPrimarySelection] = useState("");
+  const [query, setQuery] = useState("");
+  const [scope, setScope] = useState(ALL_SCOPE);
+  // The user's last pick. If a search or filter hides it, resolveSelection falls back to the first match.
   const [selectedModel, setSelectedModel] = useState("");
   const [selectedVariantName, setSelectedVariantName] = useState("");
   const [gearsetView, setGearsetView] = useState<"overview" | "cruising">("overview");
-  const [rpmMode, setRpmMode] = useState<"range" | "shift">("range");
+  const [rpmMode, setRpmMode] = useState<"range" | "shift">("shift");
   const [shiftRpm, setShiftRpm] = useState(6500);
   const shiftPointEnabled = rpmMode === "shift";
 
-  const manufacturerOptions = useMemo(
-    () => Array.from(new Set(families.map((family) => family.manufacturer))).sort(),
-    [families],
-  );
-
-  const brandOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          families.flatMap((family) =>
-            family.variants.flatMap((variant) => variant.application_manufacturers),
-          ),
-        ),
-      ).sort(),
-    [families],
-  );
-
-  const scopeOptions = useMemo(
-    () => [
-      { value: "all", label: "All" },
-      ...manufacturerOptions.map((manufacturer) => ({
-        value: `manufacturer:${manufacturer}`,
-        label: `Manufacturer: ${manufacturer}`,
-      })),
-      ...brandOptions.map((brand) => ({ value: `brand:${brand}`, label: `Brand: ${brand}` })),
-    ],
-    [brandOptions, manufacturerOptions],
-  );
-
-  const hasPrimarySelection = primarySelection !== "";
-  const primaryMode = !hasPrimarySelection
-    ? null
-    : primarySelection === "all"
-      ? "all"
-      : primarySelection.startsWith("manufacturer:")
-        ? "manufacturer"
-        : "brand";
-
-  const selectedManufacturer = primaryMode === "manufacturer" ? primarySelection.replace("manufacturer:", "") : "";
-  const selectedBrand = primaryMode === "brand" ? primarySelection.replace("brand:", "") : "";
-
-  const modelOptions = useMemo(() => {
-    if (primaryMode === "manufacturer") {
-      return families
-        .filter((family) => family.manufacturer === selectedManufacturer)
-        .map((family) => ({ value: family.model, label: family.model }));
-    }
-
-    if (primaryMode === "all") {
-      return families.map((family) => ({ value: family.model, label: family.model }));
-    }
-
-    return [];
-  }, [families, primaryMode, selectedManufacturer]);
-
-  const formatVariantLabel = (familyModel: string, variant: TransmissionVariant) => {
-    const ratios = variant.gear_ratios.join(" / ");
-    return `${familyModel} / ${variant.name} (${ratios})`;
-  };
-
-  const brandVariantOptions = useMemo(() => {
-    if (!selectedBrand) {
-      return [];
-    }
-
-    return families
-      .flatMap((family) =>
-        family.variants
-          .filter((variant) => variant.application_manufacturers.includes(selectedBrand))
-          .map((variant) => ({
-            value: `${family.model}::${variant.name}`,
-            label: formatVariantLabel(family.model, variant),
-          })),
-      )
-      .sort((left, right) => left.label.localeCompare(right.label));
-  }, [families, selectedBrand]);
-
-  useEffect(() => {
-    if (!families.length) return;
-
-    if (!hasPrimarySelection) {
-      setSelectedModel("");
-      setSelectedVariantName("");
-      return;
-    }
-
-    if (primaryMode === "all") {
-      const firstFamily = families[0];
-      if (!firstFamily) {
-        setSelectedModel("");
-        setSelectedVariantName("");
-        return;
-      }
-
-      setSelectedModel((current) => {
-        if (!current || !families.some((family) => family.model === current)) {
-          return firstFamily.model;
-        }
-        return current;
-      });
-      setSelectedVariantName((current) => {
-        if (!current || !firstFamily.variants.some((variant) => variant.name === current)) {
-          return firstFamily.variants[0]?.name ?? "";
-        }
-        return current;
-      });
-      return;
-    }
-
-    if (primaryMode === "manufacturer") {
-      const family = families.find((item) => item.manufacturer === selectedManufacturer);
-      if (!family) {
-        setSelectedModel("");
-        setSelectedVariantName("");
-        return;
-      }
-
-      setSelectedModel(family.model);
-      setSelectedVariantName(family.variants[0]?.name ?? "");
-      return;
-    }
-
-    const firstMatch = families
-      .flatMap((family) => family.variants.map((variant) => ({ family, variant })))
-      .find(({ variant }) => variant.application_manufacturers.includes(selectedBrand));
-
-    if (!firstMatch) {
-      setSelectedModel("");
-      setSelectedVariantName("");
-      return;
-    }
-
-    setSelectedModel(firstMatch.family.model);
-    setSelectedVariantName(firstMatch.variant.name);
-  }, [families, hasPrimarySelection, primaryMode, selectedBrand, selectedManufacturer]);
-
-  const activeFamily = useMemo(
-    () => families.find((family) => family.model === selectedModel) ?? families[0] ?? null,
-    [families, selectedModel],
-  );
-
-  const activeVariants = activeFamily?.variants ?? [];
-  const activeVariant = useMemo(
-    () => activeVariants.find((variant) => variant.name === selectedVariantName) ?? activeVariants[0] ?? null,
-    [activeVariants, selectedVariantName],
-  );
-
-  useEffect(() => {
-    if (!activeFamily) return;
-    if (!selectedVariantName || !activeFamily.variants.some((variant) => variant.name === selectedVariantName)) {
-      setSelectedVariantName(activeFamily.variants[0]?.name ?? "");
-    }
-  }, [activeFamily, selectedVariantName]);
+  const scopes = useMemo(() => scopeOptions(families), [families]);
+  const filteredFamilies = useMemo(() => filterFamilies(families, scope, query), [families, scope, query]);
+  const selection = resolveSelection(filteredFamilies, selectedModel, selectedVariantName);
+  const activeFamily = selection?.family ?? null;
+  const activeVariant = selection?.variant ?? null;
 
   const gearSet = useMemo<Gear[]>(() => {
     if (!activeVariant) return [];
@@ -334,41 +189,6 @@ export function App() {
     setConfig(next);
   };
 
-  const handlePrimarySelectionChange = (nextValue: string) => {
-    setPrimarySelection(nextValue);
-
-    if (nextValue === "all") {
-      const firstFamily = families[0];
-      if (firstFamily) {
-        setSelectedModel(firstFamily.model);
-        setSelectedVariantName(firstFamily.variants[0]?.name ?? "");
-      }
-      return;
-    }
-
-    if (nextValue.startsWith("manufacturer:")) {
-      const manufacturer = nextValue.replace("manufacturer:", "");
-      const family = families.find((item) => item.manufacturer === manufacturer) ?? families[0];
-      if (family) {
-        setSelectedModel(family.model);
-        setSelectedVariantName(family.variants[0]?.name ?? "");
-      }
-      return;
-    }
-
-    if (nextValue.startsWith("brand:")) {
-      const brand = nextValue.replace("brand:", "");
-      const matching = families
-        .flatMap((family) => family.variants.map((variant) => ({ family, variant })))
-        .find(({ variant }) => variant.application_manufacturers.includes(brand));
-
-      if (matching) {
-        setSelectedModel(matching.family.model);
-        setSelectedVariantName(matching.variant.name);
-      }
-    }
-  };
-
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -398,9 +218,19 @@ export function App() {
           </div>
 
           <label>
-            Transmission search
-            <select value={primarySelection} onChange={(event) => handlePrimarySelectionChange(event.target.value)}>
-              {scopeOptions.map((option) => (
+            Search transmissions
+            <input
+              type="search"
+              value={query}
+              placeholder="e.g. T5 Ford, NV4500, 2.95"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+
+          <label>
+            Filter by
+            <select value={scope} onChange={(event) => setScope(event.target.value)}>
+              {scopes.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -408,72 +238,50 @@ export function App() {
             </select>
           </label>
 
-          {hasPrimarySelection && primaryMode !== "brand" ? (
-            <label>
-              Transmission model
-              <select
-                value={selectedModel}
-                onChange={(event) => {
-                  const nextModel = event.target.value;
-                  const nextFamily = families.find((family) => family.model === nextModel);
-                  setSelectedModel(nextModel);
-                  setSelectedVariantName(nextFamily?.variants[0]?.name ?? "");
-                }}
-                disabled={modelOptions.length === 0}
-              >
-                {modelOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
+          {selection ? (
+            <>
+              <label>
+                Transmission model
+                <select
+                  value={selection.family.model}
+                  onChange={(event) => {
+                    setSelectedModel(event.target.value);
+                    setSelectedVariantName("");
+                  }}
+                >
+                  {filteredFamilies.map((family) => (
+                    <option key={family.model} value={family.model}>
+                      {family.manufacturer} {family.model}
+                      {family.variants.length > 1 ? ` (${family.variants.length})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-          {hasPrimarySelection && primaryMode === "brand" && brandVariantOptions.length > 1 ? (
-            <label>
-              Transmission variant
-              <select
-                value={
-                  brandVariantOptions.find((option) => option.value === `${selectedModel}::${selectedVariantName}`)?.value ??
-                  brandVariantOptions[0]?.value ??
-                  ""
-                }
-                onChange={(event) => {
-                  const value = event.target.value;
-                  const [nextModel, nextVariant] = value.split("::");
-                  if (nextModel && nextVariant) {
-                    setSelectedModel(nextModel);
-                    setSelectedVariantName(nextVariant);
-                  }
-                }}
-                disabled={brandVariantOptions.length === 0}
-              >
-                {brandVariantOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
-          {hasPrimarySelection && primaryMode !== "brand" && activeFamily && activeVariants.length > 1 ? (
-            <label>
-              Variant
-              <select
-                value={selectedVariantName}
-                onChange={(event) => setSelectedVariantName(event.target.value)}
-                disabled={activeVariants.length === 0}
-              >
-                {activeVariants.map((variant) => (
-                  <option key={variant.name} value={variant.name}>
-                    {variant.name} ({variant.gear_ratios.join(" / ")})
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
+              {selection.family.variants.length > 1 ? (
+                <label>
+                  Variant
+                  <select
+                    value={selection.variant.name}
+                    onChange={(event) => {
+                      setSelectedModel(selection.family.model);
+                      setSelectedVariantName(event.target.value);
+                    }}
+                  >
+                    {selection.family.variants.map((variant) => (
+                      <option key={variant.name} value={variant.name}>
+                        {variant.name} ({variant.gear_ratios.join(" / ")})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </>
+          ) : (
+            <p className="search-empty" role="status">
+              No transmissions match this search.
+            </p>
+          )}
 
           <div className="field-row">
             <label>

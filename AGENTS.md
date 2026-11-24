@@ -5,11 +5,12 @@ Context for coding agents working in this repository. Last surveyed 2026-11-24.
 ## Purpose
 
 Transmission Ratio Viz is a **frontend-only gearing calculator / visualizer** for car people.
-A user picks a transmission (from a small built-in catalog), enters tire diameter, rear axle ratio
+A user searches for and picks a transmission (built-in catalog; text search over manufacturer, model,
+variant, vehicle brand and ratios, plus a manufacturer/brand filter), enters tire diameter, rear axle ratio
 and an RPM range or shift point, and gets:
 
 - a **road speed vs RPM** chart with one line per gear (SVG, hand-rolled, hover tooltips),
-- in "Shift Point" mode, the RPM drop after each upshift (dashed connectors + labels),
+- in "Shift Point" mode (the default), the RPM drop after each upshift (dashed connectors + labels),
 - a **gearset overview** table (ratio, % step from previous gear, top speed at max RPM),
 - a **cruising RPM** table (RPM per gear at 10–80 mph).
 
@@ -43,6 +44,9 @@ frontend/
   src/catalog.ts     typed transmission catalog (TransmissionFamily -> variants -> gear_ratios)
   src/calculations.ts pure math: totalRatio, speedMph, rpmForSpeed, gearSpeeds
   src/calculations.test.ts  vitest (4 tests)
+  src/transmissionSearch.ts  pure filtering: scope (All/manufacturer/brand) + text query; resolveSelection fallback
+  src/transmissionSearch.test.ts
+  src/catalog.test.ts  catalog invariants
   src/styles.css     dark theme, single file
 ```
 
@@ -73,16 +77,13 @@ Build & tooling
 - No git remote; only branch is `master`.
 
 App behavior
-- Initial `primarySelection` is `""`, which is not an option in the select; the browser shows "All"
-  but no model selector appears and the chart silently shows `families[0]` (Tremec TKX).
 - Tire/axle/RPM inputs commit only on blur (`finalizeDraft`); Enter does nothing. Shift RPM updates live.
   Invalid values revert to the last good value on blur; there is still no error boundary.
 - `Save build` and `+ Add stage` buttons are no-ops. "Auxiliary stage" panel only shows the trans name.
 - Reverse ratio exists in catalog but is unused.
 - Duplicate `onMouseMove` handlers on hit-area and visible path; `gearSpeeds` unused by the app.
 - Mode toggle uses `role="tablist"` without `role="tab"` children.
-- App.tsx is one large component; selection logic is duplicated between the `useEffect` and
-  `handlePrimarySelectionChange`.
+- App.tsx is still one large component (chart, tables and inputs).
 
 Data
 - Catalog (2026-11-24): TKX, T5 (24 NWC/WC variants), T56, T56 Magnum, NV3500, NV4500, Aisin

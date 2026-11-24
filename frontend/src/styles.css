@@ -31,6 +31,7 @@ select, input:not([type="range"]) { display: block; width: 100%; margin-top: 9px
 .mode-toggle-btn { flex: 1; border: 1px solid transparent; background: transparent; color: #dfe5d8; padding: 8px 10px; border-radius: 999px; font-size: .72rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
 .mode-toggle-btn.active { border-color: #c8dd4d; background: rgba(200, 221, 77, 0.12); color: #f6ffd3; }
 .shift-point-panel { margin-top: 20px; }
+.search-empty { margin-top: 24px; border: 1px dashed #4d564c; padding: 12px; color: #abb1a8; font-size: .82rem; }
 .text-button { border: 0; background: transparent; color: #c8dd4d; padding: 0; font-size: .8rem; white-space: nowrap; }
 .gearset-tabs { display: inline-flex; gap: 8px; padding: 6px; border: 1px solid #434941; border-radius: 999px; background: rgba(23, 26, 23, 0.8); }
 .gearset-tab { border: 1px solid transparent; background: transparent; color: #dfe5d8; padding: 8px 12px; border-radius: 999px; font-size: .76rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
