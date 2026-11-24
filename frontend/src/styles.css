@@ -317,3 +317,6 @@ input[aria-invalid="true"] { border-color: #e66767; }
   .advanced-grid { grid-template-columns: 1fr; }
 }
 input:disabled { opacity: 0.45; cursor: not-allowed; }
+.pane { display: grid; gap: 8px; }
+.pane-header { display: flex; justify-content: flex-end; }
+.data-table td.muted { color: var(--text-3); }

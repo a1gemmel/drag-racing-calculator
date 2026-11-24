@@ -42,8 +42,7 @@ describe("simulateQuarterMile", () => {
     expect(slick.splits[0].t).toBeLessThan(run.splits[0].t);
   });
 
-  it("warns when traction-limited or too slow to finish", () => {
-    expect(simulateQuarterMile({ ...base, grip: 0.4 }).warnings.join(" ")).toMatch(/Traction-limited/);
+  it("reports a run that doesn't finish", () => {
     const weak = simulateQuarterMile({ ...base, curve: curve.map((p) => ({ ...p, torque: 2 })) });
     expect(weak.finished).toBe(false);
     expect(weak.et).toBeNull();
@@ -66,8 +65,17 @@ describe("simulateQuarterMile", () => {
     expect(run.samples[0].t).toBeGreaterThanOrEqual(0);
   });
 
-  it("isn't capped by engine inertia while the launch clutch slips", () => {
-    // With plenty of grip, launch acceleration is limited by torque at launch RPM, and should exceed 0.9 g.
+  it("clutch grabs within the release time and pulls engine RPM down early", () => {
+    const launch = simulateQuarterMile({ ...base, grip: 1.6, launchRpm: 5000, rolloutIn: 0 });
+    const rpmAt = (t: number) => launch.samples.find((s) => s.t >= t)!.rpm;
+    expect(rpmAt(0)).toBeCloseTo(5000, -2);
+    expect(rpmAt(0.3)).toBeLessThan(4500);
+    // After the dip, RPM climbs with road speed in 1st.
+    const low = Math.min(...launch.samples.filter((s) => s.t < 1.5).map((s) => s.rpm));
+    expect(rpmAt(1.5)).toBeGreaterThan(low + 500);
+  });
+
+  it("launch acceleration is not capped by engine inertia when grip allows", () => {
     const slick = simulateQuarterMile({ ...base, grip: 2.5, launchRpm: 4500 });
     const [a, b] = [slick.samples[0], slick.samples[5]];
     const g = (b.mph - a.mph) / 2.2369362921 / (b.t - a.t) / 9.80665;
@@ -85,7 +93,7 @@ describe("runQuarterMile", () => {
     const best = bestLaunchRpm(strong);
     for (const rpm of [1500, 3000, 4500, 6000]) {
       const sixty = simulateQuarterMile({ ...strong, launchRpm: rpm, stopAtFt: 60 }).splits[0].t;
-      expect(best.sixty).toBeLessThanOrEqual(sixty + 0.001); // the search keeps the lower RPM within 1 ms
+      expect(best.sixty).toBeLessThanOrEqual(sixty + 0.005); // ties within 5 ms go to the torque-peak RPM
     }
     const run = runQuarterMile({ ...strong, knownSixtyFtS: null });
     expect(run.sixtyFtSource).toBe("best");

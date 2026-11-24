@@ -171,9 +171,13 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
   110 mph reference pass hit the rev limiter in 3rd, so it under-trapped; the sim's ~115 mph is expected. Hale's ET formula is ~1 s quicker; it assumes an ideal launch, so don't calibrate to it.
 - Timing uses a rollout (default 11.5 in): splits, ET, shift times and traces start when the car has
   rolled that far, like a timing slip. Worth ~0.3 s on 60 ft and ET; trap is unaffected.
-- While the launch clutch slips, engine inertia is excluded (factor 1.04); otherwise launch was capped
-  at ~0.76 g regardless of grip.
 - Defaults after both fixes (430 hp, 3,500 lb, TKX close, 4.10, 26", 0.15 s shifts): 60 ft 2.22 /
   ET 12.81 on 1.0 grip, 1.88 / 12.10 on 1.3, 1.73 / 11.90 on 1.6.
-- When traction-limited, only the wheels' inertia (factor 1.04) rides on the tire force; using the full
-  engine-side factor in 1st made 60 ft times ~3 s.
+- Launch model (2026-11-24): explicit engine inertia (0.0025·m·r²) and wheel/driveline mass (4% of m).
+  The clutch ramps from launch-RPM torque to full clamp (1.25× peak torque) over `clutchReleaseS`
+  (default 0.25 s, per the owner's launch-control reference); the engine is dragged down to driveline
+  speed, so RPM dips early and then climbs with road speed. Wheelspin is held to 10% slip, or 7 m/s at
+  low speed. Capacity and slip floor were tuned for a 30-40% RPM dip bottoming at 0.2-0.4 s (owner's
+  target); 1.6+ grip launches high and hooks, so it dips ~50%. Best-launch ties within 5 ms go to the RPM nearest the torque peak.
+  vs the previous held-RPM model, 60 ft moved -0.05/-0.04/-0.03/-0.11 s at grip 0.9/1.0/1.3/1.6.
+- No traction-limited warning in the UI (owner request).

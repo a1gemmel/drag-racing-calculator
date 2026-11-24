@@ -136,6 +136,15 @@ export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, g
                   onCommit={(pct) => set({ driveWeightFraction: pct / 100 })}
                 />
               ) : null}
+              <NumberField
+                label="Clutch release"
+                unit="s"
+                step={0.05}
+                min={0}
+                max={2}
+                value={vehicle.clutchReleaseS}
+                onCommit={(clutchReleaseS) => set({ clutchReleaseS })}
+              />
               <NumberField label="Rollout" unit="in" step={0.5} min={0} max={24} value={vehicle.rolloutIn} onCommit={(rolloutIn) => set({ rolloutIn })} />
               <NumberField label="CG height" unit="in" step={0.5} min={5} max={60} value={vehicle.cgHeightIn} onCommit={(cgHeightIn) => set({ cgHeightIn })} />
               <NumberField label="Wheelbase" unit="in" step={0.5} min={60} max={200} value={vehicle.wheelbaseIn} onCommit={(wheelbaseIn) => set({ wheelbaseIn })} />
@@ -160,6 +169,7 @@ export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, g
 }
 
 function RunResults({ run, gears }: { run: QuarterMileRun; gears: Gear[] }) {
+  const [table, setTable] = useState<"timeslip" | "shifts">("timeslip");
   const split = (label: string) => run.splits.find((s) => s.label === label);
   const sixty = split("60 ft");
   const markers = run.shifts.map((shift) => ({ x: shift.t, label: `→${gears[shift.toGear]?.label ?? ""}` }));
@@ -232,36 +242,78 @@ function RunResults({ run, gears }: { run: QuarterMileRun; gears: Gear[] }) {
         formatY={(v) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}k` : String(Math.round(v)))}
       />
 
-      <div className="table-scroll">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th scope="col">Split</th>
-              <th scope="col" className="num">
-                Time
-              </th>
-              <th scope="col" className="num">
-                Speed at mark
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {run.splits.map((s) => (
-              <tr key={s.label}>
-                <th scope="row">{s.label}</th>
-                <td className="num strong">{s.t.toFixed(3)} s</td>
-                <td className="num">{s.mph.toFixed(1)} mph</td>
-              </tr>
-            ))}
-            {run.shifts.map((shift) => (
-              <tr key={`shift-${shift.toGear}`}>
-                <th scope="row">Shift to {gears[shift.toGear]?.label}</th>
-                <td className="num">{shift.t.toFixed(2)} s</td>
-                <td className="num">{shift.mph.toFixed(1)} mph</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="pane">
+        <div className="pane-header">
+          <Segmented
+            label="Run table"
+            size="small"
+            value={table}
+            onChange={setTable}
+            options={[
+              { value: "timeslip", label: "Timeslip" },
+              { value: "shifts", label: "Shifts" },
+            ]}
+          />
+        </div>
+        <div className="table-scroll">
+          {table === "timeslip" ? (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Mark</th>
+                  <th scope="col" className="num">
+                    Time
+                  </th>
+                  <th scope="col" className="num">
+                    Speed at mark
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {run.splits.map((s) => (
+                  <tr key={s.label}>
+                    <th scope="row">{s.label}</th>
+                    <td className="num strong">{s.t.toFixed(3)} s</td>
+                    <td className="num">{s.mph.toFixed(1)} mph</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Shift</th>
+                  <th scope="col" className="num">
+                    Time
+                  </th>
+                  <th scope="col" className="num">
+                    Speed
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {run.shifts.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="muted">
+                      No shifts
+                    </td>
+                  </tr>
+                ) : (
+                  run.shifts.map((shift) => (
+                    <tr key={`shift-${shift.toGear}`}>
+                      <th scope="row">
+                        {gears[shift.toGear - 1]?.label} → {gears[shift.toGear]?.label}
+                      </th>
+                      <td className="num strong">{shift.t.toFixed(2)} s</td>
+                      <td className="num">{shift.mph.toFixed(1)} mph</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </>
   );

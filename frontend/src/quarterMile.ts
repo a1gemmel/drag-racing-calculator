@@ -7,9 +7,12 @@ import { torqueAt, type PowerBasis, type PowerCurve } from "./power";
  *  - a traction limit: grip × load on the driven wheels, including steady-state weight transfer
  *    (CG height / wheelbase) toward the rear under acceleration
  *  - aero drag and rolling resistance
- *  - rotating inertia as an effective-mass factor that grows with overall ratio
- *  - a clutch launch: the engine holds launch RPM until the car is fast enough for 1st gear to lock up;
- *    while it slips, the engine's rotating mass isn't being accelerated, so only the wheels' inertia counts
+ *  - rotating inertia: wheels/driveline (4% of mass) and the engine (0.0025·m·r², which reproduces the
+ *    common 1.04 + 0.0025·ratio² effective-mass factor when everything is locked together)
+ *  - a clutch launch: from launch RPM, the clutch clamps over `clutchReleaseS` and then holds; the
+ *    engine slows as the clutch drags it down to driveline speed, then they turn together
+ *  - tire slip: when the tires can't take the drive force, the car gets the traction limit; the driver
+ *    modulates clutch and throttle to hold wheelspin to 10% slip, or 7 m/s at low speed
  *  - timing-light rollout: the clock starts after the car has rolled `rolloutIn` (splits, ET and shift
  *    times are on that clock, like a timing slip)
  *  - upshifts at shift RPM with no drive force for the shift time; a limiter at shift RPM in top gear
@@ -29,6 +32,7 @@ export type VehicleSetup = {
   rollingResistance: number;
   shiftTimeS: number;
   launchRpm: number;
+  clutchReleaseS: number; // time for the clutch to go from launch bite to full clamp
   rolloutIn: number; // distance rolled before the timer starts; 11.5 in is typical
   /** A measured 60 ft to fit the launch to; null estimates the best 60 ft instead. */
   knownSixtyFtS: number | null;
@@ -47,6 +51,7 @@ export const DEFAULT_VEHICLE: VehicleSetup = {
   rollingResistance: 0.015,
   shiftTimeS: 0.15,
   launchRpm: 3500,
+  clutchReleaseS: 0.25,
   rolloutIn: 11.5,
   knownSixtyFtS: null,
 };
@@ -63,9 +68,13 @@ export type RunInput = VehicleSetup & {
   launchScale?: number;
   /** End the run early at this distance (ft). Used for fast launch-only searches. */
   stopAtFt?: number;
+  /** Model tuning: clutch clamp torque as a multiple of peak engine torque. */
+  clutchCapacityFactor?: number;
+  /** Model tuning: wheelspin allowed at a standstill, m/s. */
+  slipFloorMps?: number;
 };
 
-export type Sample = { t: number; ft: number; mph: number; rpm: number; gear: number; shifting: boolean; tractionLimited: boolean };
+export type Sample = { t: number; ft: number; mph: number; rpm: number; gear: number; shifting: boolean };
 export type Split = { label: string; ft: number; t: number; mph: number };
 export type RunResult = {
   finished: boolean;
@@ -92,6 +101,9 @@ const DT = 0.001;
 const SAMPLE_EVERY = 0.02;
 const MAX_TIME = 60;
 const QUARTER_FT = 1320;
+// Tuned so a launch dips ~30-40% below launch RPM, bottoming ~0.2-0.4 s in (street to drag-radial grip).
+const CLUTCH_CAPACITY_FACTOR = 1.25;
+const SLIP_FLOOR_MPS = 7;
 
 const SPLIT_POINTS = [
   { label: "60 ft", ft: 60 },
@@ -130,55 +142,90 @@ export function simulateQuarterMile(input: RunInput): RunResult {
     warnings.push(`Power curve ends at ${curveMaxRpm.toLocaleString()} rpm; torque held flat to ${shiftRpm.toLocaleString()} rpm`);
   }
 
-  const wheelRpm = (v: number) => (v / radius) * (60 / (2 * Math.PI));
-  // Effective-mass factor for rotating parts (wheels, driveline, engine), a common textbook approximation.
-  const massFactor = (overall: number) => 1.04 + 0.0025 * overall * overall;
+  const RAD_TO_RPM = 60 / (2 * Math.PI);
+  const engineInertia = 0.0025 * mass * radius * radius; // kg·m² at the crank
+  const wheelMass = 0.04 * mass; // wheels and driveline, as equivalent mass at the tire
+  const engineMass = (k: number) => engineInertia * k * k; // engine as equivalent mass at the tire
+  const peakTorqueNm = Math.max(...curve.map((p) => p.torque)) * LBFT_TO_NM;
+  const clutchCapacityNm = (input.clutchCapacityFactor ?? CLUTCH_CAPACITY_FACTOR) * peakTorqueNm;
+  const torqueNm = (rpm: number) => torqueAt(curve, rpm) * LBFT_TO_NM;
+  const SLIP_RATIO = 0.1;
+  const SLIP_FLOOR = input.slipFloorMps ?? SLIP_FLOOR_MPS; // m/s of wheelspin allowed at low speed
+  const maxWheelSpeed = (carSpeed: number) => Math.max(carSpeed * (1 + SLIP_RATIO), carSpeed + SLIP_FLOOR);
 
   let t = 0;
-  let x = 0; // m
-  let v = 0; // m/s
+  let x = 0; // car position, m
+  let v = 0; // car speed, m/s
+  let u = 0; // tire surface speed, m/s (> v while the tires spin)
+  let omega = launchRpm / RAD_TO_RPM; // engine speed, rad/s
+  let clutchLocked = false;
   let gear = 0;
   let shiftTimer = 0;
   let nextSample = 0;
-  let tractionLimitedTime = 0;
   const samples: Sample[] = [];
   const shifts: RunResult["shifts"] = [];
   const crossings = new Map<number, { t: number; v: number }>();
   const rolloutFt = Math.max(input.rolloutIn, 0) / 12;
   const watch = [rolloutFt, ...SPLIT_POINTS.map((s) => s.ft), ...TRAP_POINTS];
-
   const launchScale = input.launchScale ?? 1;
   const sixtyM = 60 * FT_TO_M;
   const stopM = Math.min(input.stopAtFt ?? QUARTER_FT, QUARTER_FT) * FT_TO_M;
 
   while (x < stopM && t < MAX_TIME) {
-    const overall = gearRatios[gear] * axleRatio;
-    const lockedRpm = wheelRpm(v) * overall;
-    const shifting = shiftTimer > 0;
-    // In 1st, the clutch slips and holds launch RPM until the drivetrain catches up.
-    const engineRpm = shifting ? lockedRpm : gear === 0 ? Math.max(launchRpm, lockedRpm) : lockedRpm;
-
-    let engineDriveN = 0;
-    if (!shifting && !(gear === gearRatios.length - 1 && engineRpm >= shiftRpm)) {
-      engineDriveN = (torqueAt(curve, engineRpm) * LBFT_TO_NM * overall * efficiency) / radius;
-    }
-    if (x < sixtyM) engineDriveN *= launchScale;
-    const launchTractionN = x < sixtyM ? tractionLimitN * launchScale : tractionLimitN;
+    const k = (gearRatios[gear] * axleRatio) / radius; // engine rad/s per m/s at the tire
+    const scale = x < sixtyM ? launchScale : 1;
+    const tractionN = tractionLimitN * scale;
     const resistN = dragFactor * v * v + (v > 0 ? rollingN : 0);
-    // Engine-limited: the drive force also spins up the engine and driveline (full mass factor),
-    // except while shifting or while the launch clutch slips (engine speed is held, not accelerated).
-    // Traction-limited: the tires slip, the engine's surplus spins its own inertia, and only the
-    // wheels' inertia (≈ 4%) rides on the tire force.
-    const slipping = !shifting && gear === 0 && lockedRpm < launchRpm;
-    const engineAccel = (engineDriveN - resistN) / (mass * (shifting || slipping ? massFactor(0) : massFactor(overall)));
-    const tractionAccel = (launchTractionN - resistN) / (mass * massFactor(0));
-    const tractionLimited = !shifting && tractionAccel < engineAccel;
-    if (tractionLimited) tractionLimitedTime += DT;
-    const accel = Math.max(Math.min(engineAccel, tractionAccel), v > 0 ? -Infinity : 0);
+    const shifting = shiftTimer > 0;
+    const engineRpm = omega * RAD_TO_RPM;
+    const limiter = gear === gearRatios.length - 1 && engineRpm >= shiftRpm;
+    const engineNm = shifting || limiter ? 0 : torqueNm(engineRpm) * scale;
+    let accel: number;
 
+    if (shifting) {
+      // Clutch open: the car coasts; the engine is matched to the next gear when the shift completes.
+      accel = -resistN / (mass + wheelMass);
+      u = Math.max(0, v + accel * DT);
+    } else if (!clutchLocked) {
+      // Launch: clutch slipping. Its torque ramps from what the engine makes at launch RPM to full clamp.
+      const ramp = input.clutchReleaseS > 0 ? Math.min(t / input.clutchReleaseS, 1) : 1;
+      const launchNm = torqueNm(launchRpm) * scale;
+      const clutchNm = launchNm + (clutchCapacityNm * scale - launchNm) * ramp;
+      const driveN = clutchNm * k * efficiency;
+      omega = Math.max(omega + ((engineNm - clutchNm) / engineInertia) * DT, 0);
+      if (u > v + 1e-6 || driveN - resistN > ((tractionN - resistN) * (mass + wheelMass)) / mass) {
+        // Tires spinning: the car gets the traction limit, the wheels take the rest.
+        accel = (tractionN - resistN) / mass;
+        u = Math.min(Math.max(u + ((driveN - tractionN) / wheelMass) * DT, v + accel * DT), maxWheelSpeed(v + accel * DT));
+      } else {
+        accel = (driveN - resistN) / (mass + wheelMass);
+        u = v + accel * DT;
+      }
+      if (omega <= u * k) {
+        clutchLocked = true;
+        omega = u * k;
+      }
+    } else {
+      // Clutch locked: engine and driveline turn together.
+      const driveN = engineNm * k * efficiency;
+      const gripAccel = (driveN - resistN) / (mass + wheelMass + engineMass(k));
+      const tireForceNeeded = mass * gripAccel + resistN;
+      if (u > v + 1e-6 || tireForceNeeded > tractionN) {
+        accel = (tractionN - resistN) / mass;
+        u += ((driveN - tractionN) / (wheelMass + engineMass(k))) * DT;
+        u = Math.min(Math.max(u, v + accel * DT), maxWheelSpeed(v + accel * DT));
+      } else {
+        accel = gripAccel;
+        u = v + accel * DT;
+      }
+      omega = u * k;
+    }
+
+    if (v <= 0 && accel < 0) accel = 0;
     const prevX = x;
     const prevV = v;
     v = Math.max(0, v + accel * DT);
+    if (u < v) u = v;
     x += v * DT;
     t += DT;
 
@@ -192,21 +239,24 @@ export function simulateQuarterMile(input: RunInput): RunResult {
 
     if (shifting) {
       shiftTimer -= DT;
-    } else if (gear < gearRatios.length - 1 && wheelRpm(v) * overall >= shiftRpm) {
+      if (shiftTimer <= 0) omega = u * k; // clutch back in at the new gear
+    } else if (clutchLocked && gear < gearRatios.length - 1 && omega * RAD_TO_RPM >= shiftRpm) {
       gear += 1;
       shiftTimer = input.shiftTimeS;
       shifts.push({ t, mph: v * MPS_TO_MPH, toGear: gear });
+      u = v;
+      if (shiftTimer <= 0) omega = v * ((gearRatios[gear] * axleRatio) / radius);
     }
 
     if (t >= nextSample) {
+      const kNow = (gearRatios[gear] * axleRatio) / radius;
       samples.push({
         t,
         ft: x / FT_TO_M,
         mph: v * MPS_TO_MPH,
-        rpm: shiftTimer > 0 ? wheelRpm(v) * gearRatios[gear] * axleRatio : gear === 0 ? Math.max(launchRpm, wheelRpm(v) * overall) : wheelRpm(v) * overall,
+        rpm: (shiftTimer > 0 ? u * kNow : omega) * RAD_TO_RPM,
         gear,
         shifting: shiftTimer > 0,
-        tractionLimited,
       });
       nextSample += SAMPLE_EVERY;
     }
@@ -214,9 +264,6 @@ export function simulateQuarterMile(input: RunInput): RunResult {
 
   const finished = x >= QUARTER_FT * FT_TO_M;
   if (!finished && input.stopAtFt === undefined) warnings.push("Did not finish within 60 s");
-  if (tractionLimitedTime > 1.5) {
-    warnings.push(`Traction-limited for ${tractionLimitedTime.toFixed(1)} s`);
-  }
 
   // Timing-slip clock: zero when the car has rolled out of the staging beam.
   const clockStart = rolloutFt > 0 ? (crossings.get(rolloutFt)?.t ?? 0) : 0;
@@ -260,15 +307,22 @@ function sixtyFoot(input: RunInput) {
   return simulateQuarterMile({ ...input, stopAtFt: 60 }).splits[0]?.t ?? Infinity;
 }
 
-/** Launch RPM (searched in 250 rpm steps up to the shift point) that gives the quickest 60 ft. */
+/**
+ * Launch RPM (searched in 250 rpm steps up to the shift point) that gives the quickest 60 ft. When
+ * grip is the limit many RPMs tie; among those within 5 ms of the best, the one nearest the torque
+ * peak wins.
+ */
 export function bestLaunchRpm(input: RunInput) {
-  let best = { rpm: Math.min(MIN_LAUNCH_RPM, input.shiftRpm), sixty: Infinity };
+  const tried: { rpm: number; sixty: number }[] = [];
   for (let rpm = MIN_LAUNCH_RPM; rpm <= input.shiftRpm; rpm += LAUNCH_SEARCH_STEP) {
-    const sixty = sixtyFoot({ ...input, launchRpm: rpm });
-    // Prefer the lower RPM unless a higher one is measurably quicker.
-    if (sixty < best.sixty - 0.001) best = { rpm, sixty };
+    tried.push({ rpm, sixty: sixtyFoot({ ...input, launchRpm: rpm }) });
   }
-  return best;
+  if (tried.length === 0) return { rpm: input.shiftRpm, sixty: sixtyFoot({ ...input, launchRpm: input.shiftRpm }) };
+  const quickest = Math.min(...tried.map((c) => c.sixty));
+  const peakRpm = input.curve.reduce((best, p) => (p.torque > best.torque ? p : best)).rpm;
+  return tried
+    .filter((c) => c.sixty <= quickest + 0.005)
+    .reduce((best, c) => (Math.abs(c.rpm - peakRpm) < Math.abs(best.rpm - peakRpm) ? c : best));
 }
 
 /**
