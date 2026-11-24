@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { parseTireSize, ROLLING_DIAMETER_FACTOR } from "../tires";
+import { parseTireSize } from "../tires";
 import { NumberField } from "./NumberField";
 import { Segmented } from "./Segmented";
 
@@ -13,8 +13,6 @@ type Props = {
   size: string;
   onSizeChange: (value: string) => void;
 };
-
-const SHRINK_PERCENT = Math.round((1 - ROLLING_DIAMETER_FACTOR) * 100);
 
 /** Tire input: either a measured diameter in inches, or a size like 275/55R15 / 35x12.50R17. */
 export function TireField({ mode, onModeChange, diameterIn, onDiameterChange, size, onSizeChange }: Props) {
@@ -56,7 +54,6 @@ export function TireField({ mode, onModeChange, diameterIn, onDiameterChange, si
           max={60}
           value={diameterIn}
           onCommit={onDiameterChange}
-          hint="Measured or effective height. Used as entered."
         />
       ) : (
         <div className="field">
@@ -86,10 +83,10 @@ export function TireField({ mode, onModeChange, diameterIn, onDiameterChange, si
           />
           <p className={error ? "hint error" : "hint"} id={`${id}-hint`} role={error ? "alert" : undefined}>
             {error
-              ? "Use a size like 275/55R15 or 35x12.50R17."
+              ? "Not a tire size"
               : parsed
-                ? `${parsed.nominalDiameterIn.toFixed(1)}″ by the numbers → ${parsed.effectiveDiameterIn.toFixed(1)}″ rolling (−${SHRINK_PERCENT}% for sidewall squat and true size).`
-                : "Enter a tire size."}
+                ? `${parsed.effectiveDiameterIn.toFixed(1)}″ rolling`
+                : ""}
           </p>
         </div>
       )}

@@ -5,7 +5,11 @@ import { CrawlView } from "./components/CrawlView";
 import { GearChart, type Gear } from "./components/GearChart";
 import { NumberField } from "./components/NumberField";
 import { Segmented } from "./components/Segmented";
+import { PowerCard } from "./components/PowerCard";
+import { QuarterMileCard } from "./components/QuarterMileCard";
 import { TireField, type TireMode } from "./components/TireField";
+import { buildCurve, DEFAULT_POWER, type PowerState } from "./power";
+import { DEFAULT_VEHICLE, type VehicleSetup } from "./quarterMile";
 import { parseTireSize } from "./tires";
 import { ALL_SCOPE, filterFamilies, resolveSelection, scopeOptions } from "./transmissionSearch";
 
@@ -20,6 +24,7 @@ const CRUISE_SPEEDS = [10, 20, 30, 40, 50, 60, 70, 80];
 const HIGHWAY_MPH = 65;
 const LUGGING_RPM = 800;
 const CRUISE_FLOOR_RPM = 1200;
+const DEFAULT_TRANSMISSION = { model: "Muncie M20", variant: "66-70 Wide Ratio" };
 
 export function App() {
   const families = transmissionFamilies;
@@ -27,8 +32,8 @@ export function App() {
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState(ALL_SCOPE);
   // The user's last pick. If a search or filter hides it, resolveSelection falls back to the first match.
-  const [selectedModel, setSelectedModel] = useState("");
-  const [selectedVariantName, setSelectedVariantName] = useState("");
+  const [selectedModel, setSelectedModel] = useState(DEFAULT_TRANSMISSION.model);
+  const [selectedVariantName, setSelectedVariantName] = useState(DEFAULT_TRANSMISSION.variant);
   const [tireMode, setTireMode] = useState<TireMode>("diameter");
   const [tireDiameterIn, setTireDiameterIn] = useState(26);
   const [tireSize, setTireSize] = useState("275/55R15");
@@ -36,7 +41,7 @@ export function App() {
   // Speed math uses the rolling diameter: as entered in diameter mode, size math minus the rolling correction otherwise.
   const tireDiameter = parsedTire ? parsedTire.effectiveDiameterIn : tireDiameterIn;
   const tireLabel = parsedTire ? `${parsedTire.label} (${tireDiameter.toFixed(1)}″)` : `${tireDiameter}″ tire`;
-  const [axleRatio, setAxleRatio] = useState(4.1);
+  const [axleRatio, setAxleRatio] = useState(3.73);
   const [rpmMode, setRpmMode] = useState<RpmMode>("shift");
   const [shiftRpm, setShiftRpm] = useState(6500);
   const [minRpm, setMinRpm] = useState(1500);
@@ -44,6 +49,9 @@ export function App() {
   const [gearsetView, setGearsetView] = useState<"ladder" | "cruising">("ladder");
   const [lowRange, setLowRange] = useState(2.72);
   const [crawlRpm, setCrawlRpm] = useState(1000);
+  const [power, setPower] = useState<PowerState>(DEFAULT_POWER);
+  const [vehicle, setVehicle] = useState<VehicleSetup>(DEFAULT_VEHICLE);
+  const powerCurve = useMemo(() => buildCurve(power, vehicle.weightLb), [power, vehicle.weightLb]);
 
   const scopes = useMemo(() => scopeOptions(families), [families]);
   const filteredFamilies = useMemo(() => filterFamilies(families, scope, query), [families, scope, query]);
@@ -105,8 +113,8 @@ export function App() {
           value={appMode}
           onChange={setAppMode}
           options={[
-            { value: "race", label: "Race", hint: "Shift points & road speed" },
-            { value: "crawl", label: "Crawl", hint: "Crawl ratio & low range" },
+            { value: "race", label: "Race" },
+            { value: "crawl", label: "Crawl" },
           ]}
         />
       </header>
@@ -231,7 +239,6 @@ export function App() {
                   max={20000}
                   value={shiftRpm}
                   onCommit={setShiftRpm}
-                  hint="Every upshift happens at this RPM."
                 />
               ) : (
                 <div className="field-row">
@@ -246,8 +253,7 @@ export function App() {
         <main className="content">
           {gears.length === 0 ? (
             <section className="card empty-card">
-              <h2>Pick a transmission</h2>
-              <p>Search or change the filter in the sidebar to see its gearing.</p>
+              <h2>No transmission selected</h2>
             </section>
           ) : appMode === "crawl" ? (
             <CrawlView
@@ -423,13 +429,31 @@ export function App() {
                       </tbody>
                     </table>
                     <p className="footnote">
-                      <strong>Bold</strong> is the best cruising gear at each speed: the lowest RPM that stays at or above{" "}
-                      {CRUISE_FLOOR_RPM.toLocaleString()}. RPM is shown between {LUGGING_RPM.toLocaleString()} and{" "}
-                      {topRpm.toLocaleString()}; outside that range the gear lugs or over-revs.
+                      Bold: lowest RPM ≥ {CRUISE_FLOOR_RPM.toLocaleString()}. Shown: {LUGGING_RPM.toLocaleString()}–
+                      {topRpm.toLocaleString()} rpm.
                     </p>
                   </div>
                 )}
               </section>
+
+              <PowerCard
+                state={power}
+                onChange={setPower}
+                weightLb={vehicle.weightLb}
+                curve={powerCurve.curve}
+                error={powerCurve.error}
+                basis={powerCurve.basis}
+              />
+              <QuarterMileCard
+                vehicle={vehicle}
+                onVehicleChange={setVehicle}
+                curve={powerCurve.curve}
+                curveBasis={powerCurve.basis}
+                gears={gears}
+                axleRatio={axleRatio}
+                tireDiameterIn={tireDiameter}
+                shiftRpm={topRpm}
+              />
             </>
           )}
         </main>

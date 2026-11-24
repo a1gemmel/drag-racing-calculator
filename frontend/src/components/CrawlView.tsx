@@ -13,14 +13,6 @@ type Props = {
   onCrawlRpmChange: (value: number) => void;
 };
 
-// Rough community rule of thumb for total crawl ratio, used only as context next to the number.
-function crawlRating(ratio: number) {
-  if (ratio >= 100) return "Rock crawler territory";
-  if (ratio >= 70) return "Serious trail gearing";
-  if (ratio >= 40) return "Mild trail gearing";
-  return "Street / light off-road";
-}
-
 export function CrawlView({ gears, tireDiameter, axleRatio, lowRange, crawlRpm, onLowRangeChange, onCrawlRpmChange }: Props) {
   const ranges = [
     { name: "High", ratio: 1 },
@@ -39,7 +31,6 @@ export function CrawlView({ gears, tireDiameter, axleRatio, lowRange, crawlRpm, 
             {crawlRatio.toFixed(1)}
             <span>:1</span>
           </p>
-          <p className="hero-caption">{crawlRating(crawlRatio)}</p>
         </div>
         <dl className="hero-facts">
           <div>
@@ -98,7 +89,6 @@ export function CrawlView({ gears, tireDiameter, axleRatio, lowRange, crawlRpm, 
             </tbody>
           </table>
         </div>
-        <p className="footnote">Transfer-case catalog and stacked doublers are coming; enter your low-range ratio above for now.</p>
       </section>
     </>
   );

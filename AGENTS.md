@@ -46,6 +46,12 @@ frontend/
   src/components/NumberField.tsx numeric input: local draft, commits on blur/Enter, reverts invalid values
   src/components/Segmented.tsx   radio-group segmented control (arrow keys)
   src/components/TireField.tsx   tire input: diameter (used as entered) or size (275/55R15, 35x12.50R17)
+  src/power.ts       power curves: torqueAt, synthesizeCurve (peaks), estimateFromTrap (Hale), parseDynoText, buildCurve
+  src/quarterMile.ts simulateQuarterMile: 1 ms time-step point mass, traction limit with steady-state weight transfer,
+                     effective-mass factor 1.04 + 0.0025·ratio², clutch launch, shift time, NHRA-style 66 ft trap
+  src/components/PowerCard.tsx      three power methods + torque/HP small multiples; dyno table editor + CSV import
+  src/components/QuarterMileCard.tsx vehicle setup, ET/60ft/1/8 tiles, speed and RPM traces, splits table
+  src/components/LineChart.tsx      generic single-axis line chart with crosshair tooltip
   src/tires.ts       parseTireSize; ROLLING_DIAMETER_FACTOR = 0.97 applied to size-derived diameters only
   src/catalog.ts     typed transmission catalog (TransmissionFamily -> variants -> gear_ratios)
   src/calculations.ts pure math: totalRatio, speedMph, rpmForSpeed, gearSpeeds
@@ -105,6 +111,9 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
 
 ## Conventions for agents
 
+- **UI copy is numbers and labels only.** No advice, recommendations, ratings ("rock crawler territory"),
+  explanatory hints or "coming soon" notes. Warnings state the fact only ("Traction-limited for 4.4 s").
+  Tire size shows only the rolling diameter.
 - Keep the app backend-free and the build a single offline HTML file; `scripts/check-artifact.mjs` guards this.
 - Keep math pure in `calculations.ts` with vitest coverage; UI in React.
 - Don't reintroduce Bazel or a second lockfile.
@@ -126,6 +135,14 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
 - **Quarter-mile sim: mid-fidelity** — weight, drivetrain loss, traction limit, aero drag, rolling
   resistance, shift time. Outputs ET, trap, 60 ft, speed/RPM vs time.
 - **Visual redesign: full freedom.**
+- **Power basis:** peak numbers and dyno table each have a Crank (engine dyno) / Wheel (chassis dyno)
+  toggle. The trap-speed estimate is treated as **wheel** hp (owner decision). Drivetrain loss is applied
+  only to crank curves; the loss field is disabled for wheel curves.
+- **Default car:** 26" tire, 3.73 axle, 3,700 lb, trap-speed power at 110 mph, Muncie M20 66-70 wide ratio.
+- **60 ft:** "Best estimate" searches launch RPM (250 rpm steps, lowest RPM wins ties within 1 ms) for the
+  quickest 60 ft; launch RPM is no longer an input. "Known" binary-searches a drive-force multiplier over
+  the first 60 ft (`launchScale`, 0.02-4) to hit the entered 60 ft; the rest of the pass runs normally
+  from there. See `runQuarterMile` in quarterMile.ts.
 - **Tire rolling correction (3%) applies to size mode only;** a typed diameter is used as entered.
 
 ## Open questions for the owner
@@ -143,3 +160,20 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
   skill, validated for CVD separation against #15181b. Color follows the gear index — never reorder.
 - Mode accent: Race #ff5a36, Crawl #3ec9a7. UI chrome only; never use the accent for data marks.
 - Text in charts uses text tokens, never series colors. System font stacks only (single offline file).
+
+## Quarter-mile sim calibration notes (2026-11-24)
+
+- 400 hp / 3,500 lb, 3.73 axle, 26" tire, TKX wide ratio: 13.4 s @ 111.6 mph on 1.0 grip, 12.8 s on 1.3.
+  With the Hale estimate treated as crank hp, sim trap lands 1-3.5% under the input trap; treated as wheel
+  hp (current behavior) it lands ~4-5% over (1% over at 600 hp / 2,800 lb). The consistency test runs the
+  trap curve as crank.
+- Owner decision (2026-11-24): keep Hale's 234 constant and treat it as **wheel** hp. The default car's
+  110 mph reference pass hit the rev limiter in 3rd, so it under-trapped; the sim's ~115 mph is expected. Hale's ET formula is ~1 s quicker; it assumes an ideal launch, so don't calibrate to it.
+- Timing uses a rollout (default 11.5 in): splits, ET, shift times and traces start when the car has
+  rolled that far, like a timing slip. Worth ~0.3 s on 60 ft and ET; trap is unaffected.
+- While the launch clutch slips, engine inertia is excluded (factor 1.04); otherwise launch was capped
+  at ~0.76 g regardless of grip.
+- Defaults after both fixes (430 hp, 3,500 lb, TKX close, 4.10, 26", 0.15 s shifts): 60 ft 2.22 /
+  ET 12.81 on 1.0 grip, 1.88 / 12.10 on 1.3, 1.73 / 11.90 on 1.6.
+- When traction-limited, only the wheels' inertia (factor 1.04) rides on the tire force; using the full
+  engine-side factor in 1st made 60 ft times ~3 s.
