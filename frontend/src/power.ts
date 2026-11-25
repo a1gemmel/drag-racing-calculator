@@ -208,12 +208,29 @@ export function parseDynoText(text: string): DynoParse {
 }
 
 export type PowerMethod = "trap" | "peak" | "dyno";
+/** Which trap the trap speed was measured at. */
+export type TrapDistance = "quarter" | "eighth";
+
+/**
+ * 1/4-mile trap ≈ 1/8-mile trap × 1.25 (the common drag-strip rule of thumb, 1.25-1.27; this sim's own
+ * passes land at 1.20-1.29, mostly ~1.25). Hale's formula takes the 1/4-mile figure.
+ */
+export const EIGHTH_TO_QUARTER_MPH = 1.25;
+
+/** The 1/4-mile trap speed the trap method feeds into Hale's formula. */
+export function quarterTrapMph(state: Pick<PowerState, "trapDistance" | "trapMph" | "trapEighthMph">) {
+  return state.trapDistance === "eighth" ? state.trapEighthMph * EIGHTH_TO_QUARTER_MPH : state.trapMph;
+}
 /** Where a curve was measured: at the crank (engine dyno) or at the wheels (chassis dyno). */
 export type PowerBasis = "crank" | "wheel";
 
 export type PowerState = {
   method: PowerMethod;
+  trapDistance: TrapDistance;
+  /** 1/4-mile trap speed. */
   trapMph: number;
+  /** 1/8-mile trap speed (used when trapDistance is "eighth"). */
+  trapEighthMph: number;
   /** Race weight on the pass the trap speed came from. Independent of the quarter-mile sim's weight. */
   trapWeightLb: number;
   trapPeakRpm: number;
@@ -225,7 +242,9 @@ export type PowerState = {
 
 export const DEFAULT_POWER: PowerState = {
   method: "trap",
+  trapDistance: "quarter",
   trapMph: 110,
+  trapEighthMph: 88,
   trapWeightLb: 3700,
   trapPeakRpm: 6000,
   peak: { peakHp: 430, peakHpRpm: 5900, peakTorque: 424, peakTorqueRpm: 4600 },
@@ -254,8 +273,9 @@ export function powerBasis(state: PowerState): PowerBasis {
 export function buildCurve(state: PowerState): CurveResult & { basis: PowerBasis } {
   const basis = powerBasis(state);
   if (state.method === "trap") {
-    if (!(state.trapMph > 0 && state.trapWeightLb > 0)) return { curve: null, error: "Enter weight and trap speed.", basis };
-    const result = estimateFromTrap(state.trapWeightLb, state.trapMph, state.trapPeakRpm);
+    const trapMph = quarterTrapMph(state);
+    if (!(trapMph > 0 && state.trapWeightLb > 0)) return { curve: null, error: "Enter weight and trap speed.", basis };
+    const result = estimateFromTrap(state.trapWeightLb, trapMph, state.trapPeakRpm);
     return result.error === null ? { curve: result.curve, error: null, basis } : { curve: null, error: result.error, basis };
   }
   if (state.method === "peak") return { ...synthesizeCurve(state.peak), basis };

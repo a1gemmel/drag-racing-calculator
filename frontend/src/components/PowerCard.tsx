@@ -4,12 +4,14 @@ import {
   horsepower,
   hpFromTrap,
   parseDynoText,
+  quarterTrapMph,
   torqueFromHp,
   type CurvePoint,
   type PowerBasis,
   type PowerCurve,
   type PowerMethod,
   type PowerState,
+  type TrapDistance,
 } from "../power";
 import { LineChart } from "./LineChart";
 import { NumberField } from "./NumberField";
@@ -30,6 +32,8 @@ const HP_COLOR = "#d95926";
 
 export function PowerCard({ state, onChange, curve, error, basis, drivetrainLoss }: Props) {
   const set = (patch: Partial<PowerState>) => onChange({ ...state, ...patch });
+  const eighth = state.trapDistance === "eighth";
+  const trapHp = hpFromTrap(state.trapWeightLb, quarterTrapMph(state));
   const peaks = curve ? curvePeaks(curve) : null;
   const hpUnit = basis === "wheel" ? "whp" : "hp";
   const basisToggle = (value: PowerBasis, onBasis: (basis: PowerBasis) => void) => (
@@ -73,8 +77,34 @@ export function PowerCard({ state, onChange, curve, error, basis, drivetrainLoss
           {state.method === "trap" ? (
             <>
               <p className="hint">Use a known pass to estimate wheel horsepower</p>
+              <div className="field">
+                <span className="field-label">Trap at</span>
+                <Segmented<TrapDistance>
+                  label="Trap at"
+                  size="small"
+                  value={state.trapDistance}
+                  onChange={(trapDistance) => set({ trapDistance })}
+                  options={[
+                    { value: "quarter", label: "1/4 mile" },
+                    { value: "eighth", label: "1/8 mile" },
+                  ]}
+                />
+              </div>
               <div className="field-row">
-                <NumberField label="Trap speed" unit="mph" step={0.1} min={20} max={300} value={state.trapMph} onCommit={(trapMph) => set({ trapMph })} />
+                {eighth ? (
+                  <NumberField
+                    key="eighth"
+                    label="1/8 mile trap"
+                    unit="mph"
+                    step={0.1}
+                    min={15}
+                    max={250}
+                    value={state.trapEighthMph}
+                    onCommit={(trapEighthMph) => set({ trapEighthMph })}
+                  />
+                ) : (
+                  <NumberField key="quarter" label="Trap speed" unit="mph" step={0.1} min={20} max={300} value={state.trapMph} onCommit={(trapMph) => set({ trapMph })} />
+                )}
                 <NumberField
                   label="Race weight"
                   unit="lb"
@@ -95,8 +125,8 @@ export function PowerCard({ state, onChange, curve, error, basis, drivetrainLoss
                 onCommit={(trapPeakRpm) => set({ trapPeakRpm })}
               />
               <p className="hint">
-                {Math.round(hpFromTrap(state.trapWeightLb, state.trapMph) * (1 - drivetrainLoss))} whp ·{" "}
-                {Math.round(hpFromTrap(state.trapWeightLb, state.trapMph))} hp crank
+                {eighth ? `${quarterTrapMph(state).toFixed(1)} mph 1/4 mile equiv. · ` : ""}
+                {Math.round(trapHp * (1 - drivetrainLoss))} whp · {Math.round(trapHp)} hp crank
               </p>
             </>
           ) : state.method === "peak" ? (

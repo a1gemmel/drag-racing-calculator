@@ -249,6 +249,10 @@ section as release notes. (Older `build-1`/`build-2` releases predate versioning
 - **Offline copy:** header button downloads the page itself with the on-screen settings embedded; the saved
   file opens with them as defaults. New settings must be added to AppSettings, DEFAULT_SETTINGS,
   App's useState initializers and currentSettings(). Hidden in `npm run dev` (the dev page isn't standalone).
+- **1/8-mile trap (v0.2.2):** the trap method has a 1/4 / 1/8 mile toggle (`power.trapDistance`, separate
+  `trapEighthMph`, default 88). An eighth trap × `EIGHTH_TO_QUARTER_MPH` (1.25, power.ts) goes into Hale's formula.
+  1.25 is the common rule of thumb (1.25-1.27) and matches this sim's own passes (1.20-1.29, mostly ~1.25);
+  a test keeps the sim's 1/8 mph within 3% of the entered value.
 - **Trap-speed weight:** the trap method has its own race-weight field (`power.trapWeightLb`, the weight on
   that pass). Editing it also sets the sim's race weight; editing the sim's race weight does not touch it,
   so power stays fixed and ET responds to weight.

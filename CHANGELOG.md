@@ -2,6 +2,10 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.2.2 — 2026-11-25
+
+- Trap-speed power: choose a 1/4 mile or 1/8 mile trap. A 1/8 mile trap is scaled by 1.25 to its 1/4 mile equivalent, which is shown with the hp estimate.
+
 ## v0.2.1 — 2026-11-25
 
 - New automatics: ZF 8HP45, Chrysler 727 TorqueFlite, 545RFE, 65RFE (Drive or all six ratios), Ford 10R80 and GM 8L90.

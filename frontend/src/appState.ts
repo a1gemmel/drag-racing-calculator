@@ -58,6 +58,7 @@ const ENUMS: Record<string, readonly string[]> = {
   rpmMode: ["shift", "range"],
   gearsetView: ["ladder", "cruising"],
   "power.method": ["trap", "peak", "dyno"],
+  "power.trapDistance": ["quarter", "eighth"],
   "power.peakBasis": ["crank", "wheel"],
   "power.dynoBasis": ["crank", "wheel"],
   "vehicle.drive": ["rear", "front", "awd"],

@@ -8,6 +8,7 @@ import {
   hpFromTrap,
   normalizeCurve,
   parseDynoText,
+  quarterTrapMph,
   synthesizeCurve,
   torqueAt,
 } from "./power";
@@ -107,5 +108,15 @@ describe("trap-speed weight", () => {
     const heavy = buildCurve({ ...DEFAULT_POWER, method: "trap", trapWeightLb: 4000 });
     const peak = (c: typeof light) => curvePeaks(c.curve!).hp.value;
     expect(peak(heavy) / peak(light)).toBeCloseTo(4000 / 3000, 2);
+  });
+});
+
+describe("quarterTrapMph", () => {
+  it("uses the 1/4-mile trap as entered, or scales a 1/8-mile trap by 1.25", () => {
+    expect(quarterTrapMph({ ...DEFAULT_POWER, trapMph: 112 })).toBe(112);
+    expect(quarterTrapMph({ ...DEFAULT_POWER, trapDistance: "eighth", trapEighthMph: 90 })).toBeCloseTo(112.5, 6);
+    const eighth = buildCurve({ ...DEFAULT_POWER, trapDistance: "eighth", trapEighthMph: 88 });
+    const quarter = buildCurve({ ...DEFAULT_POWER, trapMph: 110 });
+    expect(eighth.curve).toEqual(quarter.curve);
   });
 });

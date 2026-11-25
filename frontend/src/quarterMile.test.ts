@@ -133,4 +133,16 @@ describe("trap-speed power round trip", () => {
       expect(Math.abs(run.trapMph! - trapMph) / trapMph).toBeLessThan(0.02);
     }
   });
+  it("runs a 1/8-mile trap close to the entered 1/8-mile speed", () => {
+    const car = { ...DEFAULT_VEHICLE, gearRatios: [2.52, 1.88, 1.46, 1.0], axleRatio: 3.73, tireDiameterIn: 26, shiftRpm: 6500 };
+    for (const [weightLb, trapEighthMph] of [
+      [3700, 80],
+      [3700, 92],
+      [3000, 92],
+    ]) {
+      const power = buildCurve({ ...DEFAULT_POWER, method: "trap", trapDistance: "eighth", trapEighthMph, trapWeightLb: weightLb });
+      const run = runQuarterMile({ ...car, weightLb, knownSixtyFtS: null, curve: power.curve!, curveBasis: power.basis });
+      expect(Math.abs(run.eighth!.mph - trapEighthMph) / trapEighthMph).toBeLessThan(0.03);
+    }
+  });
 });
