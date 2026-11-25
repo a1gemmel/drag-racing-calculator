@@ -8,7 +8,7 @@
 
 import { embedSettings, SETTINGS_ELEMENT_ID, type AppSettings } from "./appState";
 
-export const OFFLINE_FILE_NAME = "transmission-ratio-viz.html";
+export const OFFLINE_FILE_NAME = "drag-racing-calculator.html";
 
 /** In dev the page loads /src/main.tsx from the dev server, so a saved copy wouldn't run. */
 export const offlineCopyAvailable = !import.meta.env.DEV;

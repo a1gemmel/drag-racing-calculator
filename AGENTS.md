@@ -4,7 +4,8 @@ Context for coding agents working in this repository. Last surveyed 2026-11-24.
 
 ## Purpose
 
-Transmission Ratio Viz is a **frontend-only gearing calculator / visualizer** for car people.
+**Drag Racing Calculator** (formerly "Transmission Ratio Viz"; repo dir name unchanged) is a
+**frontend-only drag-racing gearing and quarter-mile calculator** for car people.
 A user searches for and picks a transmission (built-in catalog; text search over manufacturer, model,
 variant, vehicle brand and ratios, plus a manufacturer/brand filter), enters tire diameter, rear axle ratio
 and an RPM range or shift point, and gets:
@@ -12,7 +13,9 @@ and an RPM range or shift point, and gets:
 - a **road speed vs RPM** chart with one line per gear (SVG, hand-rolled, hover tooltips),
 - in "Shift Point" mode (the default), the RPM drop after each upshift (dashed connectors + labels),
 - a **gearset overview** table (ratio, % step from previous gear, top speed at max RPM),
-- a **cruising RPM** table (RPM per gear at 10–80 mph).
+- a **cruising RPM** table (RPM per gear at 10–80 mph),
+- **power input** (trap speed, peak numbers or dyno table) and a **quarter-mile simulation**
+  (60 ft, splits, ET, trap, shifts, speed/RPM traces).
 
 The production output is a single self-contained `index.html` (JS + CSS inlined) that runs from disk
 with no network or API.
@@ -40,9 +43,8 @@ frontend/
   vite.config.ts     React plugin + custom `inlineAssets` plugin (inlines JS/CSS, deletes other bundle files)
   scripts/check-artifact.mjs  asserts dist/ is only index.html, no external script/link refs, app name present
   src/main.tsx       React 18 root
-  src/App.tsx        app state, Race/Crawl shell, sidebar, stats strip, ratio ladder + cruising tables
+  src/App.tsx        app state, sidebar, stats strip, ratio ladder + cruising tables, power + quarter-mile cards
   src/components/GearChart.tsx   SVG RPM-vs-speed chart (legend, shift drops, hover crosshair/tooltip)
-  src/components/CrawlView.tsx   crawl ratio hero + gear × range matrix (manual low-range ratio for now)
   src/components/NumberField.tsx numeric input: local draft, commits on blur/Enter, reverts invalid values
   src/components/Segmented.tsx   radio-group segmented control (arrow keys)
   src/components/TireField.tsx   tire input: diameter (used as entered) or size (275/55R15, 35x12.50R17)
@@ -53,7 +55,7 @@ frontend/
   src/components/QuarterMileCard.tsx vehicle setup, ET/60ft/1/8 tiles, speed and RPM traces, splits table
   src/components/LineChart.tsx      generic single-axis line chart with crosshair tooltip
   src/offline.ts     "Download offline copy": captures the page before React renders (first import in main.tsx),
-                     embeds current settings, saves as transmission-ratio-viz.html via a Blob (no fetch)
+                     embeds current settings, saves as drag-racing-calculator.html via a Blob (no fetch)
   src/appState.ts    AppSettings + DEFAULT_SETTINGS; parseSettings (type-checked merge over defaults),
                      embedSettings / readEmbeddedSettings (<script type="application/json" id="saved-settings">)
   src/tires.ts       parseTireSize; ROLLING_DIAMETER_FACTOR = 0.97 applied to size-derived diameters only
@@ -63,7 +65,7 @@ frontend/
   src/transmissionSearch.ts  pure filtering: scope (All/manufacturer/brand) + text query; resolveSelection fallback
   src/transmissionSearch.test.ts
   src/catalog.test.ts  catalog invariants
-  src/styles.css     design tokens + all styles; accent switches per mode via .app[data-mode]
+  src/styles.css     design tokens + all styles
 ```
 
 ## Commands
@@ -79,11 +81,11 @@ npm run build                        # -> frontend/dist/index.html, then artifac
 ## Domain
 
 ```
-road_speed_mph = rpm * tire_diameter_in * pi / (trans_ratio * axle_ratio * Π transfer_ratios * 1056)
+road_speed_mph = rpm * tire_diameter_in * pi / (trans_ratio * axle_ratio * 1056)
 ```
 
-Units are imperial only (inches, mph). Transfer-case stages are supported by the math but **not wired
-into the UI**.
+Units are imperial only (inches, mph). `calculations.ts` still accepts optional extra ratio stages
+(left over from the removed crawl mode); the UI doesn't use them.
 
 ## Known issues / tech debt (found during survey)
 
@@ -109,9 +111,8 @@ Data
 
 ## Roadmap
 
-See `PLAN.md` (current, post-backend) for the checklist: export/import builds, editable gearsets,
-multiple transfer-case stages, R/N/OD in chart, unit + tire-size conversion, browser smoke tests,
-accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
+See `PLAN.md` for the checklist: shift-point finder, hold-a-gear runs, editable gearsets, setup
+comparison, metric units, browser smoke tests, accessibility.
 
 ## Conventions for agents
 
@@ -134,15 +135,15 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
 - **Catalog data: research & cite.** Look up ratios from public manufacturer/supplier specs and set
   the `source` field on every variant. Don't add a variant without a source.
 
-- **Two app modes:** Race (shift points, road speed, quarter mile) and Crawl (crawl ratio, transfer-case
-  catalog incl. stacked doublers, gear × range matrix).
+- **Renamed to "Drag Racing Calculator" and crawl mode removed (2026-11-25).** One mode only; no
+  transfer-case or crawl features. Saved offline copies from before still load (unknown fields are dropped).
 - **Power input methods** (for the quarter-mile sim): (1) car weight + 1/4-mile trap MPH estimate,
   (2) peak HP/torque @ RPM, (3) dyno table, with CSV/paste import feeding the same table.
 - **Quarter-mile sim: mid-fidelity** — weight, drivetrain loss, traction limit, aero drag, rolling
   resistance, shift time. Outputs ET, trap, 60 ft, speed/RPM vs time.
 - **Visual redesign: full freedom.**
 - **Power basis:** peak numbers and dyno table each have a Crank (engine dyno) / Wheel (chassis dyno)
-  toggle. The trap-speed estimate is treated as **wheel** hp (owner decision). Drivetrain loss is applied
+  toggle. The trap-speed estimate is crank hp (shown as whp · hp crank). Drivetrain loss is applied
   only to crank curves; the loss field is disabled for wheel curves.
 - **Default car:** 26" tire, 3.73 axle, 3,700 lb, trap-speed power at 110 mph, Muncie M20 66-70 wide ratio.
 - **60 ft:** "Best estimate" searches launch RPM (250 rpm steps, lowest RPM wins ties within 1 ms) for the
@@ -162,7 +163,7 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
 - Hosting target (GitHub Pages, Netlify, Cloudflare Pages, …)? Determines CI/deploy setup.
 - Units: imperial only, or metric too? Tire input as diameter or tire size (e.g. 265/70R17)?
 - Priority order for PLAN.md product work.
-- Which transmissions to add to the catalog (and transfer cases / axles)?
+- Which transmissions to add to the catalog?
 - Repo directory name is misspelled (`transmssion`); rename intended?
 
 ## Design system (2026-11-24 redesign)
@@ -170,7 +171,7 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
 - Dark only. Tokens live at the top of `styles.css`; chart surface is `--surface` #15181b.
 - Gear colors: fixed order in `GEAR_COLORS` (App.tsx), the dark-mode categorical palette from the dataviz
   skill, validated for CVD separation against #15181b. Color follows the gear index — never reorder.
-- Mode accent: Race #ff5a36, Crawl #3ec9a7. UI chrome only; never use the accent for data marks.
+- Accent #ff5a36. UI chrome only; never use the accent for data marks.
 - Text in charts uses text tokens, never series colors. System font stacks only (single offline file).
 
 ## Quarter-mile sim calibration notes (2026-11-24)
@@ -179,8 +180,12 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
   With the Hale estimate treated as crank hp, sim trap lands 1-3.5% under the input trap; treated as wheel
   hp (current behavior) it lands ~4-5% over (1% over at 600 hp / 2,800 lb). The consistency test runs the
   trap curve as crank.
-- Owner decision (2026-11-24): keep Hale's 234 constant and treat it as **wheel** hp. The default car's
-  110 mph reference pass hit the rev limiter in 3rd, so it under-trapped; the sim's ~115 mph is expected. Hale's ET formula is ~1 s quicker; it assumes an ideal launch, so don't calibrate to it.
+- Owner decision (2026-11-24, final): Hale's 234 formula gives crank hp; the sim takes drivetrain loss
+  off it, and the result at the tires is the pass's wheel hp. Default drivetrain loss is **11%** (owner
+  target: 115 mph / 3,700 lb ≈ 390 whp; Hale gives 439 hp crank -> 391 whp, so the 234 constant is
+  unchanged). The trap method's basis is "crank". At 11% the sim traps 0-1.7% above the input with Cd 0.35
+  (round-trip test guards 2%). Don't change the default Cd (0.35) to calibrate. A simulator-based power
+  solve was tried and rejected by the owner: keep Hale's formula as the source of the number.
 - Timing uses a rollout (default 11.5 in): splits, ET, shift times and traces start when the car has
   rolled that far, like a timing slip. Worth ~0.3 s on 60 ft and ET; trap is unaffected.
 - Defaults after both fixes (430 hp, 3,500 lb, TKX close, 4.10, 26", 0.15 s shifts): 60 ft 2.22 /

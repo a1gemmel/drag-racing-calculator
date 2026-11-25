@@ -1,6 +1,6 @@
-# Transmission Ratio Viz
+# Drag Racing Calculator
 
-Transmission Ratio Viz is a frontend-only gearing workspace. The transmission catalog and drivetrain calculations run in the browser, and the production build is a single self-contained `index.html` file that can be opened from disk or hosted by any static file server.
+Drag Racing Calculator is a frontend-only gearing and quarter-mile tool: pick a transmission, set tire, axle and shift point, enter power, and see RPM vs road speed, shift drops, cruising RPM and a simulated quarter-mile pass. Everything runs in the browser, and the production build is a single self-contained `index.html` file that can be opened from disk, hosted by any static file server, or saved from the page with its current settings.
 
 ## Build and Test
 
@@ -23,11 +23,11 @@ npm run build
 
 ## Domain Formula
 
-For tire diameter in inches, engine RPM, transmission ratio, axle ratio, and optional transfer-case stages:
+For tire diameter in inches, engine RPM, transmission ratio and axle ratio:
 
 ```text
 road_speed_mph = engine_rpm * tire_diameter_in * pi
-                 / (transmission_ratio * axle_ratio * transfer_case_ratios * 1056)
+                 / (transmission_ratio * axle_ratio * 1056)
 ```
 
 The pure calculation functions live in `frontend/src/calculations.ts`, with focused tests in `frontend/src/calculations.test.ts`.

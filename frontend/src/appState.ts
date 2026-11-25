@@ -7,7 +7,6 @@ import { ALL_SCOPE } from "./transmissionSearch";
  * screen (as JSON in a <script type="application/json"> tag), and the app starts from them.
  */
 export type AppSettings = {
-  appMode: "race" | "crawl";
   query: string;
   scope: string;
   selectedModel: string;
@@ -21,14 +20,11 @@ export type AppSettings = {
   minRpm: number;
   maxRpm: number;
   gearsetView: "ladder" | "cruising";
-  lowRange: number;
-  crawlRpm: number;
   power: PowerState;
   vehicle: VehicleSetup;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  appMode: "race",
   query: "",
   scope: ALL_SCOPE,
   selectedModel: "Muncie M20",
@@ -42,8 +38,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   minRpm: 1500,
   maxRpm: 6500,
   gearsetView: "ladder",
-  lowRange: 2.72,
-  crawlRpm: 1000,
   power: DEFAULT_POWER,
   vehicle: DEFAULT_VEHICLE,
 };
@@ -52,7 +46,6 @@ export const SETTINGS_ELEMENT_ID = "saved-settings";
 
 // Allowed values for string fields that are really enums, by dotted path.
 const ENUMS: Record<string, readonly string[]> = {
-  appMode: ["race", "crawl"],
   tireMode: ["diameter", "size"],
   rpmMode: ["shift", "range"],
   gearsetView: ["ladder", "cruising"],

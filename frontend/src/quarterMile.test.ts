@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateFromTrap } from "./power";
+import { buildCurve, DEFAULT_POWER, estimateFromTrap } from "./power";
 import { bestLaunchRpm, DEFAULT_VEHICLE, runQuarterMile, simulateQuarterMile, type RunInput } from "./quarterMile";
 
 const curve = estimateFromTrap(3500, 113.5, 6000).curve!; // ≈ 400 hp
@@ -115,5 +115,22 @@ describe("runQuarterMile", () => {
 
   it("reports a known 60 ft it can't reach", () => {
     expect(runQuarterMile({ ...base, knownSixtyFtS: 0.5 }).warnings.join(" ")).toMatch(/not reachable/);
+  });
+});
+
+describe("trap-speed power round trip", () => {
+  it("traps within 2% of the entered trap speed at the same race weight", () => {
+    const car = { ...DEFAULT_VEHICLE, gearRatios: [2.52, 1.88, 1.46, 1.0], axleRatio: 3.73, tireDiameterIn: 26, shiftRpm: 6500 };
+    for (const [weightLb, trapMph] of [
+      [3700, 100],
+      [3700, 115],
+      [3700, 125],
+      [3000, 115],
+      [4300, 115],
+    ]) {
+      const power = buildCurve({ ...DEFAULT_POWER, method: "trap", trapMph, trapWeightLb: weightLb });
+      const run = runQuarterMile({ ...car, weightLb, knownSixtyFtS: null, curve: power.curve!, curveBasis: power.basis });
+      expect(Math.abs(run.trapMph! - trapMph) / trapMph).toBeLessThan(0.02);
+    }
   });
 });

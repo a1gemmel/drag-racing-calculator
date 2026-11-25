@@ -21,7 +21,7 @@ import { torqueAt, type PowerBasis, type PowerCurve } from "./power";
 
 export type VehicleSetup = {
   weightLb: number; // race weight including driver
-  drivetrainLoss: number; // fraction of crank torque lost, e.g. 0.15
+  drivetrainLoss: number; // fraction of crank torque lost, e.g. 0.11
   grip: number; // tire friction coefficient (street ≈ 0.9, drag radial ≈ 1.3, slick ≈ 1.6+)
   drive: "rear" | "front" | "awd";
   driveWeightFraction: number; // static share of weight on the driven wheels (ignored for AWD)
@@ -40,7 +40,7 @@ export type VehicleSetup = {
 
 export const DEFAULT_VEHICLE: VehicleSetup = {
   weightLb: 3700,
-  drivetrainLoss: 0.15,
+  drivetrainLoss: 0.11,
   grip: 1.0,
   drive: "rear",
   driveWeightFraction: 0.5,

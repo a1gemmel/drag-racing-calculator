@@ -242,9 +242,12 @@ export const DEFAULT_POWER: PowerState = {
   dynoBasis: "crank",
 };
 
-/** Basis of the selected method's numbers. The trap-speed estimate is treated as wheel power. */
+/**
+ * Basis of the selected method's numbers. Hale's trap-speed number is crank hp; the sim takes the
+ * drivetrain loss off it, so what reaches the tires is the wheel hp for that pass.
+ */
 export function powerBasis(state: PowerState): PowerBasis {
-  return state.method === "trap" ? "wheel" : state.method === "peak" ? state.peakBasis : state.dynoBasis;
+  return state.method === "trap" ? "crank" : state.method === "peak" ? state.peakBasis : state.dynoBasis;
 }
 
 /** The curve for the selected method. */

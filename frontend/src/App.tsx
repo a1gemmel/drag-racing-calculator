@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { rpmForSpeed, speedMph } from "./calculations";
 import { transmissionFamilies } from "./catalog";
-import { CrawlView } from "./components/CrawlView";
 import { GearChart, type Gear } from "./components/GearChart";
 import { NumberField } from "./components/NumberField";
 import { Segmented } from "./components/Segmented";
@@ -15,7 +14,6 @@ import { DEFAULT_VEHICLE, type VehicleSetup } from "./quarterMile";
 import { parseTireSize } from "./tires";
 import { ALL_SCOPE, filterFamilies, resolveSelection, scopeOptions } from "./transmissionSearch";
 
-type AppMode = "race" | "crawl";
 type RpmMode = "shift" | "range";
 
 // Gear colors in fixed order (validated for CVD separation on the dark chart surface).
@@ -31,7 +29,6 @@ export function App() {
   const families = transmissionFamilies;
   // Defaults, or the settings embedded in this page by a previous "Download offline copy".
   const [initial] = useState(() => readEmbeddedSettings(document));
-  const [appMode, setAppMode] = useState<AppMode>(initial.appMode);
   const [query, setQuery] = useState(initial.query);
   const [scope, setScope] = useState(initial.scope);
   // The user's last pick. If a search or filter hides it, resolveSelection falls back to the first match.
@@ -50,8 +47,6 @@ export function App() {
   const [minRpm, setMinRpm] = useState(initial.minRpm);
   const [maxRpm, setMaxRpm] = useState(initial.maxRpm);
   const [gearsetView, setGearsetView] = useState<"ladder" | "cruising">(initial.gearsetView);
-  const [lowRange, setLowRange] = useState(initial.lowRange);
-  const [crawlRpm, setCrawlRpm] = useState(initial.crawlRpm);
   const [power, setPower] = useState<PowerState>(initial.power);
   const [vehicle, setVehicle] = useState<VehicleSetup>(initial.vehicle);
   const powerCurve = useMemo(() => buildCurve(power), [power]);
@@ -66,7 +61,6 @@ export function App() {
   const selection = resolveSelection(filteredFamilies, selectedModel, selectedVariantName);
 
   const currentSettings = (): AppSettings => ({
-    appMode,
     query,
     scope,
     // Save what's actually shown, which may be a fallback if the search hid the last pick.
@@ -81,8 +75,6 @@ export function App() {
     minRpm,
     maxRpm,
     gearsetView,
-    lowRange,
-    crawlRpm,
     power,
     vehicle,
   });
@@ -127,7 +119,7 @@ export function App() {
   }
 
   return (
-    <div className="app" data-mode={appMode}>
+    <div className="app">
       <header className="topbar">
         <div className="brand">
           <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
@@ -135,18 +127,8 @@ export function App() {
             <circle cx="12" cy="14" r="2.5" />
             <circle cx="18" cy="18" r="2.5" />
           </svg>
-          <h1>Transmission Ratio Viz</h1>
+          <h1>Drag Racing Calculator</h1>
         </div>
-        <Segmented
-          label="App mode"
-          className="mode-switch"
-          value={appMode}
-          onChange={setAppMode}
-          options={[
-            { value: "race", label: "Race" },
-            { value: "crawl", label: "Crawl" },
-          ]}
-        />
         <button
           type="button"
           className="download-button"
@@ -261,8 +243,7 @@ export function App() {
             <NumberField label="Axle ratio" unit=":1" step={0.01} min={0.5} value={axleRatio} onCommit={setAxleRatio} />
           </section>
 
-          {appMode === "race" ? (
-            <section className="group">
+          <section className="group">
               <h2 className="group-title">Engine</h2>
               <Segmented
                 label="RPM input"
@@ -290,7 +271,6 @@ export function App() {
                 </div>
               )}
             </section>
-          ) : null}
         </aside>
 
         <main className="content">
@@ -298,16 +278,6 @@ export function App() {
             <section className="card empty-card">
               <h2>No transmission selected</h2>
             </section>
-          ) : appMode === "crawl" ? (
-            <CrawlView
-              gears={gears}
-              tireDiameter={tireDiameter}
-              axleRatio={axleRatio}
-              lowRange={lowRange}
-              crawlRpm={crawlRpm}
-              onLowRangeChange={setLowRange}
-              onCrawlRpmChange={setCrawlRpm}
-            />
           ) : (
             <>
               <section className="stats" aria-label="Key numbers">
@@ -485,6 +455,7 @@ export function App() {
                 curve={powerCurve.curve}
                 error={powerCurve.error}
                 basis={powerCurve.basis}
+                drivetrainLoss={vehicle.drivetrainLoss}
               />
               <QuarterMileCard
                 vehicle={vehicle}

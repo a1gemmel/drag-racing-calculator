@@ -26,7 +26,7 @@ for (const [pattern, what] of forbidden) {
   const match = html.match(pattern);
   if (match) failures.push(`index.html contains ${what}: …${html.slice(Math.max(0, match.index - 40), match.index + 60)}…`);
 }
-if (!html.includes("Transmission Ratio Viz")) {
+if (!html.includes("Drag Racing Calculator")) {
   failures.push("index.html does not contain the app name");
 }
 

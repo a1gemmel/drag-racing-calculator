@@ -95,7 +95,7 @@ describe("parseDynoText", () => {
 
 describe("buildCurve", () => {
   it("reports the basis of each method", () => {
-    expect(buildCurve({ ...DEFAULT_POWER, method: "trap" }).basis).toBe("wheel");
+    expect(buildCurve({ ...DEFAULT_POWER, method: "trap" }).basis).toBe("crank");
     expect(buildCurve({ ...DEFAULT_POWER, method: "peak", peakBasis: "wheel" }).basis).toBe("wheel");
     expect(buildCurve({ ...DEFAULT_POWER, method: "dyno", dynoBasis: "crank", peakBasis: "wheel" }).basis).toBe("crank");
   });

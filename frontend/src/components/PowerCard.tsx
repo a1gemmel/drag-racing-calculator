@@ -21,12 +21,14 @@ type Props = {
   curve: PowerCurve | null;
   error: string | null;
   basis: PowerBasis;
+  /** Fraction lost between crank and wheels, for showing the trap estimate at the wheels. */
+  drivetrainLoss: number;
 };
 
 const TORQUE_COLOR = "#3987e5";
 const HP_COLOR = "#d95926";
 
-export function PowerCard({ state, onChange, curve, error, basis }: Props) {
+export function PowerCard({ state, onChange, curve, error, basis, drivetrainLoss }: Props) {
   const set = (patch: Partial<PowerState>) => onChange({ ...state, ...patch });
   const peaks = curve ? curvePeaks(curve) : null;
   const hpUnit = basis === "wheel" ? "whp" : "hp";
@@ -93,7 +95,8 @@ export function PowerCard({ state, onChange, curve, error, basis }: Props) {
                 onCommit={(trapPeakRpm) => set({ trapPeakRpm })}
               />
               <p className="hint">
-                {Math.round(hpFromTrap(state.trapWeightLb, state.trapMph))} whp
+                {Math.round(hpFromTrap(state.trapWeightLb, state.trapMph) * (1 - drivetrainLoss))} whp ·{" "}
+                {Math.round(hpFromTrap(state.trapWeightLb, state.trapMph))} hp crank
               </p>
             </>
           ) : state.method === "peak" ? (
