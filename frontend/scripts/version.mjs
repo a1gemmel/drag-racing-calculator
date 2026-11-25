@@ -2,6 +2,9 @@
 //   node scripts/version.mjs check   - fail unless package.json, package-lock.json and CHANGELOG.md agree
 //   node scripts/version.mjs version - print the version (e.g. 0.1.0)
 //   node scripts/version.mjs notes   - print the CHANGELOG.md section for the current version
+//   node scripts/version.mjs title   - print the release title: vX.Y.Z, plus the section's title if it has one
+//
+// Section headings: "## vX.Y.Z — YYYY-MM-DD", optionally followed by " — Title".
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -14,20 +17,20 @@ export function compareVersions(a, b) {
   return 0;
 }
 
-/** Version sections of a changelog, newest first as written: [{ version, body }]. */
+/** Version sections of a changelog, newest first as written: [{ version, title, body }]. */
 export function parseChangelog(text) {
   const sections = [];
   let current = null;
   for (const line of text.split(/\r?\n/)) {
-    const heading = /^## v(\S+)/.exec(line);
+    const heading = /^## v(\S+)(?:\s+—\s+\d{4}-\d{2}-\d{2})?(?:\s+—\s+(.+?))?\s*$/.exec(line);
     if (heading) {
-      current = { version: heading[1], body: [] };
+      current = { version: heading[1], title: heading[2] ?? null, body: [] };
       sections.push(current);
     } else if (current) {
       current.body.push(line);
     }
   }
-  return sections.map(({ version, body }) => ({ version, body: body.join("\n").trim() }));
+  return sections.map(({ version, title, body }) => ({ version, title, body: body.join("\n").trim() }));
 }
 
 /** Problems with the version setup; empty when everything agrees. */
@@ -71,6 +74,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const command = process.argv[2] ?? "check";
   if (command === "version") {
     console.log(inputs.version);
+  } else if (command === "title") {
+    const section = parseChangelog(inputs.changelog).find((s) => s.version === inputs.version);
+    console.log(section?.title ? `v${inputs.version} — ${section.title}` : `v${inputs.version}`);
   } else if (command === "notes") {
     const section = parseChangelog(inputs.changelog).find((s) => s.version === inputs.version);
     if (!section) {

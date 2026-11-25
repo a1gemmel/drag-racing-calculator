@@ -2,6 +2,21 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.3.0 — 2026-11-25 — UI Overhaul
+
+- Inputs are grouped into cards on the main page: Transmission, Engine, Axle & tires, and Car, followed by the quarter-mile results.
+- Transmission card: transmission picker and its shift, clutch or converter settings beside the top speed / RPM drop / cruise numbers, the RPM vs road speed chart and the gearset tables.
+- Engine card: power input (trap speed, peak numbers or dyno table) and shift point beside one torque and power chart with each peak labelled.
+- Axle & tires card: axle ratio, tire, grip, driven wheels and 60 ft; grip coefficient, driven-axle weight and rollout under Advanced.
+- Car card: race weight; CG height, wheelbase and aero under Advanced.
+- Power method "Peaks" renamed "Peak #s".
+- RPM range mode removed; the shift point sets the chart, tables and quarter-mile shifts. Saved copies that used RPM range open with their saved shift point.
+- RPM vs road speed has a Shifts / Full range toggle. Full range draws every gear from 1,200 rpm to the shift point (1st from 600 rpm).
+- Quarter-mile tile shows the trap speed at full size next to the ET (12.95 s @ 110.9 mph).
+- Fixed: hovering the 1/4 mile tile now shows gear and rpm at the finish, like the 1/8 mile tile.
+- Versions can have titles (this one is "UI Overhaul", v0.2.0 is "The Automatic Update"). Titles show in the changelog window, in the footer next to the version, and as the GitHub release name.
+- Changelog window: each version shows its number and title, with the date underneath; the note about version numbering is gone.
+
 ## v0.2.2 — 2026-11-25
 
 - Trap-speed power: choose a 1/4 mile or 1/8 mile trap. A 1/8 mile trap is scaled by 1.25 to its 1/4 mile equivalent, which is shown with the hp estimate.
@@ -14,7 +29,7 @@ All notable changes to Drag Racing Calculator. Versions follow [Semantic Version
 - Biggest RPM drop shows without a minus sign.
 - Gearset table opens on Cruising RPM.
 
-## v0.2.0 — 2026-11-25
+## v0.2.0 — 2026-11-25 — The Automatic Update
 
 - Automatic transmissions: Powerglide (1.76 and 1.82 low), TH350, TH400, C4, C6, 4L60E, 4L80E and ZF 8HP70.
 - Torque converter simulation: stall speed, torque multiplication, converter slip at full throttle, and lock-up (off, top gear, or 2nd and up) for transmissions with a lock-up clutch.

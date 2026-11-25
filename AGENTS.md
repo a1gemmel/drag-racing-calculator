@@ -8,10 +8,11 @@ Context for coding agents working in this repository. Last surveyed 2026-11-24.
 **frontend-only drag-racing gearing and quarter-mile calculator** for car people.
 A user searches for and picks a transmission (built-in catalog; text search over manufacturer, model,
 variant, vehicle brand and ratios, plus a manufacturer/brand filter), enters tire diameter, rear axle ratio
-and an RPM range or shift point, and gets:
+and a shift point, and gets:
 
 - a **road speed vs RPM** chart with one line per gear (SVG, hand-rolled, hover tooltips),
-- in "Shift Point" mode (the default), the RPM drop after each upshift (dashed connectors + labels),
+- the RPM drop after each upshift (dashed connectors + labels), or, with the chart's "Full range" toggle,
+  every gear from 1,200 rpm (1st from 600) to the shift point,
 - a **gearset overview** table (ratio, % step from previous gear, top speed at max RPM),
 - a **cruising RPM** table (RPM per gear at 10–80 mph),
 - **power input** (trap speed, peak numbers or dyno table) and a **quarter-mile simulation**
@@ -51,8 +52,9 @@ frontend/
   src/power.ts       power curves: torqueAt, synthesizeCurve (peaks), estimateFromTrap (Hale), parseDynoText, buildCurve
   src/quarterMile.ts simulateQuarterMile: 1 ms time-step point mass, traction limit with steady-state weight transfer,
                      effective-mass factor 1.04 + 0.0025·ratio², clutch launch, shift time, NHRA-style 66 ft trap
-  src/components/PowerCard.tsx      three power methods + torque/HP small multiples; dyno table editor + CSV import
-  src/components/QuarterMileCard.tsx vehicle setup, ET/60ft/1/8 tiles, speed and RPM traces, splits table
+  src/components/PowerCard.tsx      PowerInputs (three power methods, dyno editor + CSV import) and PowerCurves (peaks, torque/HP charts)
+  src/components/QuarterMileCard.tsx TractionInputs, CarInputs, ManualInputs and QuarterMileCard (results: tiles, traces, tables)
+  src/components/Subgroup.tsx        titled block of inputs inside a card
   src/components/LineChart.tsx      generic single-axis line chart with crosshair tooltip
   src/offline.ts     "Download offline copy": captures the page before React renders (first import in main.tsx),
                      embeds current settings, saves as drag-racing-calculator.html via a Blob (no fetch)
@@ -190,7 +192,9 @@ For each commit:
    - Reset the lower parts on a bump (0.1.3 -> 0.2.0; 0.9.0 -> 1.0.0).
 2. Set the version in `frontend/package.json` **and** `frontend/package-lock.json` (both "version" fields,
    top of the file). `npm version <x.y.z> --no-git-tag-version` in `frontend/` updates both.
-3. Add a section at the top of `CHANGELOG.md`: `## vX.Y.Z — YYYY-MM-DD`, then one `- ` line per change,
+3. Add a section at the top of `CHANGELOG.md`: `## vX.Y.Z — YYYY-MM-DD` (optionally ` — Title`, which also becomes
+   the GitHub release title and shows in the footer and changelog window via src/changelog.ts,
+   e.g. `## v0.2.0 — 2026-11-25 — The Automatic Update`), then one `- ` line per change,
    written for users (what changed on the page), newest version first.
 4. `npm run build` runs `scripts/version.mjs check` first and fails if package.json, the lockfile and the
    newest changelog section disagree, the section lists no changes, or versions aren't newest-first.
@@ -265,6 +269,17 @@ section as release notes. (Older `build-1`/`build-2` releases predate versioning
 - Priority order for PLAN.md product work.
 - Which transmissions to add to the catalog?
 - Repo directory name is misspelled (`transmssion`); rename intended?
+
+## Input layout (v0.3.0)
+
+No sidebar. The page is one column of cards, each pairing inputs (left, `.split-inputs`) with the results they
+drive (right): Transmission (picker, ratios, custom links, then a "Shifts & clutch" `Subgroup` for manuals or the
+automatic's "Converter & shifts" | stats strip, RPM chart, gearset tables), Engine (`PowerInputs` + shift-point subgroup |
+`PowerCurves`: torque and hp on one chart, same numeric axis like a dyno sheet, peaks labelled via LineChart
+`pointLabels`), then Axle & tires (grip coefficient, driven-axle weight and rollout under Advanced) and Car (only race
+weight visible; the rest under Advanced) side by side (`.input-grid`), then the quarter-mile results card. Cards stack below 1100 px (split) and 900 px (pair). Manual drivetrain loss sits
+with the manual transmission settings (an automatic's is in its Advanced). The trap method keeps its own race
+weight in Engine (it drives Car's race weight one way, as before).
 
 ## Design system (2026-11-24 redesign)
 

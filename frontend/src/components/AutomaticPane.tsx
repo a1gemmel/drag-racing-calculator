@@ -1,6 +1,7 @@
 import { launchRpm, type AutomaticSetup, type LaunchMethod, type LockupMode } from "../automatic";
 import { NumberField } from "./NumberField";
 import { Segmented } from "./Segmented";
+import { Subgroup } from "./Subgroup";
 
 type Props = {
   setup: AutomaticSetup;
@@ -21,15 +22,16 @@ export function AutomaticPane({ setup, defaults, onChange }: Props) {
   };
 
   return (
-    <section className="group">
-      <div className="group-title-row">
-        <h2 className="group-title">Automatic</h2>
-        {!same(setup, defaults) ? (
+    <Subgroup
+      title="Converter & shifts"
+      action={
+        !same(setup, defaults) ? (
           <button type="button" className="text-button" onClick={() => onChange(defaults)}>
             Reset
           </button>
-        ) : null}
-      </div>
+        ) : null
+      }
+    >
 
       <NumberField label="Converter stall" unit="rpm" step={100} min={1000} max={9000} value={setup.stallRpm} onCommit={changeStall} />
 
@@ -144,6 +146,6 @@ export function AutomaticPane({ setup, defaults, onChange }: Props) {
           </div>
         </div>
       </details>
-    </section>
+    </Subgroup>
   );
 }

@@ -7,9 +7,162 @@ import { LineChart, type Series } from "./LineChart";
 import { NumberField } from "./NumberField";
 import { Segmented } from "./Segmented";
 
-type Props = {
+type VehicleProps = {
   vehicle: VehicleSetup;
   onVehicleChange: (vehicle: VehicleSetup) => void;
+};
+
+const GRIP_PRESETS = [
+  { value: 0.9, label: "Street tire (0.9)" },
+  { value: 1.0, label: "Performance street (1.0)" },
+  { value: 1.3, label: "Drag radial (1.3)" },
+  { value: 1.6, label: "Slick, prepped track (1.6)" },
+];
+
+/** Traction and launch inputs for the Axle & tires section: grip, driven wheels, 60 ft, rollout. */
+export function TractionInputs({ vehicle, onVehicleChange }: VehicleProps) {
+  const set = (patch: Partial<VehicleSetup>) => onVehicleChange({ ...vehicle, ...patch });
+  // Last known 60 ft typed in, kept while the user flips back to the estimate.
+  const [lastKnownSixty, setLastKnownSixty] = useState(vehicle.knownSixtyFtS ?? 2.0);
+  const gripPreset = GRIP_PRESETS.find((preset) => preset.value === vehicle.grip);
+  return (
+    <>
+      <div className="field">
+        <label htmlFor="qm-grip">Tire grip</label>
+        <select
+          id="qm-grip"
+          value={gripPreset ? String(gripPreset.value) : "custom"}
+          onChange={(event) => event.target.value !== "custom" && set({ grip: Number(event.target.value) })}
+        >
+          {GRIP_PRESETS.map((preset) => (
+            <option key={preset.value} value={preset.value}>
+              {preset.label}
+            </option>
+          ))}
+          {gripPreset ? null : <option value="custom">Custom ({vehicle.grip})</option>}
+        </select>
+      </div>
+      <div className="field">
+        <span className="field-label">Driven wheels</span>
+        <Segmented
+          label="Driven wheels"
+          size="small"
+          value={vehicle.drive}
+          onChange={(drive) => set({ drive })}
+          options={[
+            { value: "rear", label: "RWD" },
+            { value: "front", label: "FWD" },
+            { value: "awd", label: "AWD" },
+          ]}
+        />
+      </div>
+      <div className="field">
+        <span className="field-label">60 ft</span>
+        <Segmented
+          label="60 ft"
+          size="small"
+          value={vehicle.knownSixtyFtS === null ? "best" : "known"}
+          onChange={(mode) => set({ knownSixtyFtS: mode === "known" ? lastKnownSixty : null })}
+          options={[
+            { value: "best", label: "Best estimate" },
+            { value: "known", label: "Known" },
+          ]}
+        />
+      </div>
+      {vehicle.knownSixtyFtS !== null ? (
+        <NumberField
+          label="Known 60 ft"
+          unit="s"
+          step={0.01}
+          min={0.8}
+          max={6}
+          value={vehicle.knownSixtyFtS}
+          onCommit={(knownSixtyFtS) => {
+            setLastKnownSixty(knownSixtyFtS);
+            set({ knownSixtyFtS });
+          }}
+        />
+      ) : null}
+      <details className="advanced">
+        <summary>Advanced</summary>
+        <div className="advanced-grid">
+          <NumberField label="Grip coefficient" step={0.05} min={0.2} max={3} value={vehicle.grip} onCommit={(grip) => set({ grip })} />
+          {vehicle.drive !== "awd" ? (
+            <NumberField
+              label="Weight on driven axle"
+              unit="%"
+              step={1}
+              min={10}
+              max={90}
+              value={Math.round(vehicle.driveWeightFraction * 100)}
+              onCommit={(pct) => set({ driveWeightFraction: pct / 100 })}
+            />
+          ) : null}
+          <NumberField label="Rollout" unit="in" step={0.5} min={0} max={24} value={vehicle.rolloutIn} onCommit={(rolloutIn) => set({ rolloutIn })} />
+        </div>
+      </details>
+    </>
+  );
+}
+
+/** Car inputs: race weight, chassis and aero. */
+export function CarInputs({ vehicle, onVehicleChange }: VehicleProps) {
+  const set = (patch: Partial<VehicleSetup>) => onVehicleChange({ ...vehicle, ...patch });
+  return (
+    <>
+      <NumberField label="Race weight" unit="lb" step={10} min={200} max={20000} value={vehicle.weightLb} onCommit={(weightLb) => set({ weightLb })} />
+      <details className="advanced">
+        <summary>Advanced</summary>
+        <div className="advanced-grid">
+          <NumberField label="CG height" unit="in" step={0.5} min={5} max={60} value={vehicle.cgHeightIn} onCommit={(cgHeightIn) => set({ cgHeightIn })} />
+          <NumberField label="Wheelbase" unit="in" step={0.5} min={60} max={200} value={vehicle.wheelbaseIn} onCommit={(wheelbaseIn) => set({ wheelbaseIn })} />
+          <NumberField label="Drag coefficient" step={0.01} min={0.1} max={1.5} value={vehicle.dragCoefficient} onCommit={(dragCoefficient) => set({ dragCoefficient })} />
+          <NumberField label="Frontal area" unit="ft²" step={0.5} min={5} max={80} value={vehicle.frontalAreaFt2} onCommit={(frontalAreaFt2) => set({ frontalAreaFt2 })} />
+          <NumberField
+            label="Rolling resistance"
+            step={0.001}
+            min={0.001}
+            max={0.1}
+            value={vehicle.rollingResistance}
+            onCommit={(rollingResistance) => set({ rollingResistance })}
+          />
+        </div>
+      </details>
+    </>
+  );
+}
+
+/** Manual transmission inputs: shift time, clutch release and drivetrain loss. */
+export function ManualInputs({ vehicle, onVehicleChange, curveBasis }: VehicleProps & { curveBasis: PowerBasis }) {
+  const set = (patch: Partial<VehicleSetup>) => onVehicleChange({ ...vehicle, ...patch });
+  return (
+    <div className="field-row">
+      <NumberField label="Shift time" unit="s" step={0.05} min={0} max={2} value={vehicle.shiftTimeS} onCommit={(shiftTimeS) => set({ shiftTimeS })} />
+      <NumberField
+        label="Clutch release"
+        unit="s"
+        step={0.05}
+        min={0}
+        max={2}
+        value={vehicle.clutchReleaseS}
+        onCommit={(clutchReleaseS) => set({ clutchReleaseS })}
+      />
+      <NumberField
+        label="Drivetrain loss"
+        unit="%"
+        step={1}
+        min={0}
+        max={50}
+        value={Math.round(vehicle.drivetrainLoss * 100)}
+        disabled={curveBasis === "wheel"}
+        onCommit={(loss) => set({ drivetrainLoss: loss / 100 })}
+      />
+    </div>
+  );
+}
+
+type Props = {
+  vehicle: VehicleSetup;
   curve: PowerCurve | null;
   curveBasis: PowerBasis;
   /** Selected automatic's settings (its shift time, loss and launch replace the manual ones), or null. */
@@ -20,17 +173,8 @@ type Props = {
   shiftRpm: number;
 };
 
-const GRIP_PRESETS = [
-  { value: 0.9, label: "Street tire (0.9)" },
-  { value: 1.0, label: "Performance street (1.0)" },
-  { value: 1.3, label: "Drag radial (1.3)" },
-  { value: 1.6, label: "Slick, prepped track (1.6)" },
-];
-
-export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, automatic, gears, axleRatio, tireDiameterIn, shiftRpm }: Props) {
-  const set = (patch: Partial<VehicleSetup>) => onVehicleChange({ ...vehicle, ...patch });
-  // Last known 60 ft typed in, kept while the user flips back to the estimate.
-  const [lastKnownSixty, setLastKnownSixty] = useState(vehicle.knownSixtyFtS ?? 2.0);
+/** Quarter-mile results for the current setup. All inputs live in the sidebar. */
+export function QuarterMileCard({ vehicle, curve, curveBasis, automatic, gears, axleRatio, tireDiameterIn, shiftRpm }: Props) {
   const run = useMemo<QuarterMileRun | null>(
     () =>
       curve
@@ -48,8 +192,6 @@ export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, a
     [vehicle, curve, curveBasis, automatic, gears, axleRatio, tireDiameterIn, shiftRpm],
   );
 
-  const gripPreset = GRIP_PRESETS.find((preset) => preset.value === vehicle.grip);
-
   return (
     <section className="card">
       <header className="card-header">
@@ -57,129 +199,7 @@ export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, a
           <h2>Quarter-mile simulation</h2>
         </div>
       </header>
-
-      <div className="split">
-        <div className="split-inputs">
-          <div className="field-row">
-            <NumberField label="Race weight" unit="lb" step={10} min={200} max={20000} value={vehicle.weightLb} onCommit={(weightLb) => set({ weightLb })} />
-            {automatic ? null : <NumberField
-              label="Drivetrain loss"
-              unit="%"
-              step={1}
-              min={0}
-              max={50}
-              value={Math.round(vehicle.drivetrainLoss * 100)}
-              disabled={curveBasis === "wheel"}
-              onCommit={(loss) => set({ drivetrainLoss: loss / 100 })}
-            />}
-          </div>
-          <div className="field">
-            <label htmlFor="qm-grip">Tires</label>
-            <select
-              id="qm-grip"
-              value={gripPreset ? String(gripPreset.value) : "custom"}
-              onChange={(event) => event.target.value !== "custom" && set({ grip: Number(event.target.value) })}
-            >
-              {GRIP_PRESETS.map((preset) => (
-                <option key={preset.value} value={preset.value}>
-                  {preset.label}
-                </option>
-              ))}
-              {gripPreset ? null : <option value="custom">Custom ({vehicle.grip})</option>}
-            </select>
-          </div>
-          <div className="field">
-            <span className="field-label">Driven wheels</span>
-            <Segmented
-              label="Driven wheels"
-              size="small"
-              value={vehicle.drive}
-              onChange={(drive) => set({ drive })}
-              options={[
-                { value: "rear", label: "RWD" },
-                { value: "front", label: "FWD" },
-                { value: "awd", label: "AWD" },
-              ]}
-            />
-          </div>
-          <div className="field">
-            <span className="field-label">60 ft</span>
-            <Segmented
-              label="60 ft"
-              size="small"
-              value={vehicle.knownSixtyFtS === null ? "best" : "known"}
-              onChange={(mode) => set({ knownSixtyFtS: mode === "known" ? lastKnownSixty : null })}
-              options={[
-                { value: "best", label: "Best estimate" },
-                { value: "known", label: "Known" },
-              ]}
-            />
-          </div>
-          <div className="field-row">
-            {vehicle.knownSixtyFtS !== null ? (
-              <NumberField
-                label="Known 60 ft"
-                unit="s"
-                step={0.01}
-                min={0.8}
-                max={6}
-                value={vehicle.knownSixtyFtS}
-                onCommit={(knownSixtyFtS) => {
-                  setLastKnownSixty(knownSixtyFtS);
-                  set({ knownSixtyFtS });
-                }}
-              />
-            ) : null}
-            {automatic ? null : (
-              <NumberField label="Shift time" unit="s" step={0.05} min={0} max={2} value={vehicle.shiftTimeS} onCommit={(shiftTimeS) => set({ shiftTimeS })} />
-            )}
-          </div>
-
-          <details className="advanced">
-            <summary>Advanced</summary>
-            <div className="advanced-grid">
-              <NumberField label="Grip coefficient" step={0.05} min={0.2} max={3} value={vehicle.grip} onCommit={(grip) => set({ grip })} />
-              {vehicle.drive !== "awd" ? (
-                <NumberField
-                  label="Weight on driven axle"
-                  unit="%"
-                  step={1}
-                  min={10}
-                  max={90}
-                  value={Math.round(vehicle.driveWeightFraction * 100)}
-                  onCommit={(pct) => set({ driveWeightFraction: pct / 100 })}
-                />
-              ) : null}
-              {automatic ? null : (
-                <NumberField
-                  label="Clutch release"
-                  unit="s"
-                  step={0.05}
-                  min={0}
-                  max={2}
-                  value={vehicle.clutchReleaseS}
-                  onCommit={(clutchReleaseS) => set({ clutchReleaseS })}
-                />
-              )}
-              <NumberField label="Rollout" unit="in" step={0.5} min={0} max={24} value={vehicle.rolloutIn} onCommit={(rolloutIn) => set({ rolloutIn })} />
-              <NumberField label="CG height" unit="in" step={0.5} min={5} max={60} value={vehicle.cgHeightIn} onCommit={(cgHeightIn) => set({ cgHeightIn })} />
-              <NumberField label="Wheelbase" unit="in" step={0.5} min={60} max={200} value={vehicle.wheelbaseIn} onCommit={(wheelbaseIn) => set({ wheelbaseIn })} />
-              <NumberField label="Drag coefficient" step={0.01} min={0.1} max={1.5} value={vehicle.dragCoefficient} onCommit={(dragCoefficient) => set({ dragCoefficient })} />
-              <NumberField label="Frontal area" unit="ft²" step={0.5} min={5} max={80} value={vehicle.frontalAreaFt2} onCommit={(frontalAreaFt2) => set({ frontalAreaFt2 })} />
-              <NumberField
-                label="Rolling resistance"
-                step={0.001}
-                min={0.001}
-                max={0.1}
-                value={vehicle.rollingResistance}
-                onCommit={(rollingResistance) => set({ rollingResistance })}
-              />
-            </div>
-          </details>
-        </div>
-
-        <div className="split-results">{run ? <RunResults run={run} gears={gears} /> : <p className="empty">No power curve.</p>}</div>
-      </div>
+      <div className="split-results">{run ? <RunResults run={run} gears={gears} /> : <p className="empty">No power curve.</p>}</div>
     </section>
   );
 }
@@ -203,7 +223,9 @@ function RunResults({ run, gears }: { run: QuarterMileRun; gears: Gear[] }) {
   const formatT = (t: number) => (t % 1 === 0 ? String(t) : t.toFixed(1));
   // Gear and rpm as the car crosses a mark (first sample at or past it), for the tile hovers.
   const atMark = (ft: number) => {
-    const sample = run.samples.find((s) => s.ft >= ft);
+    // Samples are taken every few ms, so none may land past the finish line: use the last one then.
+    const last = run.samples[run.samples.length - 1];
+    const sample = run.samples.find((s) => s.ft >= ft) ?? (last && last.ft >= ft - 20 ? last : undefined);
     return sample ? `${gears[sample.gear]?.label ?? ""} · ${Math.round(sample.rpm).toLocaleString()} rpm` : null;
   };
   const quarterReading = run.et ? atMark(1320) : null;
@@ -218,10 +240,15 @@ function RunResults({ run, gears }: { run: QuarterMileRun; gears: Gear[] }) {
           <p className="stat-value">
             {run.et ? run.et.toFixed(2) : "—"}
             <span>s</span>
+            {run.trapMph ? (
+              <span className="stat-trap" title="Average speed over the last 66 ft, like a timing-slip trap speed">
+                <span className="stat-at">@</span>
+                {run.trapMph.toFixed(1)}
+                <span>mph</span>
+              </span>
+            ) : null}
           </p>
-          <p className="stat-note" title="Average speed over the last 66 ft, like a timing-slip trap speed">
-            {run.trapMph ? `@ ${run.trapMph.toFixed(1)} mph trap` : "Did not finish"}
-          </p>
+          {run.trapMph ? null : <p className="stat-note">Did not finish</p>}
         </div>
         <div className="stat">
           <p className="stat-label">60 ft · {run.sixtyFtSource === "known" ? "known" : run.sixtyFtSource === "estimate" ? "est." : "best"}</p>

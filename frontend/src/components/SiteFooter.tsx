@@ -1,13 +1,32 @@
 import { useMemo, useRef } from "react";
 import { APP_VERSION, CHANGELOG, COMMIT_URL, SHORT_SHA } from "../buildInfo";
+import { parseChangelog } from "../changelog";
 import { renderMarkdown } from "../markdown";
 
 /** Footer with the version ("v0.1.0 abc1234", linking to the commit) and a changelog modal. */
 export function SiteFooter() {
   const dialog = useRef<HTMLDialogElement>(null);
+  const parsed = useMemo(() => parseChangelog(CHANGELOG), []);
+  const currentTitle = parsed.sections.find((section) => section.version === APP_VERSION)?.title;
   const label = `v${APP_VERSION}${SHORT_SHA ? ` ${SHORT_SHA}` : ""}`;
-  // The modal has its own "Changelog" title, so drop the file's top-level heading.
-  const changelog = useMemo(() => renderMarkdown(CHANGELOG.replace(/^# .*\r?\n/, "")), []);
+  // Versions only: the file's heading and intro (about semver) are for the repo, not the page.
+  const changelog = useMemo(
+    () => (
+      <>
+        {parsed.sections.map((section) => (
+          <section key={section.version} className="changelog-version">
+            <h3>
+              v{section.version}
+              {section.title ? <span className="changelog-title">{section.title}</span> : null}
+            </h3>
+            {section.date ? <p className="changelog-date">{section.date}</p> : null}
+            {renderMarkdown(section.body)}
+          </section>
+        ))}
+      </>
+    ),
+    [parsed],
+  );
 
   return (
     <footer className="site-footer">
@@ -18,6 +37,7 @@ export function SiteFooter() {
       ) : (
         <span className="version-link">{label}</span>
       )}
+      {currentTitle ? <span className="version-title">{currentTitle}</span> : null}
       <button type="button" className="text-button" onClick={() => dialog.current?.showModal()}>
         Changelog
       </button>

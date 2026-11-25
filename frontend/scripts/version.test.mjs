@@ -36,6 +36,17 @@ describe("helpers", () => {
   });
 
   it("extracts each section's notes", () => {
-    expect(parseChangelog(changelog("## v0.1.0 — date", "", "- First.", ""))).toEqual([{ version: "0.1.0", body: "- First." }]);
+    expect(parseChangelog(changelog("## v0.1.0 — 2026-11-25", "", "- First.", ""))).toEqual([{ version: "0.1.0", title: null, body: "- First." }]);
+  });
+});
+
+describe("parseChangelog", () => {
+  it("reads an optional title after the date", () => {
+    const text = changelog("## v0.3.0 — 2026-11-25 — UI Overhaul", "- A.", "## v0.2.1 — 2026-11-25", "- B.", "## v0.2.0", "- C.");
+    expect(parseChangelog(text).map((s) => [s.version, s.title])).toEqual([
+      ["0.3.0", "UI Overhaul"],
+      ["0.2.1", null],
+      ["0.2.0", null],
+    ]);
   });
 });

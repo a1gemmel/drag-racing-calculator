@@ -4,6 +4,7 @@ import {
   horsepower,
   hpFromTrap,
   parseDynoText,
+  powerBasis,
   quarterTrapMph,
   torqueFromHp,
   type CurvePoint,
@@ -17,12 +18,10 @@ import { LineChart } from "./LineChart";
 import { NumberField } from "./NumberField";
 import { Segmented } from "./Segmented";
 
-type Props = {
+type InputProps = {
   state: PowerState;
   onChange: (state: PowerState) => void;
-  curve: PowerCurve | null;
   error: string | null;
-  basis: PowerBasis;
   /** Fraction lost between crank and wheels, for showing the trap estimate at the wheels. */
   drivetrainLoss: number;
 };
@@ -30,12 +29,12 @@ type Props = {
 const TORQUE_COLOR = "#3987e5";
 const HP_COLOR = "#d95926";
 
-export function PowerCard({ state, onChange, curve, error, basis, drivetrainLoss }: Props) {
+/** Engine power inputs for the sidebar: the input method and its fields. */
+export function PowerInputs({ state, onChange, error, drivetrainLoss }: InputProps) {
   const set = (patch: Partial<PowerState>) => onChange({ ...state, ...patch });
   const eighth = state.trapDistance === "eighth";
   const trapHp = hpFromTrap(state.trapWeightLb, quarterTrapMph(state));
-  const peaks = curve ? curvePeaks(curve) : null;
-  const hpUnit = basis === "wheel" ? "whp" : "hp";
+  const hpUnit = powerBasis(state) === "wheel" ? "whp" : "hp";
   const basisToggle = (value: PowerBasis, onBasis: (basis: PowerBasis) => void) => (
     <div className="field">
       <span className="field-label">Measured at</span>
@@ -45,20 +44,17 @@ export function PowerCard({ state, onChange, curve, error, basis, drivetrainLoss
         value={value}
         onChange={onBasis}
         options={[
-          { value: "crank", label: "Crank (engine dyno)" },
-          { value: "wheel", label: "Wheel (chassis dyno)" },
+          { value: "crank", label: "Crank" },
+          { value: "wheel", label: "Wheel" },
         ]}
       />
     </div>
   );
 
   return (
-    <section className="card">
-      <header className="card-header">
-        <div>
-          <h2>Power</h2>
-          <p className="card-subtitle">{basis === "wheel" ? "Wheel" : "Crank"}</p>
-        </div>
+    <>
+      <div className="field">
+        <span className="field-label">Power from</span>
         <Segmented<PowerMethod>
           label="Power input method"
           size="small"
@@ -66,161 +62,169 @@ export function PowerCard({ state, onChange, curve, error, basis, drivetrainLoss
           onChange={(method) => set({ method })}
           options={[
             { value: "trap", label: "Trap speed" },
-            { value: "peak", label: "Peak numbers" },
-            { value: "dyno", label: "Dyno table" },
+            { value: "peak", label: "Peak #s" },
+            { value: "dyno", label: "Dyno" },
           ]}
         />
-      </header>
-
-      <div className="split">
-        <div className="split-inputs">
-          {state.method === "trap" ? (
-            <>
-              <p className="hint">Use a known pass to estimate wheel horsepower</p>
-              <div className="field">
-                <span className="field-label">Trap at</span>
-                <Segmented<TrapDistance>
-                  label="Trap at"
-                  size="small"
-                  value={state.trapDistance}
-                  onChange={(trapDistance) => set({ trapDistance })}
-                  options={[
-                    { value: "quarter", label: "1/4 mile" },
-                    { value: "eighth", label: "1/8 mile" },
-                  ]}
-                />
-              </div>
-              <div className="field-row">
-                {eighth ? (
-                  <NumberField
-                    key="eighth"
-                    label="1/8 mile trap"
-                    unit="mph"
-                    step={0.1}
-                    min={15}
-                    max={250}
-                    value={state.trapEighthMph}
-                    onCommit={(trapEighthMph) => set({ trapEighthMph })}
-                  />
-                ) : (
-                  <NumberField key="quarter" label="Trap speed" unit="mph" step={0.1} min={20} max={300} value={state.trapMph} onCommit={(trapMph) => set({ trapMph })} />
-                )}
-                <NumberField
-                  label="Race weight"
-                  unit="lb"
-                  step={10}
-                  min={200}
-                  max={20000}
-                  value={state.trapWeightLb}
-                  onCommit={(trapWeightLb) => set({ trapWeightLb })}
-                />
-              </div>
-              <NumberField
-                label="Peak power at"
-                unit="rpm"
-                step={100}
-                min={1500}
-                max={20000}
-                value={state.trapPeakRpm}
-                onCommit={(trapPeakRpm) => set({ trapPeakRpm })}
-              />
-              <p className="hint">
-                {eighth ? `${quarterTrapMph(state).toFixed(1)} mph 1/4 mile equiv. · ` : ""}
-                {Math.round(trapHp * (1 - drivetrainLoss))} whp · {Math.round(trapHp)} hp crank
-              </p>
-            </>
-          ) : state.method === "peak" ? (
-            <>
-              {basisToggle(state.peakBasis, (peakBasis) => set({ peakBasis }))}
-              <div className="field-row">
-                <NumberField label="Peak power" unit={hpUnit} step={1} min={1} value={state.peak.peakHp} onCommit={(peakHp) => set({ peak: { ...state.peak, peakHp } })} />
-                <NumberField
-                  label="at"
-                  unit="rpm"
-                  step={100}
-                  min={500}
-                  max={20000}
-                  value={state.peak.peakHpRpm}
-                  onCommit={(peakHpRpm) => set({ peak: { ...state.peak, peakHpRpm } })}
-                />
-              </div>
-              <div className="field-row">
-                <NumberField
-                  label="Peak torque"
-                  unit="lb-ft"
-                  step={1}
-                  min={1}
-                  value={state.peak.peakTorque}
-                  onCommit={(peakTorque) => set({ peak: { ...state.peak, peakTorque } })}
-                />
-                <NumberField
-                  label="at"
-                  unit="rpm"
-                  step={100}
-                  min={500}
-                  max={20000}
-                  value={state.peak.peakTorqueRpm}
-                  onCommit={(peakTorqueRpm) => set({ peak: { ...state.peak, peakTorqueRpm } })}
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              {basisToggle(state.dynoBasis, (dynoBasis) => set({ dynoBasis }))}
-              <DynoEditor points={state.dyno} hpUnit={hpUnit} onChange={(dyno) => set({ dyno })} />
-            </>
-          )}
-          {error ? (
-            <p className="hint error" role="alert">
-              {error}
-            </p>
-          ) : null}
-        </div>
-
-        <div className="split-results">
-          {curve && peaks ? (
-            <>
-              <dl className="peak-facts">
-                <div>
-                  <dt>Peak power</dt>
-                  <dd>
-                    {Math.round(peaks.hp.value)} {hpUnit} <span>@ {peaks.hp.rpm.toLocaleString()}</span>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Peak torque</dt>
-                  <dd>
-                    {Math.round(peaks.tq.value)} lb-ft <span>@ {peaks.tq.rpm.toLocaleString()}</span>
-                  </dd>
-                </div>
-              </dl>
-              <div className="multiples">
-                <LineChart
-                  title="Torque"
-                  series={[{ key: "tq", label: "Torque", color: TORQUE_COLOR, points: curve.map((p) => ({ x: p.rpm, y: p.torque })) }]}
-                  xLabel="rpm"
-                  yLabel="lb-ft"
-                  formatX={(v) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}k` : String(Math.round(v)))}
-                  formatY={(v) => String(Math.round(v))}
-                  height={200}
-                />
-                <LineChart
-                  title="Power"
-                  series={[{ key: "hp", label: "Power", color: HP_COLOR, points: curve.map((p) => ({ x: p.rpm, y: horsepower(p.torque, p.rpm) })) }]}
-                  xLabel="rpm"
-                  yLabel={hpUnit}
-                  formatX={(v) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}k` : String(Math.round(v)))}
-                  formatY={(v) => String(Math.round(v))}
-                  height={200}
-                />
-              </div>
-            </>
-          ) : (
-            <p className="empty">No power curve.</p>
-          )}
-        </div>
       </div>
-    </section>
+      {state.method === "trap" ? (
+        <>
+          <p className="hint">Use a known pass to estimate wheel horsepower</p>
+          <div className="field">
+            <span className="field-label">Trap at</span>
+            <Segmented<TrapDistance>
+              label="Trap at"
+              size="small"
+              value={state.trapDistance}
+              onChange={(trapDistance) => set({ trapDistance })}
+              options={[
+                { value: "quarter", label: "1/4 mile" },
+                { value: "eighth", label: "1/8 mile" },
+              ]}
+            />
+          </div>
+          <div className="field-row">
+            {eighth ? (
+              <NumberField
+                key="eighth"
+                label="1/8 mile trap"
+                unit="mph"
+                step={0.1}
+                min={15}
+                max={250}
+                value={state.trapEighthMph}
+                onCommit={(trapEighthMph) => set({ trapEighthMph })}
+              />
+            ) : (
+              <NumberField key="quarter" label="Trap speed" unit="mph" step={0.1} min={20} max={300} value={state.trapMph} onCommit={(trapMph) => set({ trapMph })} />
+            )}
+            <NumberField
+              label="Race weight"
+              unit="lb"
+              step={10}
+              min={200}
+              max={20000}
+              value={state.trapWeightLb}
+              onCommit={(trapWeightLb) => set({ trapWeightLb })}
+            />
+          </div>
+          <NumberField
+            label="Peak power at"
+            unit="rpm"
+            step={100}
+            min={1500}
+            max={20000}
+            value={state.trapPeakRpm}
+            onCommit={(trapPeakRpm) => set({ trapPeakRpm })}
+          />
+          <p className="hint">
+            {eighth ? `${quarterTrapMph(state).toFixed(1)} mph 1/4 mile equiv. · ` : ""}
+            {Math.round(trapHp * (1 - drivetrainLoss))} whp · {Math.round(trapHp)} hp crank
+          </p>
+        </>
+      ) : state.method === "peak" ? (
+        <>
+          {basisToggle(state.peakBasis, (peakBasis) => set({ peakBasis }))}
+          <div className="field-row">
+            <NumberField label="Peak power" unit={hpUnit} step={1} min={1} value={state.peak.peakHp} onCommit={(peakHp) => set({ peak: { ...state.peak, peakHp } })} />
+            <NumberField
+              label="at"
+              unit="rpm"
+              step={100}
+              min={500}
+              max={20000}
+              value={state.peak.peakHpRpm}
+              onCommit={(peakHpRpm) => set({ peak: { ...state.peak, peakHpRpm } })}
+            />
+          </div>
+          <div className="field-row">
+            <NumberField
+              label="Peak torque"
+              unit="lb-ft"
+              step={1}
+              min={1}
+              value={state.peak.peakTorque}
+              onCommit={(peakTorque) => set({ peak: { ...state.peak, peakTorque } })}
+            />
+            <NumberField
+              label="at"
+              unit="rpm"
+              step={100}
+              min={500}
+              max={20000}
+              value={state.peak.peakTorqueRpm}
+              onCommit={(peakTorqueRpm) => set({ peak: { ...state.peak, peakTorqueRpm } })}
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          {basisToggle(state.dynoBasis, (dynoBasis) => set({ dynoBasis }))}
+          <DynoEditor points={state.dyno} hpUnit={hpUnit} onChange={(dyno) => set({ dyno })} />
+        </>
+      )}
+      {error ? (
+        <p className="hint error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** Torque and power curves for the selected power input, with the peaks. */
+export function PowerCurves({ curve, basis }: { curve: PowerCurve | null; basis: PowerBasis }) {
+  if (!curve) {
+    return (
+      <div className="split-results">
+        <p className="empty">No power curve.</p>
+      </div>
+    );
+  }
+  const peaks = curvePeaks(curve);
+  const hpUnit = basis === "wheel" ? "whp" : "hp";
+  const formatRpm = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}k` : String(Math.round(v)));
+  return (
+    <div className="split-results">
+      <ul className="legend" aria-label="Curves">
+        <li>
+          <span className="legend-swatch" style={{ background: TORQUE_COLOR }} />
+          Torque <span className="legend-ratio">lb-ft</span>
+        </li>
+        <li>
+          <span className="legend-swatch" style={{ background: HP_COLOR }} />
+          Power <span className="legend-ratio">{hpUnit}</span>
+        </li>
+      </ul>
+      <LineChart
+        title="Torque and power"
+        series={[
+          { key: "tq", label: "Torque", unit: "lb-ft", color: TORQUE_COLOR, points: curve.map((p) => ({ x: p.rpm, y: p.torque })) },
+          { key: "hp", label: "Power", unit: hpUnit, color: HP_COLOR, points: curve.map((p) => ({ x: p.rpm, y: horsepower(p.torque, p.rpm) })) },
+        ]}
+        pointLabels={[
+          {
+            key: "tq",
+            x: peaks.tq.rpm,
+            y: peaks.tq.value,
+            color: TORQUE_COLOR,
+            label: `${Math.round(peaks.tq.value)} lb-ft @ ${peaks.tq.rpm.toLocaleString()}`,
+          },
+          {
+            key: "hp",
+            x: peaks.hp.rpm,
+            y: peaks.hp.value,
+            color: HP_COLOR,
+            label: `${Math.round(peaks.hp.value)} ${hpUnit} @ ${peaks.hp.rpm.toLocaleString()}`,
+          },
+        ]}
+        xLabel="rpm"
+        yLabel=""
+        formatX={formatRpm}
+        formatY={(v) => String(Math.round(v))}
+        height={260}
+      />
+    </div>
   );
 }
 
@@ -271,7 +275,7 @@ function DynoEditor({ points, hpUnit, onChange }: { points: CurvePoint[]; hpUnit
           <thead>
             <tr>
               <th scope="col">RPM</th>
-              <th scope="col">Torque (lb-ft)</th>
+              <th scope="col">Lb-ft</th>
               <th scope="col">{hpUnit === "whp" ? "WHP" : "HP"}</th>
               <th scope="col">
                 <span className="visually-hidden">Remove</span>

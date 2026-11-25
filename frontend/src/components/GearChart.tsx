@@ -11,11 +11,12 @@ type Props = {
   gears: Gear[];
   tireDiameter: number;
   axleRatio: number;
-  /** "shift": each gear runs from the previous gear's shift drop up to shiftRpm. "range": every gear spans minRpm..maxRpm. */
-  mode: "shift" | "range";
-  minRpm: number;
-  maxRpm: number;
   shiftRpm: number;
+  /**
+   * "shifts": each gear runs from where the previous upshift lands up to shiftRpm, with the drops drawn.
+   * "full": each gear runs from FULL_RANGE_START_RPM up to shiftRpm. 1st always starts at LAUNCH_RPM.
+   */
+  view: "shifts" | "full";
 };
 
 // SVG viewBox is 720x360; the plot area sits inside these edges.
@@ -24,6 +25,8 @@ const PLOT = { left: 56, right: 700, top: 16, bottom: 316 };
 const TOOLTIP = { width: 150, height: 44 };
 /** Where 1st gear's line starts in shift-point mode (roughly idle). */
 const LAUNCH_RPM = 600;
+/** Where gears after 1st start in full-range view. */
+const FULL_RANGE_START_RPM = 1200;
 /** Hover snaps to a line's start or end within this many SVG units. */
 const SNAP_PX = 14;
 
@@ -35,20 +38,20 @@ export function niceStep(max: number, maxTicks: number) {
   return multiplier * magnitude;
 }
 
-export function GearChart({ gears, tireDiameter, axleRatio, mode, minRpm, maxRpm, shiftRpm }: Props) {
+export function GearChart({ gears, tireDiameter, axleRatio, shiftRpm, view }: Props) {
   const [hover, setHover] = useState<Hover>(null);
-  const topRpm = mode === "shift" ? shiftRpm : maxRpm;
+  const topRpm = shiftRpm;
   const speedAt = (rpm: number, ratio: number) => speedMph(rpm, tireDiameter, ratio, axleRatio);
 
   const lines = useMemo<Line[]>(
     () =>
       gears.map((gear, index) => {
-        if (mode === "range") {
+        if (view === "full" && index > 0) {
           return {
             ...gear,
             index,
-            start: { x: speedAt(minRpm, gear.ratio), y: minRpm },
-            end: { x: speedAt(maxRpm, gear.ratio), y: maxRpm },
+            start: { x: speedAt(FULL_RANGE_START_RPM, gear.ratio), y: FULL_RANGE_START_RPM },
+            end: { x: speedAt(shiftRpm, gear.ratio), y: shiftRpm },
           };
         }
         // 1st gear pulls away from LAUNCH_RPM; later gears start where the previous upshift lands.
@@ -57,7 +60,7 @@ export function GearChart({ gears, tireDiameter, axleRatio, mode, minRpm, maxRpm
         return { ...gear, index, start: { x: startSpeed, y: startRpm }, end: { x: speedAt(shiftRpm, gear.ratio), y: shiftRpm } };
       }),
     // speedAt only closes over tireDiameter and axleRatio, which are listed.
-    [gears, mode, minRpm, maxRpm, shiftRpm, tireDiameter, axleRatio],
+    [gears, shiftRpm, view, tireDiameter, axleRatio],
   );
 
   const maxSpeedRaw = Math.max(...lines.map((line) => line.end.x), 1);
@@ -132,7 +135,7 @@ export function GearChart({ gears, tireDiameter, axleRatio, mode, minRpm, maxRpm
           rpm
         </text>
 
-        {mode === "shift" &&
+        {view === "shifts" &&
           lines.slice(1).map((line) => (
             <g key={`drop-${line.label}`}>
               <line className="shift-drop" x1={x(line.start.x)} x2={x(line.start.x)} y1={y(shiftRpm)} y2={y(line.start.y)} />

@@ -17,11 +17,10 @@ export type AppSettings = {
   tireDiameterIn: number;
   tireSize: string;
   axleRatio: number;
-  rpmMode: "shift" | "range";
   shiftRpm: number;
-  minRpm: number;
-  maxRpm: number;
   gearsetView: "ladder" | "cruising";
+  /** RPM vs road speed: gears from where each upshift lands, or each gear from 1,200 rpm (1st from launch). */
+  chartView: "shifts" | "full";
   power: PowerState;
   vehicle: VehicleSetup;
   /** User-made transmissions. */
@@ -39,11 +38,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   tireDiameterIn: 26,
   tireSize: "275/55R15",
   axleRatio: 3.73,
-  rpmMode: "shift",
   shiftRpm: 6500,
-  minRpm: 1500,
-  maxRpm: 6500,
   gearsetView: "cruising",
+  chartView: "shifts",
   power: DEFAULT_POWER,
   vehicle: DEFAULT_VEHICLE,
   customTransmissions: [],
@@ -55,8 +52,8 @@ export const SETTINGS_ELEMENT_ID = "saved-settings";
 // Allowed values for string fields that are really enums, by dotted path.
 const ENUMS: Record<string, readonly string[]> = {
   tireMode: ["diameter", "size"],
-  rpmMode: ["shift", "range"],
   gearsetView: ["ladder", "cruising"],
+  chartView: ["shifts", "full"],
   "power.method": ["trap", "peak", "dyno"],
   "power.trapDistance": ["quarter", "eighth"],
   "power.peakBasis": ["crank", "wheel"],

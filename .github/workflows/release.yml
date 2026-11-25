@@ -56,7 +56,7 @@ jobs:
           node frontend/scripts/version.mjs notes > release-notes.md
           gh release create "v$VERSION" frontend/dist/index.html \
             --target "$GITHUB_SHA" \
-            --title "v$VERSION" \
+            --title "$(node frontend/scripts/version.mjs title)" \
             --notes-file release-notes.md \
             --latest
 

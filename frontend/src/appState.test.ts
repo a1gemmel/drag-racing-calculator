@@ -12,7 +12,9 @@ describe("parseSettings", () => {
       axleRatio: 4.56,
       shiftRpm: "7000",
       gearsetView: "ladder",
-      rpmMode: "sideways",
+      tireMode: "sideways",
+      rpmMode: "range",
+      chartView: "full",
       bogus: 1,
       power: { method: "dyno", dynoBasis: "wheel", trapMph: Number.NaN, trapDistance: "sixteenth", trapEighthMph: 91, peak: { peakHp: 500 } },
       vehicle: { weightLb: 3200, knownSixtyFtS: 1.85, drive: "awd" },
@@ -20,7 +22,9 @@ describe("parseSettings", () => {
     expect(settings.axleRatio).toBe(4.56);
     expect(settings.shiftRpm).toBe(DEFAULT_SETTINGS.shiftRpm);
     expect(settings.gearsetView).toBe("ladder");
-    expect(settings.rpmMode).toBe(DEFAULT_SETTINGS.rpmMode);
+    expect(settings.tireMode).toBe(DEFAULT_SETTINGS.tireMode);
+    expect("rpmMode" in settings).toBe(false);
+    expect(settings.chartView).toBe("full");
     expect("bogus" in settings).toBe(false);
     expect(settings.power.method).toBe("dyno");
     expect(settings.power.dynoBasis).toBe("wheel");

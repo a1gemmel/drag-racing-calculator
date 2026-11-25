@@ -3,7 +3,9 @@ import { niceStep } from "./GearChart";
 
 /** `ft` is optional extra data carried to the tooltip (distance into a run). */
 export type ChartPoint = { x: number; y: number; ft?: number };
-export type Series = { key: string; label: string; color: string; points: ChartPoint[] };
+export type Series = { key: string; label: string; color: string; points: ChartPoint[]; /** Tooltip unit; defaults to yLabel. */ unit?: string };
+/** A labelled point on the chart, e.g. a peak. */
+export type PointLabel = { key: string; x: number; y: number; label: string; color: string };
 
 type Props = {
   title: string;
@@ -19,6 +21,7 @@ type Props = {
   height?: number;
   /** Custom one-line tooltip text per series reading; replaces the default title + "label: value" lines. */
   formatReading?: (series: Series, point: ChartPoint) => string;
+  pointLabels?: PointLabel[];
 };
 
 const WIDTH = 640;
@@ -27,7 +30,7 @@ const TOOLTIP_MIN_W = 150;
 const TOOLTIP_CHAR_W = 6.6; // approx. width of an 11px monospace character
 
 /** Small single-axis line chart with a hover crosshair. Used for power curves and run traces. */
-export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMax, markers = [], height = 220, formatReading }: Props) {
+export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMax, markers = [], height = 220, formatReading, pointLabels = [] }: Props) {
   const [hoverX, setHoverX] = useState<number | null>(null);
   const all = series.flatMap((s) => s.points);
   if (all.length === 0) return null;
@@ -35,7 +38,8 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
   const dataXMax = xMax ?? Math.max(...all.map((p) => p.x));
   const xStep = niceStep(dataXMax, 8);
   const xTop = Math.ceil(dataXMax / xStep) * xStep;
-  const yMaxRaw = Math.max(...all.map((p) => p.y), 1);
+  // Headroom for point labels drawn above their points.
+  const yMaxRaw = Math.max(...all.map((p) => p.y), 1) * (pointLabels.length ? 1 + 0.1 * (pointLabels.length + 1) : 1);
   const yStep = niceStep(yMaxRaw, 5);
   const yTop = Math.ceil(yMaxRaw / yStep) * yStep;
   const right = WIDTH - PAD.right;
@@ -117,6 +121,30 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
           />
         ))}
 
+        {/* Point labels sit in rows along the top, with a dashed leader down to the point. */}
+        {(() => {
+          const rows: { from: number; to: number }[][] = [];
+          return pointLabels.map((p) => {
+            const px = x(p.x);
+            const width = p.label.length * TOOLTIP_CHAR_W;
+            const anchor = px > right - width / 2 ? "end" : px < PAD.left + width / 2 ? "start" : "middle";
+            const from = anchor === "end" ? px - width : anchor === "start" ? px : px - width / 2;
+            let row = rows.findIndex((taken) => taken.every((span) => from > span.to + 12 || from + width < span.from - 12));
+            if (row === -1) row = rows.push([]) - 1;
+            rows[row].push({ from, to: from + width });
+            const labelY = PAD.top + 10 + row * 16;
+            return (
+              <g key={p.key} className="point-label">
+                <line className="point-leader" x1={px} x2={px} y1={labelY + 5} y2={y(p.y) - 6} style={{ stroke: p.color }} />
+                <circle cx={px} cy={y(p.y)} r={4} style={{ fill: p.color }} />
+                <text x={px} y={labelY} textAnchor={anchor}>
+                  {p.label}
+                </text>
+              </g>
+            );
+          });
+        })()}
+
         {hoverX !== null && readings.length > 0 ? (
           <g pointerEvents="none">
             <line className="crosshair" x1={x(hoverX)} x2={x(hoverX)} y1={PAD.top} y2={bottom} />
@@ -125,7 +153,7 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
             ))}
             {(() => {
               const lines = readings.map(({ series: s, point }) =>
-                formatReading ? formatReading(s, point) : `${s.label}: ${formatY(point.y)} ${yLabel}`,
+                formatReading ? formatReading(s, point) : `${s.label}: ${formatY(point.y)} ${s.unit ?? yLabel}`,
               );
               const title = formatReading ? null : `${formatX(readings[0].point.x)} ${xLabel}`;
               const longest = Math.max(...lines.map((line) => line.length), title?.length ?? 0);
