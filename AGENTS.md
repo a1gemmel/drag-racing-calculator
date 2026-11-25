@@ -121,7 +121,7 @@ comparison, metric units, browser smoke tests, accessibility.
   built-in token, and POSTs the `CLOUDFLARE_DEPLOY_HOOK` secret (if set) to redeploy the website.
 - The website (a1gemmel/andrewgemmel.com, Cloudflare Pages) downloads
   `https://github.com/a1gemmel/drag-racing-calculator/releases/latest/download/index.html` in its build
-  command (`scripts/fetch-drag-racing-calculator.sh`). Requires this repo to stay public.
+  command (`scripts/build.sh` in that repo). Requires this repo to stay public.
 - Local branch is `master`, tracking `origin/main`.
 
 ## Conventions for agents

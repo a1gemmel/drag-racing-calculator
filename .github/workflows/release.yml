@@ -1,5 +1,5 @@
 # On every push to main: build and test the app, publish the single-file build as a GitHub Release
-# asset, then ask Cloudflare Pages to redeploy the website, whose build step downloads
+# asset, then ask Cloudflare Pages to redeploy the website, whose build step (scripts/build.sh) downloads
 #   https://github.com/a1gemmel/drag-racing-calculator/releases/latest/download/index.html
 #
 # Secrets: CLOUDFLARE_DEPLOY_HOOK (optional) - the website's Cloudflare Pages deploy hook URL.
