@@ -1,10 +1,13 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { APP_VERSION, CHANGELOG, COMMIT_URL, SHORT_SHA } from "../buildInfo";
+import { renderMarkdown } from "../markdown";
 
 /** Footer with the version ("v0.1.0 abc1234", linking to the commit) and a changelog modal. */
 export function SiteFooter() {
   const dialog = useRef<HTMLDialogElement>(null);
   const label = `v${APP_VERSION}${SHORT_SHA ? ` ${SHORT_SHA}` : ""}`;
+  // The modal has its own "Changelog" title, so drop the file's top-level heading.
+  const changelog = useMemo(() => renderMarkdown(CHANGELOG.replace(/^# .*\r?\n/, "")), []);
 
   return (
     <footer className="site-footer">
@@ -33,7 +36,7 @@ export function SiteFooter() {
               ×
             </button>
           </header>
-          <pre className="changelog-text">{CHANGELOG}</pre>
+          <div className="changelog-body">{changelog}</div>
         </div>
       </dialog>
     </footer>

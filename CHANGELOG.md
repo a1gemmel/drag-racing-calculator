@@ -2,6 +2,10 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.1.1 — 2026-11-25
+
+- Changelog window shows formatted text: headings, bullet lists, links and code.
+
 ## v0.1.0 — 2026-11-25
 
 First versioned release.

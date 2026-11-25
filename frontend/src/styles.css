@@ -324,4 +324,15 @@ a.version-link:hover { color: var(--text); text-decoration: underline; }
 .changelog-content { display: flex; flex-direction: column; max-height: inherit; }
 .changelog-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--line); }
 .changelog-header h2 { font-size: 1rem; }
-.changelog-text { margin: 0; padding: 18px; overflow: auto; color: var(--text-2); font: 0.8rem/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.changelog-body { padding: 6px 22px 22px; overflow: auto; color: var(--text-2); font-size: 0.88rem; line-height: 1.55; overflow-wrap: anywhere; }
+.changelog-body > p:first-child { margin-top: 12px; }
+.changelog-body p { margin: 10px 0 0; }
+.changelog-body h2 { margin: 26px 0 0; padding-top: 18px; border-top: 1px solid var(--line); color: var(--text); font: 650 1rem var(--mono); letter-spacing: -0.01em; }
+.changelog-body > p:first-child + h2, .changelog-body > h2:first-child { margin-top: 16px; }
+.changelog-body h3 { margin: 16px 0 0; color: var(--text); font-size: 0.9rem; }
+.changelog-body ul { margin: 10px 0 0; padding-left: 20px; }
+.changelog-body li { margin-top: 6px; }
+.changelog-body li::marker { color: var(--accent); }
+.changelog-body code { padding: 1px 5px; border-radius: 4px; background: var(--surface-raised); color: var(--text); font: 0.82em var(--mono); }
+.changelog-body strong { color: var(--text); }
+.changelog-body a { color: var(--text); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 2px; }
