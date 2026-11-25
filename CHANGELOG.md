@@ -2,6 +2,14 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.2.1 — 2026-11-25
+
+- New automatics: ZF 8HP45, Chrysler 727 TorqueFlite, 545RFE, 65RFE (Drive or all six ratios), Ford 10R80 and GM 8L90.
+- 1/4 mile and 1/8 mile tiles show gear and rpm at the mark on hover.
+- RPM vs road speed chart: hover snaps to the start or end of a gear line.
+- Biggest RPM drop shows without a minus sign.
+- Gearset table opens on Cruising RPM.
+
 ## v0.2.0 — 2026-11-25
 
 - Automatic transmissions: Powerglide (1.76 and 1.82 low), TH350, TH400, C4, C6, 4L60E, 4L80E and ZF 8HP70.

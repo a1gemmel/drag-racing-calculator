@@ -392,7 +392,7 @@ export function App() {
                 <div className="stat">
                   <p className="stat-label">Biggest RPM drop</p>
                   <p className="stat-value">
-                    {biggestShift ? `−${Math.round(biggestShift.drop).toLocaleString()}` : "—"}
+                    {biggestShift ? Math.round(biggestShift.drop).toLocaleString() : "—"}
                     <span>rpm</span>
                   </p>
                   <p className="stat-note">
@@ -439,8 +439,8 @@ export function App() {
                     value={gearsetView}
                     onChange={setGearsetView}
                     options={[
-                      { value: "ladder", label: "Ratio ladder" },
                       { value: "cruising", label: "Cruising RPM" },
+                      { value: "ladder", label: "Ratio ladder" },
                     ]}
                   />
                 </header>

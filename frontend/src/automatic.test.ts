@@ -10,12 +10,13 @@ const family = (model: string) => transmissionFamilies.find((f) => f.model === m
 const curve = buildCurve(DEFAULT_POWER).curve!;
 const car = { ...DEFAULT_VEHICLE, curve, curveBasis: "crank" as const, axleRatio: 3.73, tireDiameterIn: 26, shiftRpm: 6500, knownSixtyFtS: null };
 const th400 = family("TH400");
+const AUTOMATICS = ["Powerglide", "TH350", "TH400", "C4", "C6", "4L60E", "4L80E", "8HP70", "8HP45", "727 TorqueFlite", "545RFE", "65RFE", "10R80", "8L90"];
 const th400Run = (overrides = {}, vehicle = {}) =>
   runQuarterMile({ ...car, ...vehicle, gearRatios: th400.variants[0].gear_ratios, automatic: { ...th400.automatic!, ...overrides } });
 
 describe("automatic catalog", () => {
-  it("has the eight requested automatics with converter defaults", () => {
-    for (const model of ["Powerglide", "TH350", "TH400", "C4", "C6", "4L60E", "4L80E", "8HP70"]) {
+  it("has every requested automatic with converter defaults", () => {
+    for (const model of AUTOMATICS) {
       const f = family(model);
       expect(familyKind(f), model).toBe("automatic");
       expect(f.automatic, model).toBeDefined();
@@ -27,7 +28,7 @@ describe("automatic catalog", () => {
 
   it("can be filtered by type", () => {
     const autos = filterFamilies(transmissionFamilies, "kind:automatic", "");
-    expect(autos.map((f) => f.model)).toEqual(["Powerglide", "TH350", "TH400", "C4", "C6", "4L60E", "4L80E", "8HP70"]);
+    expect(autos.map((f) => f.model)).toEqual(AUTOMATICS);
     expect(filterFamilies(transmissionFamilies, "kind:manual", "th400")).toEqual([]);
   });
 });

@@ -201,11 +201,19 @@ function RunResults({ run, gears }: { run: QuarterMileRun; gears: Gear[] }) {
       return points.length ? [{ key: gear.label, label: gear.label, color: gear.color, points }] : [];
     });
   const formatT = (t: number) => (t % 1 === 0 ? String(t) : t.toFixed(1));
+  // Gear and rpm as the car crosses a mark (first sample at or past it), for the tile hovers.
+  const atMark = (ft: number) => {
+    const sample = run.samples.find((s) => s.ft >= ft);
+    return sample ? `${gears[sample.gear]?.label ?? ""} · ${Math.round(sample.rpm).toLocaleString()} rpm` : null;
+  };
+  const quarterReading = run.et ? atMark(1320) : null;
+  const eighthReading = run.eighth ? atMark(660) : null;
 
   return (
     <>
       <div className="run-tiles">
-        <div className="stat stat-hero">
+        <div className="stat stat-hero stat-hover" tabIndex={quarterReading ? 0 : undefined}>
+          {quarterReading ? <p className="stat-pop">{quarterReading}</p> : null}
           <p className="stat-label">1/4 mile</p>
           <p className="stat-value">
             {run.et ? run.et.toFixed(2) : "—"}
@@ -223,7 +231,8 @@ function RunResults({ run, gears }: { run: QuarterMileRun; gears: Gear[] }) {
           </p>
           <p className="stat-note">Launch {run.launchRpm.toLocaleString()} rpm</p>
         </div>
-        <div className="stat">
+        <div className="stat stat-hover" tabIndex={eighthReading ? 0 : undefined}>
+          {eighthReading ? <p className="stat-pop">{eighthReading}</p> : null}
           <p className="stat-label">1/8 mile</p>
           <p className="stat-value">
             {run.eighth ? run.eighth.et.toFixed(2) : "—"}

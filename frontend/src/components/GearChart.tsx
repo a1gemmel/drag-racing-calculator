@@ -24,6 +24,8 @@ const PLOT = { left: 56, right: 700, top: 16, bottom: 316 };
 const TOOLTIP = { width: 150, height: 44 };
 /** Where 1st gear's line starts in shift-point mode (roughly idle). */
 const LAUNCH_RPM = 600;
+/** Hover snaps to a line's start or end within this many SVG units. */
+const SNAP_PX = 14;
 
 // Largest "nice" step (1, 2, 2.5, 5 x 10^n) that splits `max` into at most `maxTicks` intervals.
 export function niceStep(max: number, maxTicks: number) {
@@ -73,9 +75,16 @@ export function GearChart({ gears, tireDiameter, axleRatio, mode, minRpm, maxRpm
     const rect = event.currentTarget.ownerSVGElement?.getBoundingClientRect();
     if (!rect) return;
     const svgX = ((event.clientX - rect.left) / rect.width) * VIEW.width;
+    const svgY = ((event.clientY - rect.top) / rect.height) * VIEW.height;
+    // Project the pointer onto the line; within SNAP_PX of either end, snap to that end.
     const x1 = x(line.start.x);
-    const x2 = x(line.end.x);
-    const t = x2 === x1 ? 0 : Math.min(1, Math.max(0, (svgX - x1) / (x2 - x1)));
+    const y1 = y(line.start.y);
+    const dx = x(line.end.x) - x1;
+    const dy = y(line.end.y) - y1;
+    const length = Math.hypot(dx, dy);
+    let t = length === 0 ? 0 : Math.min(1, Math.max(0, ((svgX - x1) * dx + (svgY - y1) * dy) / (length * length)));
+    if (t * length < SNAP_PX) t = 0;
+    else if ((1 - t) * length < SNAP_PX) t = 1;
     setHover({
       gear: line,
       speed: line.start.x + (line.end.x - line.start.x) * t,

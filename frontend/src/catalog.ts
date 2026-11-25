@@ -52,6 +52,15 @@ const ADVANCE_ADAPTERS_C6 = "Advance Adapters, Ford C6: https://advanceadapters.
 const WIKIPEDIA_4L60E = "GM 4L60-E transmission: https://www.wikipedia.org/wiki/4L60-E";
 const DIESELHUB_4L80E = "DieselHub, 4L80E: https://www.dieselhub.com/trans/4l80e.html";
 const WIKIPEDIA_8HP = "ZF 8HP transmission (8HP70, 2010+ ratios): https://wikipedia.com/wiki/ZF_8HP_transmission";
+const FCPEURO_8HP45 = "FCP Euro, ZF 8HP45 guide: https://www.fcpeuro.com/blog/zf-8-speed-transmission-guide-8hp45-specs-common-problems-diagnostics-maintenance";
+const WIKIPEDIA_RFE = "Chrysler RFE transmission: https://en.wikipedia.org/wiki/Chrysler_RFE_transmission";
+const GEARSTAR_545RFE = "Gearstar, 545RFE specs: https://gearstar.com/545rfe-transmission-specs/";
+const CARS_65RFE = "Cars.com, 2012 Ram six-speed (65RFE): https://www.cars.com/articles/2012-ram-trucks-receive-new-six-speed-transmissions-454767";
+const WIKIPEDIA_TORQUEFLITE = "TorqueFlite (A727): https://en.wikipedia.com/wiki/Torqueflite";
+const DIESELHUB_727 = "DieselHub, TorqueFlite A727: https://www.dieselhub.com/transmission/torqueflite-727.html";
+const WIKIPEDIA_10SPEED = "Ford-GM 10-speed automatic (10R80): https://en.wikipedia.org/wiki/Ford%E2%80%93GM_10-speed_automatic_transmission";
+const GM_8L90 = "GM Powered Solutions, 8L90: https://poweredsolutions.gm.com/products/8l90-8-speed-transmission/";
+const CARS_8L90 = "Cars.com, Hydra-Matic 8L90: https://www.cars.com/articles/gm-stuffs-hydra-matic-8l90-with-technology-453444";
 
 export const transmissionFamilies: TransmissionFamily[] = [
   {
@@ -537,6 +546,91 @@ export const transmissionFamilies: TransmissionFamily[] = [
         reverse_ratio: 3.317,
         source: WIKIPEDIA_8HP,
       },
+    ],
+  },
+  {
+    manufacturer: "ZF",
+    model: "8HP45",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2400, couplingSlip: 0.04, lockupCapable: true, lockup: "after1st", shiftTimeS: 0.15, shiftLoss: 0.1, drivetrainLoss: 0.11 }),
+    variants: [
+      {
+        name: "8HP45 (2010+)",
+        gear_ratios: [4.714, 3.143, 2.106, 1.667, 1.285, 1.0, 0.839, 0.667],
+        application_manufacturers: ["BMW", "Chrysler", "Dodge", "Jeep", "Ram", "Audi"],
+        reverse_ratio: 3.317,
+        source: `${WIKIPEDIA_8HP}; ${FCPEURO_8HP45} (same gearset as the 8HP70; FCP Euro lists reverse 3.30)`,
+      },
+    ],
+  },
+  {
+    manufacturer: "Chrysler",
+    model: "727 TorqueFlite",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 3000, couplingSlip: 0.06, lockupCapable: false, shiftTimeS: 0.2, shiftLoss: 0.2, drivetrainLoss: 0.14 }),
+    variants: [
+      { name: "A727", gear_ratios: [2.45, 1.45, 1.0], application_manufacturers: ["Chrysler", "Dodge", "Plymouth", "Jeep"], reverse_ratio: 2.2, source: `${WIKIPEDIA_TORQUEFLITE}; ${DIESELHUB_727} (some sources list reverse 2.21)` },
+    ],
+  },
+  {
+    manufacturer: "Chrysler",
+    model: "545RFE",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2400, couplingSlip: 0.06, lockupCapable: true, lockup: "off", shiftTimeS: 0.22, shiftLoss: 0.15, drivetrainLoss: 0.14 }),
+    variants: [
+      {
+        name: "545RFE",
+        gear_ratios: [3.0, 1.67, 1.0, 0.75, 0.67],
+        application_manufacturers: ["Dodge", "Jeep", "Ram"],
+        reverse_ratio: 3.0,
+        source: `${WIKIPEDIA_RFE}; ${GEARSTAR_545RFE} (upshift sequence; the 1.50 2nd prime is used on kickdowns only)`,
+      },
+    ],
+  },
+  {
+    manufacturer: "Chrysler",
+    model: "65RFE",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2400, couplingSlip: 0.06, lockupCapable: true, lockup: "off", shiftTimeS: 0.22, shiftLoss: 0.15, drivetrainLoss: 0.15 }),
+    variants: [
+      {
+        name: "Drive (5 upshifts)",
+        gear_ratios: [3.0, 1.67, 1.0, 0.75, 0.67],
+        application_manufacturers: ["Dodge", "Jeep", "Ram"],
+        reverse_ratio: 3.0,
+        source: `${WIKIPEDIA_RFE}; ${CARS_65RFE} (in Drive it shifts like a 545RFE; 1.50 2nd prime on kickdowns)`,
+      },
+      {
+        name: "All six (ERS)",
+        gear_ratios: [3.0, 1.67, 1.5, 1.0, 0.75, 0.67],
+        application_manufacturers: ["Dodge", "Jeep", "Ram"],
+        reverse_ratio: 3.0,
+        source: `${WIKIPEDIA_RFE}; ${CARS_65RFE} (Electronic Range Select uses all six ratios in sequence)`,
+      },
+    ],
+  },
+  {
+    manufacturer: "Ford",
+    model: "10R80",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2400, couplingSlip: 0.04, lockupCapable: true, lockup: "after1st", shiftTimeS: 0.15, shiftLoss: 0.1, drivetrainLoss: 0.12 }),
+    variants: [
+      {
+        name: "10R80 (2017+)",
+        gear_ratios: [4.696, 2.985, 2.146, 1.769, 1.52, 1.275, 1.0, 0.854, 0.689, 0.636],
+        application_manufacturers: ["Ford", "Lincoln"],
+        reverse_ratio: 4.866,
+        source: WIKIPEDIA_10SPEED,
+      },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "8L90",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2400, couplingSlip: 0.04, lockupCapable: true, lockup: "after1st", shiftTimeS: 0.15, shiftLoss: 0.1, drivetrainLoss: 0.12 }),
+    variants: [
+      { name: "Hydra-Matic 8L90", gear_ratios: [4.56, 2.97, 2.08, 1.69, 1.27, 1.0, 0.85, 0.65], application_manufacturers: ["Chevrolet", "GMC", "Cadillac"], reverse_ratio: 3.82, source: `${GM_8L90}; ${CARS_8L90}` },
     ],
   },
 ];

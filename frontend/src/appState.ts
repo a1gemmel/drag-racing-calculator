@@ -43,7 +43,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   shiftRpm: 6500,
   minRpm: 1500,
   maxRpm: 6500,
-  gearsetView: "ladder",
+  gearsetView: "cruising",
   power: DEFAULT_POWER,
   vehicle: DEFAULT_VEHICLE,
   customTransmissions: [],

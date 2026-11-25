@@ -106,6 +106,8 @@ Data
 - Catalog (2026-11-24): TKX, T5 (24 NWC/WC variants), T56, T56 Magnum, NV3500, NV4500, Aisin
   L43/L45/L50/W56, Muncie M20 — 56 variants. Each variant has an optional `source` citation; only the
   four Aisin entries still lack one. TKX wide-ratio sets fixed to 3.27/1.98/1.34/1.00/0.72.
+  Automatics (v0.2.0-0.2.1): Powerglide, TH350, TH400, C4, C6, 4L60E, 4L80E, 8HP70, 8HP45, 727 TorqueFlite,
+  545RFE, 65RFE, 10R80, 8L90.
 - Public sources disagree on several values (T5 Ford 5.0 year breaks and ODs, NV4500 reverse ratios,
   T56 Cobra 5th gear). Choices made are documented per entry in `source` strings; treat these as the
   first entries to re-check if a user reports a wrong ratio.
@@ -146,6 +148,10 @@ engineering choices; public converter sources give stall rules of thumb but not 
   coupling point (COUPLING_CAPACITY in quarterMile.ts), linear torque-ratio fall, linear coupling phase.
   Coupling point clamped to SR 0.6-0.95 (dragzine: stator freewheels around SR ~0.8).
 - Default stall torque ratio 2.0 for every automatic.
+- v0.2.1 additions (same reasoning as the matching older units): 8HP45 like the 8HP70 but 11% loss; 727 like the
+  TH400 (3000 stall); 545RFE/65RFE 2400 stall, 6% slip, lock-up clutch off, 0.22 s / 15% shift loss, 14% / 15%
+  loss; 10R80 and 8L90 like the 8HP70 (2400 stall, 4% slip, lock-up 2nd & up, 0.15 s / 10%, 12% loss).
+  RFE upshifts skip the 1.50 2nd prime (kickdown only); the 65RFE has a second variant with all six ratios (ERS).
 - Default converter slip at WOT: 6% (old GM/Ford 3-speeds, 4L60E, 4L80E, Powerglide), 4% (8HP70).
 - Default stall speeds (typical street/strip converter for each trans, not stock): Powerglide 4000,
   TH350 3000, TH400 3200, C4 3000, C6 3000, 4L60E 2800, 4L80E 2800, 8HP70 2400.

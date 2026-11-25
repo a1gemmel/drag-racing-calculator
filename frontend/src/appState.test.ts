@@ -11,7 +11,7 @@ describe("parseSettings", () => {
     const settings = parseSettings({
       axleRatio: 4.56,
       shiftRpm: "7000",
-      gearsetView: "cruising",
+      gearsetView: "ladder",
       rpmMode: "sideways",
       bogus: 1,
       power: { method: "dyno", dynoBasis: "wheel", trapMph: Number.NaN, peak: { peakHp: 500 } },
@@ -19,7 +19,7 @@ describe("parseSettings", () => {
     });
     expect(settings.axleRatio).toBe(4.56);
     expect(settings.shiftRpm).toBe(DEFAULT_SETTINGS.shiftRpm);
-    expect(settings.gearsetView).toBe("cruising");
+    expect(settings.gearsetView).toBe("ladder");
     expect(settings.rpmMode).toBe(DEFAULT_SETTINGS.rpmMode);
     expect("bogus" in settings).toBe(false);
     expect(settings.power.method).toBe("dyno");
