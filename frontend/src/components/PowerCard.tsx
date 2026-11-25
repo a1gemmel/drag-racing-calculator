@@ -18,7 +18,6 @@ import { Segmented } from "./Segmented";
 type Props = {
   state: PowerState;
   onChange: (state: PowerState) => void;
-  weightLb: number;
   curve: PowerCurve | null;
   error: string | null;
   basis: PowerBasis;
@@ -27,7 +26,7 @@ type Props = {
 const TORQUE_COLOR = "#3987e5";
 const HP_COLOR = "#d95926";
 
-export function PowerCard({ state, onChange, weightLb, curve, error, basis }: Props) {
+export function PowerCard({ state, onChange, curve, error, basis }: Props) {
   const set = (patch: Partial<PowerState>) => onChange({ ...state, ...patch });
   const peaks = curve ? curvePeaks(curve) : null;
   const hpUnit = basis === "wheel" ? "whp" : "hp";
@@ -72,7 +71,18 @@ export function PowerCard({ state, onChange, weightLb, curve, error, basis }: Pr
           {state.method === "trap" ? (
             <>
               <p className="hint">Use a known pass to estimate wheel horsepower</p>
-              <NumberField label="Trap speed" unit="mph" step={0.1} min={20} max={300} value={state.trapMph} onCommit={(trapMph) => set({ trapMph })} />
+              <div className="field-row">
+                <NumberField label="Trap speed" unit="mph" step={0.1} min={20} max={300} value={state.trapMph} onCommit={(trapMph) => set({ trapMph })} />
+                <NumberField
+                  label="Race weight"
+                  unit="lb"
+                  step={10}
+                  min={200}
+                  max={20000}
+                  value={state.trapWeightLb}
+                  onCommit={(trapWeightLb) => set({ trapWeightLb })}
+                />
+              </div>
               <NumberField
                 label="Peak power at"
                 unit="rpm"
@@ -83,7 +93,7 @@ export function PowerCard({ state, onChange, weightLb, curve, error, basis }: Pr
                 onCommit={(trapPeakRpm) => set({ trapPeakRpm })}
               />
               <p className="hint">
-                {Math.round(hpFromTrap(weightLb, state.trapMph))} whp at {weightLb.toLocaleString()} lb race weight
+                {Math.round(hpFromTrap(state.trapWeightLb, state.trapMph))} whp
               </p>
             </>
           ) : state.method === "peak" ? (

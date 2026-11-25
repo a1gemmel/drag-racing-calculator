@@ -95,8 +95,17 @@ describe("parseDynoText", () => {
 
 describe("buildCurve", () => {
   it("reports the basis of each method", () => {
-    expect(buildCurve({ ...DEFAULT_POWER, method: "trap" }, 3500).basis).toBe("wheel");
-    expect(buildCurve({ ...DEFAULT_POWER, method: "peak", peakBasis: "wheel" }, 3500).basis).toBe("wheel");
-    expect(buildCurve({ ...DEFAULT_POWER, method: "dyno", dynoBasis: "crank", peakBasis: "wheel" }, 3500).basis).toBe("crank");
+    expect(buildCurve({ ...DEFAULT_POWER, method: "trap" }).basis).toBe("wheel");
+    expect(buildCurve({ ...DEFAULT_POWER, method: "peak", peakBasis: "wheel" }).basis).toBe("wheel");
+    expect(buildCurve({ ...DEFAULT_POWER, method: "dyno", dynoBasis: "crank", peakBasis: "wheel" }).basis).toBe("crank");
+  });
+});
+
+describe("trap-speed weight", () => {
+  it("uses the weight entered with the trap speed, not anything else", () => {
+    const light = buildCurve({ ...DEFAULT_POWER, method: "trap", trapWeightLb: 3000 });
+    const heavy = buildCurve({ ...DEFAULT_POWER, method: "trap", trapWeightLb: 4000 });
+    const peak = (c: typeof light) => curvePeaks(c.curve!).hp.value;
+    expect(peak(heavy) / peak(light)).toBeCloseTo(4000 / 3000, 2);
   });
 });

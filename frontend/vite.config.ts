@@ -43,4 +43,11 @@ function inlineAssets() {
 
 export default defineConfig({
   plugins: [react(), inlineAssets()],
+  build: {
+    // Single-file output: no preload links exist, so drop the polyfill that would fetch them.
+    modulePreload: { polyfill: false },
+    // Keep everything in one chunk and never emit asset files (small assets are inlined as data: URIs).
+    assetsInlineLimit: Number.MAX_SAFE_INTEGER,
+    cssCodeSplit: false,
+  },
 });

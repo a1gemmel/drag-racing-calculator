@@ -1,3 +1,5 @@
+// Must stay the first import: it captures the page before React renders (see offline.ts).
+import "./offline";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 

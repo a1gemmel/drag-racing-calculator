@@ -8,6 +8,8 @@ import { Segmented } from "./components/Segmented";
 import { PowerCard } from "./components/PowerCard";
 import { QuarterMileCard } from "./components/QuarterMileCard";
 import { TireField, type TireMode } from "./components/TireField";
+import { readEmbeddedSettings, type AppSettings } from "./appState";
+import { downloadOfflineCopy, OFFLINE_FILE_NAME, offlineCopyAvailable, offlineCopyKb } from "./offline";
 import { buildCurve, DEFAULT_POWER, type PowerState } from "./power";
 import { DEFAULT_VEHICLE, type VehicleSetup } from "./quarterMile";
 import { parseTireSize } from "./tires";
@@ -24,38 +26,66 @@ const CRUISE_SPEEDS = [10, 20, 30, 40, 50, 60, 70, 80];
 const HIGHWAY_MPH = 65;
 const LUGGING_RPM = 800;
 const CRUISE_FLOOR_RPM = 1200;
-const DEFAULT_TRANSMISSION = { model: "Muncie M20", variant: "66-70 Wide Ratio" };
 
 export function App() {
   const families = transmissionFamilies;
-  const [appMode, setAppMode] = useState<AppMode>("race");
-  const [query, setQuery] = useState("");
-  const [scope, setScope] = useState(ALL_SCOPE);
+  // Defaults, or the settings embedded in this page by a previous "Download offline copy".
+  const [initial] = useState(() => readEmbeddedSettings(document));
+  const [appMode, setAppMode] = useState<AppMode>(initial.appMode);
+  const [query, setQuery] = useState(initial.query);
+  const [scope, setScope] = useState(initial.scope);
   // The user's last pick. If a search or filter hides it, resolveSelection falls back to the first match.
-  const [selectedModel, setSelectedModel] = useState(DEFAULT_TRANSMISSION.model);
-  const [selectedVariantName, setSelectedVariantName] = useState(DEFAULT_TRANSMISSION.variant);
-  const [tireMode, setTireMode] = useState<TireMode>("diameter");
-  const [tireDiameterIn, setTireDiameterIn] = useState(26);
-  const [tireSize, setTireSize] = useState("275/55R15");
+  const [selectedModel, setSelectedModel] = useState(initial.selectedModel);
+  const [selectedVariantName, setSelectedVariantName] = useState(initial.selectedVariantName);
+  const [tireMode, setTireMode] = useState<TireMode>(initial.tireMode);
+  const [tireDiameterIn, setTireDiameterIn] = useState(initial.tireDiameterIn);
+  const [tireSize, setTireSize] = useState(initial.tireSize);
   const parsedTire = tireMode === "size" ? parseTireSize(tireSize) : null;
   // Speed math uses the rolling diameter: as entered in diameter mode, size math minus the rolling correction otherwise.
   const tireDiameter = parsedTire ? parsedTire.effectiveDiameterIn : tireDiameterIn;
   const tireLabel = parsedTire ? `${parsedTire.label} (${tireDiameter.toFixed(1)}″)` : `${tireDiameter}″ tire`;
-  const [axleRatio, setAxleRatio] = useState(3.73);
-  const [rpmMode, setRpmMode] = useState<RpmMode>("shift");
-  const [shiftRpm, setShiftRpm] = useState(6500);
-  const [minRpm, setMinRpm] = useState(1500);
-  const [maxRpm, setMaxRpm] = useState(6500);
-  const [gearsetView, setGearsetView] = useState<"ladder" | "cruising">("ladder");
-  const [lowRange, setLowRange] = useState(2.72);
-  const [crawlRpm, setCrawlRpm] = useState(1000);
-  const [power, setPower] = useState<PowerState>(DEFAULT_POWER);
-  const [vehicle, setVehicle] = useState<VehicleSetup>(DEFAULT_VEHICLE);
-  const powerCurve = useMemo(() => buildCurve(power, vehicle.weightLb), [power, vehicle.weightLb]);
+  const [axleRatio, setAxleRatio] = useState(initial.axleRatio);
+  const [rpmMode, setRpmMode] = useState<RpmMode>(initial.rpmMode);
+  const [shiftRpm, setShiftRpm] = useState(initial.shiftRpm);
+  const [minRpm, setMinRpm] = useState(initial.minRpm);
+  const [maxRpm, setMaxRpm] = useState(initial.maxRpm);
+  const [gearsetView, setGearsetView] = useState<"ladder" | "cruising">(initial.gearsetView);
+  const [lowRange, setLowRange] = useState(initial.lowRange);
+  const [crawlRpm, setCrawlRpm] = useState(initial.crawlRpm);
+  const [power, setPower] = useState<PowerState>(initial.power);
+  const [vehicle, setVehicle] = useState<VehicleSetup>(initial.vehicle);
+  const powerCurve = useMemo(() => buildCurve(power), [power]);
+  // Trap-speed weight drives the sim's race weight (one way: editing race weight leaves the trap pass alone).
+  const changePower = (next: PowerState) => {
+    if (next.trapWeightLb !== power.trapWeightLb) setVehicle((current) => ({ ...current, weightLb: next.trapWeightLb }));
+    setPower(next);
+  };
 
   const scopes = useMemo(() => scopeOptions(families), [families]);
   const filteredFamilies = useMemo(() => filterFamilies(families, scope, query), [families, scope, query]);
   const selection = resolveSelection(filteredFamilies, selectedModel, selectedVariantName);
+
+  const currentSettings = (): AppSettings => ({
+    appMode,
+    query,
+    scope,
+    // Save what's actually shown, which may be a fallback if the search hid the last pick.
+    selectedModel: selection?.family.model ?? selectedModel,
+    selectedVariantName: selection?.variant.name ?? selectedVariantName,
+    tireMode,
+    tireDiameterIn,
+    tireSize,
+    axleRatio,
+    rpmMode,
+    shiftRpm,
+    minRpm,
+    maxRpm,
+    gearsetView,
+    lowRange,
+    crawlRpm,
+    power,
+    vehicle,
+  });
 
   const gears = useMemo<Gear[]>(
     () =>
@@ -117,6 +147,19 @@ export function App() {
             { value: "crawl", label: "Crawl" },
           ]}
         />
+        <button
+          type="button"
+          className="download-button"
+          onClick={() => downloadOfflineCopy(currentSettings())}
+          disabled={!offlineCopyAvailable}
+          title={offlineCopyAvailable ? OFFLINE_FILE_NAME : "Dev server: use the built file (npm run build) to download"}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13h10" />
+          </svg>
+          Download offline copy
+          {offlineCopyAvailable ? <span className="download-size">{offlineCopyKb} KB</span> : null}
+        </button>
       </header>
 
       <div className="layout">
@@ -438,8 +481,7 @@ export function App() {
 
               <PowerCard
                 state={power}
-                onChange={setPower}
-                weightLb={vehicle.weightLb}
+                onChange={changePower}
                 curve={powerCurve.curve}
                 error={powerCurve.error}
                 basis={powerCurve.basis}

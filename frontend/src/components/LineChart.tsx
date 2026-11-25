@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { niceStep } from "./GearChart";
 
-export type Series = { key: string; label: string; color: string; points: { x: number; y: number }[] };
+/** `ft` is optional extra data carried to the tooltip (distance into a run). */
+export type ChartPoint = { x: number; y: number; ft?: number };
+export type Series = { key: string; label: string; color: string; points: ChartPoint[] };
 
 type Props = {
   title: string;
@@ -13,16 +15,19 @@ type Props = {
   /** Fixed x range; defaults to the data's max. */
   xMax?: number;
   /** Vertical reference lines, e.g. shift points. */
-  markers?: { x: number; label: string }[];
+  markers?: { x: number; label: string; kind?: "event" | "distance" }[];
   height?: number;
+  /** Custom one-line tooltip text per series reading; replaces the default title + "label: value" lines. */
+  formatReading?: (series: Series, point: ChartPoint) => string;
 };
 
 const WIDTH = 640;
 const PAD = { left: 50, right: 14, top: 14, bottom: 30 };
-const TOOLTIP_W = 150;
+const TOOLTIP_MIN_W = 150;
+const TOOLTIP_CHAR_W = 6.6; // approx. width of an 11px monospace character
 
 /** Small single-axis line chart with a hover crosshair. Used for power curves and run traces. */
-export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMax, markers = [], height = 220 }: Props) {
+export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMax, markers = [], height = 220, formatReading }: Props) {
   const [hoverX, setHoverX] = useState<number | null>(null);
   const all = series.flatMap((s) => s.points);
   if (all.length === 0) return null;
@@ -89,9 +94,15 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
         </text>
 
         {markers.map((marker) => (
-          <g key={`m${marker.x}`}>
-            <line className="marker-line" x1={x(marker.x)} x2={x(marker.x)} y1={PAD.top} y2={bottom} />
-            <text className="marker-label" x={x(marker.x) + 4} y={PAD.top + 10}>
+          <g key={`m${marker.kind ?? "event"}${marker.x}`}>
+            <line className={marker.kind === "distance" ? "marker-line distance" : "marker-line"} x1={x(marker.x)} x2={x(marker.x)} y1={PAD.top} y2={bottom} />
+            {/* Distance marks label at the bottom so they don't collide with shift labels at the top. */}
+            <text
+              className="marker-label"
+              x={x(marker.x) > right - 30 ? x(marker.x) - 4 : x(marker.x) + 4}
+              y={marker.kind === "distance" ? bottom - 6 : PAD.top + 10}
+              textAnchor={x(marker.x) > right - 30 ? "end" : "start"}
+            >
               {marker.label}
             </text>
           </g>
@@ -113,19 +124,28 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
               <circle key={s.key} className="hover-dot" cx={x(point.x)} cy={y(point.y)} r={4} style={{ stroke: s.color }} />
             ))}
             {(() => {
-              const boxH = 22 + readings.length * 16;
-              const boxX = x(hoverX) + 12 + TOOLTIP_W > right ? x(hoverX) - 12 - TOOLTIP_W : x(hoverX) + 12;
+              const lines = readings.map(({ series: s, point }) =>
+                formatReading ? formatReading(s, point) : `${s.label}: ${formatY(point.y)} ${yLabel}`,
+              );
+              const title = formatReading ? null : `${formatX(readings[0].point.x)} ${xLabel}`;
+              const longest = Math.max(...lines.map((line) => line.length), title?.length ?? 0);
+              const boxW = Math.max(TOOLTIP_MIN_W, 34 + longest * TOOLTIP_CHAR_W);
+              const top = title ? 22 : 6;
+              const boxH = top + readings.length * 16 + 6;
+              const boxX = x(hoverX) + 12 + boxW > right ? x(hoverX) - 12 - boxW : x(hoverX) + 12;
               return (
                 <g className="tooltip">
-                  <rect x={boxX} y={PAD.top} width={TOOLTIP_W} height={boxH} rx={6} />
-                  <text className="tooltip-title" x={boxX + 10} y={PAD.top + 16}>
-                    {formatX(readings[0].point.x)} {xLabel}
-                  </text>
-                  {readings.map(({ series: s, point }, i) => (
+                  <rect x={boxX} y={PAD.top} width={boxW} height={boxH} rx={6} />
+                  {title ? (
+                    <text className="tooltip-title" x={boxX + 10} y={PAD.top + 16}>
+                      {title}
+                    </text>
+                  ) : null}
+                  {readings.map(({ series: s }, i) => (
                     <g key={s.key}>
-                      <circle cx={boxX + 14} cy={PAD.top + 28 + i * 16} r={3.5} style={{ fill: s.color }} />
-                      <text className="tooltip-value" x={boxX + 24} y={PAD.top + 32 + i * 16}>
-                        {s.label}: {formatY(point.y)} {yLabel}
+                      <circle cx={boxX + 14} cy={PAD.top + top + 6 + i * 16} r={3.5} style={{ fill: s.color }} />
+                      <text className="tooltip-value" x={boxX + 24} y={PAD.top + top + 10 + i * 16}>
+                        {lines[i]}
                       </text>
                     </g>
                   ))}

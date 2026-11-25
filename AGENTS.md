@@ -52,6 +52,10 @@ frontend/
   src/components/PowerCard.tsx      three power methods + torque/HP small multiples; dyno table editor + CSV import
   src/components/QuarterMileCard.tsx vehicle setup, ET/60ft/1/8 tiles, speed and RPM traces, splits table
   src/components/LineChart.tsx      generic single-axis line chart with crosshair tooltip
+  src/offline.ts     "Download offline copy": captures the page before React renders (first import in main.tsx),
+                     embeds current settings, saves as transmission-ratio-viz.html via a Blob (no fetch)
+  src/appState.ts    AppSettings + DEFAULT_SETTINGS; parseSettings (type-checked merge over defaults),
+                     embedSettings / readEmbeddedSettings (<script type="application/json" id="saved-settings">)
   src/tires.ts       parseTireSize; ROLLING_DIAMETER_FACTOR = 0.97 applied to size-derived diameters only
   src/catalog.ts     typed transmission catalog (TransmissionFamily -> variants -> gear_ratios)
   src/calculations.ts pure math: totalRatio, speedMph, rpmForSpeed, gearSpeeds
@@ -114,7 +118,9 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
 - **UI copy is numbers and labels only.** No advice, recommendations, ratings ("rock crawler territory"),
   explanatory hints or "coming soon" notes. Warnings state the fact only ("Traction-limited for 4.4 s").
   Tire size shows only the rolling diameter.
-- Keep the app backend-free and the build a single offline HTML file; `scripts/check-artifact.mjs` guards this.
+- Keep the app backend-free and the build a single offline HTML file; `scripts/check-artifact.mjs` guards this
+  (no other files in dist/, no `<link>`, `<script src>`, external media src, `@import`, non-data `url()`,
+  source maps, module preload or dynamic `import()`). Vite's module-preload polyfill is disabled in vite.config.ts.
 - Keep math pure in `calculations.ts` with vitest coverage; UI in React.
 - Don't reintroduce Bazel or a second lockfile.
 - Use the repo shims (`env/bin`) so the Node version matches `.nvmrc`.
@@ -143,6 +149,12 @@ accessibility. Deferred: quarter-mile sim, torque curves, comparison/sharing.
   quickest 60 ft; launch RPM is no longer an input. "Known" binary-searches a drive-force multiplier over
   the first 60 ft (`launchScale`, 0.02-4) to hit the entered 60 ft; the rest of the pass runs normally
   from there. See `runQuarterMile` in quarterMile.ts.
+- **Offline copy:** header button downloads the page itself with the on-screen settings embedded; the saved
+  file opens with them as defaults. New settings must be added to AppSettings, DEFAULT_SETTINGS,
+  App's useState initializers and currentSettings(). Hidden in `npm run dev` (the dev page isn't standalone).
+- **Trap-speed weight:** the trap method has its own race-weight field (`power.trapWeightLb`, the weight on
+  that pass). Editing it also sets the sim's race weight; editing the sim's race weight does not touch it,
+  so power stays fixed and ET responds to weight.
 - **Tire rolling correction (3%) applies to size mode only;** a typed diameter is used as entered.
 
 ## Open questions for the owner

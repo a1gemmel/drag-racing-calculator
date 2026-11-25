@@ -172,12 +172,16 @@ function RunResults({ run, gears }: { run: QuarterMileRun; gears: Gear[] }) {
   const [table, setTable] = useState<"timeslip" | "shifts">("timeslip");
   const split = (label: string) => run.splits.find((s) => s.label === label);
   const sixty = split("60 ft");
-  const markers = run.shifts.map((shift) => ({ x: shift.t, label: `→${gears[shift.toGear]?.label ?? ""}` }));
+  const markers = [
+    ...run.shifts.map((shift) => ({ x: shift.t, label: `→${gears[shift.toGear]?.label ?? ""}` })),
+    ...(run.eighth ? [{ x: run.eighth.et, label: "1/8", kind: "distance" as const }] : []),
+    ...(run.et ? [{ x: run.et, label: "1/4", kind: "distance" as const }] : []),
+  ];
 
   // One series per gear so the trace takes each gear's color.
   const perGear = (value: (s: RunResult["samples"][number]) => number): Series[] =>
     gears.flatMap((gear, index) => {
-      const points = run.samples.filter((s) => s.gear === index).map((s) => ({ x: s.t, y: value(s) }));
+      const points = run.samples.filter((s) => s.gear === index).map((s) => ({ x: s.t, y: value(s), ft: s.ft }));
       return points.length ? [{ key: gear.label, label: gear.label, color: gear.color, points }] : [];
     });
   const formatT = (t: number) => (t % 1 === 0 ? String(t) : t.toFixed(1));
@@ -226,6 +230,7 @@ function RunResults({ run, gears }: { run: QuarterMileRun; gears: Gear[] }) {
       <LineChart
         title="Speed"
         series={perGear((s) => s.mph)}
+        formatReading={(gear, p) => `${p.x.toFixed(1)}s ${gear.label} ${Math.round(p.y)}mph ${Math.round(p.ft ?? 0)}ft`}
         markers={markers}
         xLabel="s"
         yLabel="mph"
@@ -235,6 +240,7 @@ function RunResults({ run, gears }: { run: QuarterMileRun; gears: Gear[] }) {
       <LineChart
         title="Engine RPM"
         series={perGear((s) => s.rpm)}
+        formatReading={(gear, p) => `${p.x.toFixed(1)}s ${gear.label} ${Math.round(p.y).toLocaleString()}rpm ${Math.round(p.ft ?? 0)}ft`}
         markers={markers}
         xLabel="s"
         yLabel="rpm"

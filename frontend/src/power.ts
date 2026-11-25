@@ -214,6 +214,8 @@ export type PowerBasis = "crank" | "wheel";
 export type PowerState = {
   method: PowerMethod;
   trapMph: number;
+  /** Race weight on the pass the trap speed came from. Independent of the quarter-mile sim's weight. */
+  trapWeightLb: number;
   trapPeakRpm: number;
   peak: PeakInput;
   peakBasis: PowerBasis;
@@ -224,6 +226,7 @@ export type PowerState = {
 export const DEFAULT_POWER: PowerState = {
   method: "trap",
   trapMph: 110,
+  trapWeightLb: 3700,
   trapPeakRpm: 6000,
   peak: { peakHp: 430, peakHpRpm: 5900, peakTorque: 424, peakTorqueRpm: 4600 },
   peakBasis: "crank",
@@ -244,12 +247,12 @@ export function powerBasis(state: PowerState): PowerBasis {
   return state.method === "trap" ? "wheel" : state.method === "peak" ? state.peakBasis : state.dynoBasis;
 }
 
-/** The curve for the selected method (weight is the race weight, used by the trap-speed method). */
-export function buildCurve(state: PowerState, weightLb: number): CurveResult & { basis: PowerBasis } {
+/** The curve for the selected method. */
+export function buildCurve(state: PowerState): CurveResult & { basis: PowerBasis } {
   const basis = powerBasis(state);
   if (state.method === "trap") {
-    if (!(state.trapMph > 0 && weightLb > 0)) return { curve: null, error: "Enter weight and trap speed.", basis };
-    const result = estimateFromTrap(weightLb, state.trapMph, state.trapPeakRpm);
+    if (!(state.trapMph > 0 && state.trapWeightLb > 0)) return { curve: null, error: "Enter weight and trap speed.", basis };
+    const result = estimateFromTrap(state.trapWeightLb, state.trapMph, state.trapPeakRpm);
     return result.error === null ? { curve: result.curve, error: null, basis } : { curve: null, error: result.error, basis };
   }
   if (state.method === "peak") return { ...synthesizeCurve(state.peak), basis };
