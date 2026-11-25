@@ -114,10 +114,36 @@ Data
 See `PLAN.md` for the checklist: shift-point finder, hold-a-gear runs, editable gearsets, setup
 comparison, metric units, browser smoke tests, accessibility.
 
+## Versioning (required for every commit)
+
+The app uses [Semantic Versioning](https://semver.org). **Every commit gets a new version**: CI refuses to
+release a version that already exists, so a commit without a bump fails the release run.
+
+For each commit:
+1. Pick the bump from what changed since the last version, using standard semver rules:
+   - **MAJOR** (x.0.0): an incompatible change for users, such as removing a feature, or saved offline
+     copies / settings no longer loading.
+   - **MINOR** (0.x.0): a new feature or a visible behavior change that stays compatible.
+   - **PATCH** (0.0.x): bug fixes, calibration tweaks, copy/style fixes, docs, tests, CI and build-only changes.
+   - While the version is 0.y.z, an incompatible change bumps MINOR instead of MAJOR (semver allows
+     anything to change before 1.0.0); 1.0.0 is a deliberate decision for the owner.
+   - Reset the lower parts on a bump (0.1.3 -> 0.2.0; 0.9.0 -> 1.0.0).
+2. Set the version in `frontend/package.json` **and** `frontend/package-lock.json` (both "version" fields,
+   top of the file). `npm version <x.y.z> --no-git-tag-version` in `frontend/` updates both.
+3. Add a section at the top of `CHANGELOG.md`: `## vX.Y.Z — YYYY-MM-DD`, then one `- ` line per change,
+   written for users (what changed on the page), newest version first.
+4. `npm run build` runs `scripts/version.mjs check` first and fails if package.json, the lockfile and the
+   newest changelog section disagree, the section lists no changes, or versions aren't newest-first.
+
+The page footer shows `v<version> <short sha>` linking to the commit on GitHub, and a Changelog button
+that opens CHANGELOG.md in a modal. Both are baked in at build time (`define` in vite.config.ts;
+`GITHUB_SHA` in CI, `git rev-parse HEAD` locally). Releases are tagged `vX.Y.Z` with the changelog
+section as release notes. (Older `build-1`/`build-2` releases predate versioning.)
+
 ## Release and website
 
 - `.github/workflows/release.yml`: every push to `main` builds and tests, then publishes
-  `frontend/dist/index.html` as a GitHub Release asset (tag `build-<run number>`, marked latest) using the
+  `frontend/dist/index.html` as a GitHub Release asset (tag `vX.Y.Z`, marked latest) using the
   built-in token, and POSTs the `CLOUDFLARE_DEPLOY_HOOK` secret (if set) to redeploy the website.
 - The website (a1gemmel/andrewgemmel.com, Cloudflare Pages) downloads
   `https://github.com/a1gemmel/drag-racing-calculator/releases/latest/download/index.html` in its build

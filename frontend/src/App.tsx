@@ -4,6 +4,7 @@ import { transmissionFamilies } from "./catalog";
 import { GearChart, type Gear } from "./components/GearChart";
 import { NumberField } from "./components/NumberField";
 import { Segmented } from "./components/Segmented";
+import { SiteFooter } from "./components/SiteFooter";
 import { PowerCard } from "./components/PowerCard";
 import { QuarterMileCard } from "./components/QuarterMileCard";
 import { TireField, type TireMode } from "./components/TireField";
@@ -471,6 +472,7 @@ export function App() {
           )}
         </main>
       </div>
+      <SiteFooter />
     </div>
   );
 }

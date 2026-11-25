@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/check-artifact.mjs",
+    "build": "node scripts/version.mjs check && tsc -b && vite build && node scripts/check-artifact.mjs",
+    "check:version": "node scripts/version.mjs check",
     "check:artifact": "node scripts/check-artifact.mjs",
     "test": "vitest run",
     "preview": "vite preview"
