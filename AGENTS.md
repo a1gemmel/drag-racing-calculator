@@ -114,6 +114,16 @@ Data
 See `PLAN.md` for the checklist: shift-point finder, hold-a-gear runs, editable gearsets, setup
 comparison, metric units, browser smoke tests, accessibility.
 
+## Release and website
+
+- `.github/workflows/release.yml`: every push to `main` builds and tests, then publishes
+  `frontend/dist/index.html` as a GitHub Release asset (tag `build-<run number>`, marked latest) using the
+  built-in token, and POSTs the `CLOUDFLARE_DEPLOY_HOOK` secret (if set) to redeploy the website.
+- The website (a1gemmel/andrewgemmel.com, Cloudflare Pages) downloads
+  `https://github.com/a1gemmel/drag-racing-calculator/releases/latest/download/index.html` in its build
+  command (`scripts/fetch-drag-racing-calculator.sh`). Requires this repo to stay public.
+- Local branch is `master`, tracking `origin/main`.
+
 ## Conventions for agents
 
 - **UI copy is numbers and labels only.** No advice, recommendations, ratings ("rock crawler territory"),

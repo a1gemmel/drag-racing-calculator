@@ -1,0 +1,60 @@
+# On every push to main: build and test the app, publish the single-file build as a GitHub Release
+# asset, then ask Cloudflare Pages to redeploy the website, whose build step downloads
+#   https://github.com/a1gemmel/drag-racing-calculator/releases/latest/download/index.html
+#
+# Secrets: CLOUDFLARE_DEPLOY_HOOK (optional) - the website's Cloudflare Pages deploy hook URL.
+# Without it, the release is still published and the site picks it up on its next deploy.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # create releases in this repo with the built-in GITHUB_TOKEN
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build and test
+        working-directory: frontend
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: build-${{ github.run_number }}
+        run: |
+          gh release create "$TAG" frontend/dist/index.html \
+            --target "$GITHUB_SHA" \
+            --title "Build ${{ github.run_number }}" \
+            --notes "Single-file build of ${GITHUB_SHA::7}." \
+            --latest
+
+      - name: Trigger website deploy
+        env:
+          DEPLOY_HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "CLOUDFLARE_DEPLOY_HOOK is not set; skipping website deploy."
+            exit 0
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK" > /dev/null
+          echo "Website deploy triggered."
