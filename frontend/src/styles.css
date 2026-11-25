@@ -336,3 +336,15 @@ a.version-link:hover { color: var(--text); text-decoration: underline; }
 .changelog-body code { padding: 1px 5px; border-radius: 4px; background: var(--surface-raised); color: var(--text); font: 0.82em var(--mono); }
 .changelog-body strong { color: var(--text); }
 .changelog-body a { color: var(--text); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 2px; }
+
+/* ---------- Automatic pane & custom transmissions ---------- */
+.group-title-row { display: flex; align-items: center; justify-content: space-between; }
+.group-title-row .text-button { padding: 0; font-size: 0.75rem; }
+.custom-links { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.custom-links .text-button { padding: 0; font-size: 0.78rem; }
+.custom-dialog { width: min(560px, calc(100vw - 32px)); }
+.custom-body { display: grid; gap: 14px; padding: 18px; overflow: auto; }
+.custom-ratios { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.custom-actions { margin-top: 4px; }
+.button-danger { margin-left: auto; color: #e66767; border-color: rgba(230, 103, 103, 0.5); }
+.button-danger:hover { border-color: #e66767; }

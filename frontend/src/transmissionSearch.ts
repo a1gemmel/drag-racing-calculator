@@ -1,10 +1,10 @@
-import type { TransmissionFamily, TransmissionVariant } from "./catalog";
+import { familyKind, type TransmissionFamily, type TransmissionVariant } from "./catalog";
 
 export type ScopeOption = { value: string; label: string };
 
 export const ALL_SCOPE = "all";
 
-/** "All", then one option per transmission manufacturer, then one per vehicle brand. */
+/** "All", manual/automatic, then one option per transmission manufacturer, then one per vehicle brand. */
 export function scopeOptions(families: TransmissionFamily[]): ScopeOption[] {
   const manufacturers = Array.from(new Set(families.map((family) => family.manufacturer))).sort();
   const brands = Array.from(
@@ -13,12 +13,15 @@ export function scopeOptions(families: TransmissionFamily[]): ScopeOption[] {
 
   return [
     { value: ALL_SCOPE, label: "All" },
+    { value: "kind:manual", label: "Type: Manual" },
+    { value: "kind:automatic", label: "Type: Automatic" },
     ...manufacturers.map((manufacturer) => ({ value: `manufacturer:${manufacturer}`, label: `Manufacturer: ${manufacturer}` })),
     ...brands.map((brand) => ({ value: `brand:${brand}`, label: `Brand: ${brand}` })),
   ];
 }
 
 function inScope(family: TransmissionFamily, variant: TransmissionVariant, scope: string) {
+  if (scope.startsWith("kind:")) return familyKind(family) === scope.slice("kind:".length);
   if (scope.startsWith("manufacturer:")) return family.manufacturer === scope.slice("manufacturer:".length);
   if (scope.startsWith("brand:")) return variant.application_manufacturers.includes(scope.slice("brand:".length));
   return true;
@@ -28,6 +31,7 @@ function searchText(family: TransmissionFamily, variant: TransmissionVariant) {
   return [
     family.manufacturer,
     family.model,
+    familyKind(family),
     variant.name,
     ...variant.application_manufacturers,
     ...variant.gear_ratios.map((ratio) => ratio.toFixed(2)),

@@ -17,12 +17,13 @@
 - [x] Power input: trap speed (Hale), peak numbers, dyno table with CSV import; crank/wheel basis.
 - [x] Quarter-mile simulation: 60 ft (best estimate or known), splits, trap, shift table, speed/RPM traces.
 - [x] Offline copy download with embedded settings.
+- [x] Automatic transmissions with torque converter, lock-up and trans/foot brake launch (v0.2.0).
+- [x] Custom transmissions, manual or automatic (v0.2.0).
 
 ## Product Work
 
 - [ ] Optimal shift-point finder.
 - [ ] Hold a gear to the finish (e.g. a pass that hit the limiter in 3rd).
-- [ ] Editable transmission and gearset configuration.
 - [ ] Configuration comparison (two setups on one chart).
 - [ ] Unit support (metric).
 - [ ] Browser smoke tests for the primary workflow.

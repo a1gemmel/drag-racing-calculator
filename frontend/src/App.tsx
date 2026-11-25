@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import { rpmForSpeed, speedMph } from "./calculations";
-import { transmissionFamilies } from "./catalog";
+import { GENERIC_AUTOMATIC, type AutomaticSetup } from "./automatic";
+import { familyKind, transmissionFamilies } from "./catalog";
+import { AutomaticPane } from "./components/AutomaticPane";
+import { CustomTransmissionDialog } from "./components/CustomTransmissionDialog";
+import { CUSTOM_MANUFACTURER, customFamily, type CustomTransmission } from "./customTransmissions";
 import { GearChart, type Gear } from "./components/GearChart";
 import { NumberField } from "./components/NumberField";
 import { Segmented } from "./components/Segmented";
@@ -27,9 +31,14 @@ const LUGGING_RPM = 800;
 const CRUISE_FLOOR_RPM = 1200;
 
 export function App() {
-  const families = transmissionFamilies;
   // Defaults, or the settings embedded in this page by a previous "Download offline copy".
   const [initial] = useState(() => readEmbeddedSettings(document));
+  const [customTransmissions, setCustomTransmissions] = useState<CustomTransmission[]>(initial.customTransmissions);
+  const [autoSetups, setAutoSetups] = useState<Record<string, AutomaticSetup>>(initial.autoSetups);
+  // Custom transmission editor: what's being edited (null = closed) and the name it had, if existing.
+  const [customDraft, setCustomDraft] = useState<CustomTransmission | null>(null);
+  const [editingCustom, setEditingCustom] = useState<string | null>(null);
+  const families = useMemo(() => [...transmissionFamilies, ...customTransmissions.map(customFamily)], [customTransmissions]);
   const [query, setQuery] = useState(initial.query);
   const [scope, setScope] = useState(initial.scope);
   // The user's last pick. If a search or filter hides it, resolveSelection falls back to the first match.
@@ -61,6 +70,67 @@ export function App() {
   const filteredFamilies = useMemo(() => filterFamilies(families, scope, query), [families, scope, query]);
   const selection = resolveSelection(filteredFamilies, selectedModel, selectedVariantName);
 
+  // Automatic transmissions: the user's settings for this transmission, or its defaults.
+  const isAutomatic = selection ? familyKind(selection.family) === "automatic" : false;
+  const automaticDefaults = selection?.family.automatic ?? GENERIC_AUTOMATIC;
+  const automaticSetup = (selection && autoSetups[selection.family.model]) || automaticDefaults;
+  const changeAutomaticSetup = (next: AutomaticSetup) => {
+    if (!selection) return;
+    const model = selection.family.model;
+    setAutoSetups((current) => {
+      const { [model]: _previous, ...rest } = current;
+      return JSON.stringify(next) === JSON.stringify(automaticDefaults) ? rest : { ...rest, [model]: next };
+    });
+  };
+  const drivetrainLoss = isAutomatic ? automaticSetup.drivetrainLoss : vehicle.drivetrainLoss;
+
+  const selectedCustom = selection?.family.manufacturer === CUSTOM_MANUFACTURER ? selection.family.model : null;
+  const openNewCustom = () => {
+    setEditingCustom(null);
+    setCustomDraft({ name: "My transmission", kind: "manual", ratios: [2.95, 1.94, 1.34, 1.0, 0.73] });
+  };
+  const openCopyAsCustom = () => {
+    if (!selection) return;
+    setEditingCustom(null);
+    setCustomDraft({
+      name: `${selection.family.model} custom`,
+      kind: familyKind(selection.family),
+      ratios: [...selection.variant.gear_ratios],
+      automatic: isAutomatic ? automaticSetup : undefined,
+    });
+  };
+  const openEditCustom = () => {
+    const custom = customTransmissions.find((item) => item.name === selectedCustom);
+    if (!custom) return;
+    setEditingCustom(custom.name);
+    setCustomDraft(custom);
+  };
+  const saveCustom = (custom: CustomTransmission, previousName: string | null) => {
+    setCustomTransmissions((current) =>
+      previousName ? current.map((item) => (item.name === previousName ? custom : item)) : [...current, custom],
+    );
+    if (previousName && previousName !== custom.name) {
+      setAutoSetups((current) => {
+        const { [previousName]: moved, ...rest } = current;
+        return moved ? { ...rest, [custom.name]: moved } : rest;
+      });
+    }
+    // Show the saved transmission: clear search/filter if they'd hide it.
+    setQuery("");
+    setScope(ALL_SCOPE);
+    setSelectedModel(custom.name);
+    setSelectedVariantName("");
+    setCustomDraft(null);
+  };
+  const deleteCustom = (name: string) => {
+    setCustomTransmissions((current) => current.filter((item) => item.name !== name));
+    setAutoSetups((current) => {
+      const { [name]: _removed, ...rest } = current;
+      return rest;
+    });
+    setCustomDraft(null);
+  };
+
   const currentSettings = (): AppSettings => ({
     query,
     scope,
@@ -78,6 +148,8 @@ export function App() {
     gearsetView,
     power,
     vehicle,
+    customTransmissions,
+    autoSetups,
   });
 
   const gears = useMemo<Gear[]>(
@@ -229,7 +301,24 @@ export function App() {
                 No transmissions match this search.
               </p>
             )}
+            <div className="custom-links">
+              <button type="button" className="text-button" onClick={openNewCustom}>
+                + New custom
+              </button>
+              {selection && !selectedCustom ? (
+                <button type="button" className="text-button" onClick={openCopyAsCustom}>
+                  Copy as custom
+                </button>
+              ) : null}
+              {selectedCustom ? (
+                <button type="button" className="text-button" onClick={openEditCustom}>
+                  Edit custom
+                </button>
+              ) : null}
+            </div>
           </section>
+
+          {isAutomatic ? <AutomaticPane setup={automaticSetup} defaults={automaticDefaults} onChange={changeAutomaticSetup} /> : null}
 
           <section className="group">
             <h2 className="group-title">Tires &amp; axle</h2>
@@ -456,13 +545,14 @@ export function App() {
                 curve={powerCurve.curve}
                 error={powerCurve.error}
                 basis={powerCurve.basis}
-                drivetrainLoss={vehicle.drivetrainLoss}
+                drivetrainLoss={drivetrainLoss}
               />
               <QuarterMileCard
                 vehicle={vehicle}
                 onVehicleChange={setVehicle}
                 curve={powerCurve.curve}
                 curveBasis={powerCurve.basis}
+                automatic={isAutomatic ? automaticSetup : null}
                 gears={gears}
                 axleRatio={axleRatio}
                 tireDiameterIn={tireDiameter}
@@ -473,6 +563,14 @@ export function App() {
         </main>
       </div>
       <SiteFooter />
+      <CustomTransmissionDialog
+        draft={customDraft}
+        editingName={editingCustom}
+        takenNames={families.map((family) => family.model).filter((model) => model !== editingCustom)}
+        onSave={saveCustom}
+        onDelete={deleteCustom}
+        onClose={() => setCustomDraft(null)}
+      />
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { GENERIC_AUTOMATIC, type AutomaticSetup } from "./automatic";
+import { MAX_GEARS, type CustomTransmission } from "./customTransmissions";
 import { DEFAULT_POWER, type PowerState } from "./power";
 import { DEFAULT_VEHICLE, type VehicleSetup } from "./quarterMile";
 import { ALL_SCOPE } from "./transmissionSearch";
@@ -22,6 +24,10 @@ export type AppSettings = {
   gearsetView: "ladder" | "cruising";
   power: PowerState;
   vehicle: VehicleSetup;
+  /** User-made transmissions. */
+  customTransmissions: CustomTransmission[];
+  /** Automatic settings the user changed, by transmission model; others use the transmission's defaults. */
+  autoSetups: Record<string, AutomaticSetup>;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -40,6 +46,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   gearsetView: "ladder",
   power: DEFAULT_POWER,
   vehicle: DEFAULT_VEHICLE,
+  customTransmissions: [],
+  autoSetups: {},
 };
 
 export const SETTINGS_ELEMENT_ID = "saved-settings";
@@ -53,6 +61,8 @@ const ENUMS: Record<string, readonly string[]> = {
   "power.peakBasis": ["crank", "wheel"],
   "power.dynoBasis": ["crank", "wheel"],
   "vehicle.drive": ["rear", "front", "awd"],
+  lockup: ["off", "top", "after1st"],
+  launch: ["transbrake", "footbrake"],
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -94,7 +104,36 @@ function mergeInto<T>(defaults: T, raw: unknown, path = ""): T {
 
 export function parseSettings(raw: unknown): AppSettings {
   // The vehicle's knownSixtyFtS defaults to null, so it's handled by the nullable branch.
-  return mergeInto(DEFAULT_SETTINGS, raw);
+  const settings = mergeInto(DEFAULT_SETTINGS, raw);
+  const source = isObject(raw) ? raw : {};
+  return {
+    ...settings,
+    customTransmissions: parseCustoms(source.customTransmissions),
+    autoSetups: parseAutoSetups(source.autoSetups),
+  };
+}
+
+const parseAutoSetup = (raw: unknown, fallback: AutomaticSetup = GENERIC_AUTOMATIC): AutomaticSetup =>
+  mergeInto<AutomaticSetup>(fallback, raw);
+
+function parseCustoms(raw: unknown): CustomTransmission[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  return raw.flatMap((item): CustomTransmission[] => {
+    if (!isObject(item) || typeof item.name !== "string" || !item.name.trim()) return [];
+    const name = item.name.trim();
+    if (seen.has(name.toLowerCase()) || name.includes("::")) return [];
+    const ratios = Array.isArray(item.ratios) ? item.ratios : [];
+    if (ratios.length < 1 || ratios.length > MAX_GEARS || !ratios.every((r) => typeof r === "number" && Number.isFinite(r) && r > 0)) return [];
+    const kind = item.kind === "automatic" ? "automatic" : "manual";
+    seen.add(name.toLowerCase());
+    return [{ name, kind, ratios: ratios as number[], automatic: kind === "automatic" ? parseAutoSetup(item.automatic) : undefined }];
+  });
+}
+
+function parseAutoSetups(raw: unknown): Record<string, AutomaticSetup> {
+  if (!isObject(raw)) return {};
+  return Object.fromEntries(Object.entries(raw).filter(([, value]) => isObject(value)).map(([model, value]) => [model, parseAutoSetup(value)]));
 }
 
 /** Settings embedded in the page by a previous download, or the defaults. */

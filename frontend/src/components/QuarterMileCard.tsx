@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { AutomaticSetup } from "../automatic";
 import type { PowerBasis, PowerCurve } from "../power";
 import { runQuarterMile, type QuarterMileRun, type RunResult, type VehicleSetup } from "../quarterMile";
 import type { Gear } from "./GearChart";
@@ -11,6 +12,8 @@ type Props = {
   onVehicleChange: (vehicle: VehicleSetup) => void;
   curve: PowerCurve | null;
   curveBasis: PowerBasis;
+  /** Selected automatic's settings (its shift time, loss and launch replace the manual ones), or null. */
+  automatic: AutomaticSetup | null;
   gears: Gear[];
   axleRatio: number;
   tireDiameterIn: number;
@@ -24,16 +27,25 @@ const GRIP_PRESETS = [
   { value: 1.6, label: "Slick, prepped track (1.6)" },
 ];
 
-export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, gears, axleRatio, tireDiameterIn, shiftRpm }: Props) {
+export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, automatic, gears, axleRatio, tireDiameterIn, shiftRpm }: Props) {
   const set = (patch: Partial<VehicleSetup>) => onVehicleChange({ ...vehicle, ...patch });
   // Last known 60 ft typed in, kept while the user flips back to the estimate.
   const [lastKnownSixty, setLastKnownSixty] = useState(vehicle.knownSixtyFtS ?? 2.0);
   const run = useMemo<QuarterMileRun | null>(
     () =>
       curve
-        ? runQuarterMile({ ...vehicle, curve, curveBasis, gearRatios: gears.map((g) => g.ratio), axleRatio, tireDiameterIn, shiftRpm })
+        ? runQuarterMile({
+            ...vehicle,
+            curve,
+            curveBasis,
+            automatic: automatic ?? undefined,
+            gearRatios: gears.map((g) => g.ratio),
+            axleRatio,
+            tireDiameterIn,
+            shiftRpm,
+          })
         : null,
-    [vehicle, curve, curveBasis, gears, axleRatio, tireDiameterIn, shiftRpm],
+    [vehicle, curve, curveBasis, automatic, gears, axleRatio, tireDiameterIn, shiftRpm],
   );
 
   const gripPreset = GRIP_PRESETS.find((preset) => preset.value === vehicle.grip);
@@ -50,7 +62,7 @@ export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, g
         <div className="split-inputs">
           <div className="field-row">
             <NumberField label="Race weight" unit="lb" step={10} min={200} max={20000} value={vehicle.weightLb} onCommit={(weightLb) => set({ weightLb })} />
-            <NumberField
+            {automatic ? null : <NumberField
               label="Drivetrain loss"
               unit="%"
               step={1}
@@ -59,7 +71,7 @@ export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, g
               value={Math.round(vehicle.drivetrainLoss * 100)}
               disabled={curveBasis === "wheel"}
               onCommit={(loss) => set({ drivetrainLoss: loss / 100 })}
-            />
+            />}
           </div>
           <div className="field">
             <label htmlFor="qm-grip">Tires</label>
@@ -118,7 +130,9 @@ export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, g
                 }}
               />
             ) : null}
-            <NumberField label="Shift time" unit="s" step={0.05} min={0} max={2} value={vehicle.shiftTimeS} onCommit={(shiftTimeS) => set({ shiftTimeS })} />
+            {automatic ? null : (
+              <NumberField label="Shift time" unit="s" step={0.05} min={0} max={2} value={vehicle.shiftTimeS} onCommit={(shiftTimeS) => set({ shiftTimeS })} />
+            )}
           </div>
 
           <details className="advanced">
@@ -136,15 +150,17 @@ export function QuarterMileCard({ vehicle, onVehicleChange, curve, curveBasis, g
                   onCommit={(pct) => set({ driveWeightFraction: pct / 100 })}
                 />
               ) : null}
-              <NumberField
-                label="Clutch release"
-                unit="s"
-                step={0.05}
-                min={0}
-                max={2}
-                value={vehicle.clutchReleaseS}
-                onCommit={(clutchReleaseS) => set({ clutchReleaseS })}
-              />
+              {automatic ? null : (
+                <NumberField
+                  label="Clutch release"
+                  unit="s"
+                  step={0.05}
+                  min={0}
+                  max={2}
+                  value={vehicle.clutchReleaseS}
+                  onCommit={(clutchReleaseS) => set({ clutchReleaseS })}
+                />
+              )}
               <NumberField label="Rollout" unit="in" step={0.5} min={0} max={24} value={vehicle.rolloutIn} onCommit={(rolloutIn) => set({ rolloutIn })} />
               <NumberField label="CG height" unit="in" step={0.5} min={5} max={60} value={vehicle.cgHeightIn} onCommit={(cgHeightIn) => set({ cgHeightIn })} />
               <NumberField label="Wheelbase" unit="in" step={0.5} min={60} max={200} value={vehicle.wheelbaseIn} onCommit={(wheelbaseIn) => set({ wheelbaseIn })} />
@@ -200,7 +216,7 @@ function RunResults({ run, gears }: { run: QuarterMileRun; gears: Gear[] }) {
           </p>
         </div>
         <div className="stat">
-          <p className="stat-label">60 ft · {run.sixtyFtSource === "known" ? "known" : "best"}</p>
+          <p className="stat-label">60 ft · {run.sixtyFtSource === "known" ? "known" : run.sixtyFtSource === "estimate" ? "est." : "best"}</p>
           <p className="stat-value">
             {sixty ? sixty.t.toFixed(2) : "—"}
             <span>s</span>

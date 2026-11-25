@@ -2,6 +2,16 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.2.0 — 2026-11-25
+
+- Automatic transmissions: Powerglide (1.76 and 1.82 low), TH350, TH400, C4, C6, 4L60E, 4L80E and ZF 8HP70.
+- Torque converter simulation: stall speed, torque multiplication, converter slip at full throttle, and lock-up (off, top gear, or 2nd and up) for transmissions with a lock-up clutch.
+- Automatic upshifts are power shifts: drive continues through the shift, less a shift-clutch loss (Advanced: Shift time, Shift loss).
+- Trans brake or foot brake launch, with launch rpm capped at the converter stall speed.
+- Automatic pane with per-transmission defaults, editable settings and a reset.
+- Custom transmissions: manual or automatic, 1 to 10 gears, any ratios; create new, copy an existing transmission, edit or delete. Saved in offline copies.
+- Transmission filter by type (manual or automatic).
+
 ## v0.1.1 — 2026-11-25
 
 - Changelog window shows formatted text: headings, bullet lists, links and code.

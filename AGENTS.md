@@ -58,6 +58,10 @@ frontend/
                      embeds current settings, saves as drag-racing-calculator.html via a Blob (no fetch)
   src/appState.ts    AppSettings + DEFAULT_SETTINGS; parseSettings (type-checked merge over defaults),
                      embedSettings / readEmbeddedSettings (<script type="application/json" id="saved-settings">)
+  src/automatic.ts   AutomaticSetup (converter, launch, lock-up, shift time, loss), defaults, launchRpm, lockedInGear
+  src/customTransmissions.ts  CustomTransmission -> family under manufacturer "Custom"; customProblems validation
+  src/components/AutomaticPane.tsx  sidebar pane shown when an automatic is selected
+  src/components/CustomTransmissionDialog.tsx  create / copy / edit / delete custom transmissions
   src/tires.ts       parseTireSize; ROLLING_DIAMETER_FACTOR = 0.97 applied to size-derived diameters only
   src/catalog.ts     typed transmission catalog (TransmissionFamily -> variants -> gear_ratios)
   src/calculations.ts pure math: totalRatio, speedMph, rpmForSpeed, gearSpeeds
@@ -113,6 +117,56 @@ Data
 
 See `PLAN.md` for the checklist: shift-point finder, hold-a-gear runs, editable gearsets, setup
 comparison, metric units, browser smoke tests, accessibility.
+
+## Automatic transmissions (v0.2.0)
+
+Model (quarterMile.ts header has the equations): K-factor torque converter. Pump torque = (engine rpm / K)²
+lb-ft with K = stall rpm / sqrt(engine torque at stall), so a held turbine stalls the engine exactly at the
+stall speed. Torque ratio falls linearly from the stall torque ratio (SR 0) to 1.0 at the coupling point;
+capacity falls to 65% of stall capacity there (K +24%), so rpm climbs from stall during the launch. Above
+the coupling point pump torque falls linearly to zero at SR 1; the coupling point is solved so slip at WOT
+at peak power equals the "converter slip" setting. Engine and turbine are separate inertias. Lock-up joins
+them like a locked clutch in the gears the lock-up mode allows. Shifts are power shifts (2026-11-25, owner request): drive
+continues for the shift time, multiplied by (1 - shiftLoss). Into an unlocked gear the converter absorbs the
+rpm change; into a locked gear the shift clutches slip, pulling the engine down to the new gear's speed by the
+end of the shift, and engine torque plus the released inertia torque drives the new gear (slip energy is lost).
+Shift time is floored at one step for automatics so the inertia always goes through the clutches. Manuals
+still coast with no drive for their shift time. Launch rpm: trans brake rpm or foot
+brake rpm, both capped at stall (the turbine is held either way). Manual cars still search for the best
+launch rpm; automatics use their setting, and the 60 ft tile says "est.".
+
+Settings are per transmission: `autoSetups[model]` holds only the ones the user changed; otherwise the
+catalog/custom defaults apply. The pane's Reset restores defaults.
+
+### Executive decisions (2026-11-25, owner may tweak)
+
+Sources: ratios are cited per variant in catalog.ts. Converter behaviour and defaults below are my
+engineering choices; public converter sources give stall rules of thumb but not numeric curves.
+- Converter model shape: constant-K multiplication phase replaced by capacity falling to 65% at the
+  coupling point (COUPLING_CAPACITY in quarterMile.ts), linear torque-ratio fall, linear coupling phase.
+  Coupling point clamped to SR 0.6-0.95 (dragzine: stator freewheels around SR ~0.8).
+- Default stall torque ratio 2.0 for every automatic.
+- Default converter slip at WOT: 6% (old GM/Ford 3-speeds, 4L60E, 4L80E, Powerglide), 4% (8HP70).
+- Default stall speeds (typical street/strip converter for each trans, not stock): Powerglide 4000,
+  TH350 3000, TH400 3200, C4 3000, C6 3000, 4L60E 2800, 4L80E 2800, 8HP70 2400.
+- Launch: trans brake by default, at the stall speed. Foot brake default holds 75% of stall (forums: a foot
+  brake can't hold full stall; trans brake vs foot brake ~0.03-0.04 s on the 60 ft, which the sim reproduces
+  at high grip).
+- Lock-up: only 4L60E, 4L80E, 8HP70 have a lock-up clutch by default (Advanced can add one for converted
+  units). Default mode off for 4L60E/4L80E (stock WOT unlocks), "2nd & up" for 8HP70.
+- Shift time (power shift duration): 0.20 s Powerglide/TH350/TH400/C4/C6, 0.22 s 4L60E/4L80E, 0.15 s 8HP70.
+- Shift loss (drive lost in the shift clutches during a shift): 20% Powerglide/TH350/TH400/C4/C6 (band and
+  sprag shifts), 15% 4L60E/4L80E, 10% 8HP70 (clutch-to-clutch), 15% generic custom.
+- Result, default car on 1.0 grip: Muncie 12.99 @ 110.8; old 3-speeds/Powerglide 12.89-12.92 @ 109.8-110.3;
+  4L60E 13.19 @ 108.8; 4L80E 12.95 @ 109.4; 8HP70 12.65 @ 114.0 (lock-up 2nd+, 8 close ratios, no torque gap).
+- Drivetrain loss excluding converter slip (pump + gears): Powerglide 11% (lighter to turn than a TH400),
+  TH350/C4/4L60E 13%, TH400/C6 14%, 4L80E 15%, 8HP70 12%. Manual default stays 11%.
+- Wheel-basis power curves (chassis dyno) skip drivetrain loss but still go through the converter, which
+  slightly double-counts slip for automatics measured on a chassis dyno.
+- Custom transmissions are saved only in settings (offline copies), not in browser storage. A new custom
+  automatic starts from GENERIC_AUTOMATIC (3000 stall, 2.0 TR, 6% slip, lock-up clutch present but off,
+  0.20 s shifts, 15% shift loss, 13% loss); "Copy as custom" copies the source's current settings.
+- Gear chart, ratio ladder and cruising tables show locked-converter (ideal gearing) rpm for automatics.
 
 ## Versioning (required for every commit)
 

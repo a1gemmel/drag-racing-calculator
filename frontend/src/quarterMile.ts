@@ -1,4 +1,5 @@
-import { torqueAt, type PowerBasis, type PowerCurve } from "./power";
+import { launchRpm as automaticLaunchRpm, lockedInGear, type AutomaticSetup } from "./automatic";
+import { curvePeaks, torqueAt, type PowerBasis, type PowerCurve } from "./power";
 
 /**
  * Mid-fidelity quarter-mile simulation. Time-steps a point mass with:
@@ -15,8 +16,27 @@ import { torqueAt, type PowerBasis, type PowerCurve } from "./power";
  *    modulates clutch and throttle to hold wheelspin to 10% slip, or 7 m/s at low speed
  *  - timing-light rollout: the clock starts after the car has rolled `rolloutIn` (splits, ET and shift
  *    times are on that clock, like a timing slip)
- *  - upshifts at shift RPM with no drive force for the shift time; a limiter at shift RPM in top gear
- * Not modelled: suspension dynamics, tire growth/slip curves, converter/automatics, wind, altitude.
+ *  - manual upshifts at shift RPM with no drive force for the shift time; a limiter at shift RPM in top gear
+ *  - automatic upshifts are power shifts: drive continues through the new gear for the shift time, less
+ *    `shiftLoss` (shift-clutch overlap and slip). Into an unlocked gear the converter takes up the speed
+ *    change; into a locked gear the shift clutches slip and pull the engine down to the new gear's speed
+ *    over the shift time, and the torque that releases from the engine's inertia reaches the tires
+ *  - automatics (when `automatic` is set): a torque converter instead of the clutch (see below),
+ *    optional lock-up per gear, and a trans-brake or foot-brake launch
+ * Not modelled: suspension dynamics, tire growth/slip curves, wind, altitude.
+ *
+ * Torque converter (K-factor model). Speed ratio SR = turbine rpm / engine rpm.
+ *  - Pump (engine-side) torque = (engine rpm / K)², lb-ft. K is set from the stall speed:
+ *    K = stall rpm / sqrt(engine torque at stall rpm), so with the turbine held still and the throttle
+ *    open the engine settles exactly at the stall speed.
+ *  - Below the coupling point SRc torque is multiplied: TR falls linearly from the stall torque ratio at
+ *    SR = 0 to 1.0 at SRc. The converter loosens as SR rises: capacity (1/K²) falls smoothly to
+ *    COUPLING_CAPACITY (65%, i.e. K about 24% above stall K) at SRc, so engine rpm climbs from stall
+ *    during the launch instead of sitting at stall.
+ *  - Above SRc (coupling), TR = 1 and pump torque falls linearly to 0 at SR = 1, so the converter always
+ *    slips a little. SRc is chosen so the slip at full throttle at peak power equals `couplingSlip`.
+ *  - Engine and converter are separate inertias: engine speed follows engine torque − pump torque.
+ *  - Lock-up (in gears `lockedInGear` allows) joins engine and driveline like a locked clutch.
  */
 
 export type VehicleSetup = {
@@ -72,6 +92,11 @@ export type RunInput = VehicleSetup & {
   clutchCapacityFactor?: number;
   /** Model tuning: wheelspin allowed at a standstill, m/s. */
   slipFloorMps?: number;
+  /**
+   * Automatic transmission: torque converter, lock-up and launch method. When set, its shift time,
+   * drivetrain loss and launch rpm replace the vehicle's (and clutch settings are unused).
+   */
+  automatic?: AutomaticSetup;
 };
 
 export type Sample = { t: number; ft: number; mph: number; rpm: number; gear: number; shifting: boolean };
@@ -123,7 +148,10 @@ export function simulateQuarterMile(input: RunInput): RunResult {
 
   const mass = input.weightLb * LB_TO_KG;
   const radius = (tireDiameterIn / 2) * 0.0254;
-  const efficiency = input.curveBasis === "wheel" ? 1 : 1 - input.drivetrainLoss;
+  const auto = input.automatic;
+  const drivetrainLoss = auto ? auto.drivetrainLoss : input.drivetrainLoss;
+  const efficiency = input.curveBasis === "wheel" ? 1 : 1 - drivetrainLoss;
+  const shiftTimeS = auto ? auto.shiftTimeS : input.shiftTimeS;
   // Max tractive force with steady-state weight transfer: the driven axle's load changes by F·h/L,
   // so F = μ(W·f ± F·h/L), solved for F.
   const weightN = mass * G;
@@ -136,7 +164,7 @@ export function simulateQuarterMile(input: RunInput): RunResult {
         : (input.grip * weightN * input.driveWeightFraction) / (1 + input.grip * hOverL);
   const dragFactor = 0.5 * AIR_DENSITY * input.dragCoefficient * input.frontalAreaFt2 * FT2_TO_M2;
   const rollingN = input.rollingResistance * mass * G;
-  const launchRpm = Math.min(input.launchRpm, shiftRpm);
+  const launchRpm = Math.min(auto ? automaticLaunchRpm(auto) : input.launchRpm, shiftRpm);
   const curveMaxRpm = curve[curve.length - 1].rpm;
   if (shiftRpm > curveMaxRpm) {
     warnings.push(`Power curve ends at ${curveMaxRpm.toLocaleString()} rpm; torque held flat to ${shiftRpm.toLocaleString()} rpm`);
@@ -152,6 +180,9 @@ export function simulateQuarterMile(input: RunInput): RunResult {
   const SLIP_RATIO = 0.1;
   const SLIP_FLOOR = input.slipFloorMps ?? SLIP_FLOOR_MPS; // m/s of wheelspin allowed at low speed
   const maxWheelSpeed = (carSpeed: number) => Math.max(carSpeed * (1 + SLIP_RATIO), carSpeed + SLIP_FLOOR);
+
+  // Torque converter constants (see the header comment).
+  const converter = auto ? converterConstants(auto, curve, shiftRpm) : null;
 
   let t = 0;
   let x = 0; // car position, m
@@ -179,34 +210,64 @@ export function simulateQuarterMile(input: RunInput): RunResult {
     const shifting = shiftTimer > 0;
     const engineRpm = omega * RAD_TO_RPM;
     const limiter = gear === gearRatios.length - 1 && engineRpm >= shiftRpm;
-    const engineNm = shifting || limiter ? 0 : torqueNm(engineRpm) * scale;
+    // Manuals coast through a shift; automatics keep the throttle open (power shift).
+    const engineNm = (shifting && !converter) || limiter ? 0 : torqueNm(engineRpm) * scale;
     let accel: number;
 
-    if (shifting) {
+    const converterLocked = auto ? lockedInGear(auto, gear, gearRatios.length) : false;
+    // During an automatic shift the shift clutches lose part of the drive.
+    const shiftEfficiency = shifting && auto ? 1 - auto.shiftLoss : 1;
+    // Engine decoupled from the tires (slipping clutch or converter): the car gets the drive force,
+    // or the traction limit when the tires can't take it.
+    const decoupledDrive = (driveN: number) => {
+      if (u > v + 1e-6 || driveN - resistN > ((tractionN - resistN) * (mass + wheelMass)) / mass) {
+        const a = (tractionN - resistN) / mass;
+        u = Math.min(Math.max(u + ((driveN - tractionN) / wheelMass) * DT, v + a * DT), maxWheelSpeed(v + a * DT));
+        return a;
+      }
+      const a = (driveN - resistN) / (mass + wheelMass);
+      u = v + a * DT;
+      return a;
+    };
+
+    if (shifting && !converter) {
       // Clutch open: the car coasts; the engine is matched to the next gear when the shift completes.
       accel = -resistN / (mass + wheelMass);
       u = Math.max(0, v + accel * DT);
-    } else if (!clutchLocked) {
+    } else if (shifting && converterLocked) {
+      // Power shift into a locked gear: the shift clutches slip, pulling the engine down to the new
+      // gear's speed by the end of the shift. Their torque (engine torque plus what slowing the engine
+      // releases) drives the new gear; the slip and `shiftLoss` are lost.
+      const targetOmega = u * k;
+      const clutchNm = Math.max(engineNm + (engineInertia * Math.max(omega - targetOmega, 0)) / Math.max(shiftTimer, DT), 0);
+      omega = Math.max(omega + ((engineNm - clutchNm) / engineInertia) * DT, targetOmega);
+      accel = decoupledDrive(clutchNm * k * efficiency * shiftEfficiency);
+    } else if (converter && !converterLocked) {
+      // Torque converter driving: engine and turbine turn at different speeds.
+      const engineRpmNow = omega * RAD_TO_RPM;
+      const speedRatio = engineRpmNow > 1 ? Math.min(Math.max((u * k * RAD_TO_RPM) / engineRpmNow, 0), 1) : 1;
+      const capacityLbft = (engineRpmNow / converter.k) ** 2;
+      const pumpNm = capacityLbft * converterCapacity(speedRatio, converter.couplingRatio) * LBFT_TO_NM;
+      const torqueRatio =
+        speedRatio < converter.couplingRatio ? auto!.stallTorqueRatio - ((auto!.stallTorqueRatio - 1) * speedRatio) / converter.couplingRatio : 1;
+      // Shifting into an unlocked gear: the converter takes up the speed change.
+      const driveN = pumpNm * torqueRatio * k * efficiency * shiftEfficiency;
+      omega = Math.max(omega + ((engineNm - pumpNm) / engineInertia) * DT, 0);
+      accel = decoupledDrive(driveN);
+    } else if (!converter && !clutchLocked) {
       // Launch: clutch slipping. Its torque ramps from what the engine makes at launch RPM to full clamp.
       const ramp = input.clutchReleaseS > 0 ? Math.min(t / input.clutchReleaseS, 1) : 1;
       const launchNm = torqueNm(launchRpm) * scale;
       const clutchNm = launchNm + (clutchCapacityNm * scale - launchNm) * ramp;
       const driveN = clutchNm * k * efficiency;
       omega = Math.max(omega + ((engineNm - clutchNm) / engineInertia) * DT, 0);
-      if (u > v + 1e-6 || driveN - resistN > ((tractionN - resistN) * (mass + wheelMass)) / mass) {
-        // Tires spinning: the car gets the traction limit, the wheels take the rest.
-        accel = (tractionN - resistN) / mass;
-        u = Math.min(Math.max(u + ((driveN - tractionN) / wheelMass) * DT, v + accel * DT), maxWheelSpeed(v + accel * DT));
-      } else {
-        accel = (driveN - resistN) / (mass + wheelMass);
-        u = v + accel * DT;
-      }
+      accel = decoupledDrive(driveN);
       if (omega <= u * k) {
         clutchLocked = true;
         omega = u * k;
       }
     } else {
-      // Clutch locked: engine and driveline turn together.
+      // Clutch (or converter lock-up) locked: engine and driveline turn together.
       const driveN = engineNm * k * efficiency;
       const gripAccel = (driveN - resistN) / (mass + wheelMass + engineMass(k));
       const tireForceNeeded = mass * gripAccel + resistN;
@@ -239,13 +300,18 @@ export function simulateQuarterMile(input: RunInput): RunResult {
 
     if (shifting) {
       shiftTimer -= DT;
-      if (shiftTimer <= 0) omega = u * k; // clutch back in at the new gear
-    } else if (clutchLocked && gear < gearRatios.length - 1 && omega * RAD_TO_RPM >= shiftRpm) {
+      // Manual: clutch back in at the new gear. Automatic: the converter takes up the difference,
+      // unless the new gear is locked up.
+      if (shiftTimer <= 0 && (!converter || lockedInGear(auto!, gear, gearRatios.length))) omega = u * k;
+    } else if ((converter || clutchLocked) && gear < gearRatios.length - 1 && omega * RAD_TO_RPM >= shiftRpm) {
       gear += 1;
-      shiftTimer = input.shiftTimeS;
+      // A power shift takes at least one step, so the engine's inertia always goes through the clutches.
+      shiftTimer = converter ? Math.max(shiftTimeS, DT) : shiftTimeS;
       shifts.push({ t, mph: v * MPS_TO_MPH, toGear: gear });
       u = v;
-      if (shiftTimer <= 0) omega = v * ((gearRatios[gear] * axleRatio) / radius);
+      if (shiftTimer <= 0 && (!converter || lockedInGear(auto!, gear, gearRatios.length))) {
+        omega = v * ((gearRatios[gear] * axleRatio) / radius);
+      }
     }
 
     if (t >= nextSample) {
@@ -254,7 +320,7 @@ export function simulateQuarterMile(input: RunInput): RunResult {
         t,
         ft: x / FT_TO_M,
         mph: v * MPS_TO_MPH,
-        rpm: (shiftTimer > 0 ? u * kNow : omega) * RAD_TO_RPM,
+        rpm: (shiftTimer > 0 && !converter ? u * kNow : omega) * RAD_TO_RPM,
         gear,
         shifting: shiftTimer > 0,
       });
@@ -292,9 +358,32 @@ export function simulateQuarterMile(input: RunInput): RunResult {
   };
 }
 
+/** Converter capacity at the coupling point, relative to stall capacity (K rises ~24% from stall). */
+const COUPLING_CAPACITY = 0.65;
+
+/** Pump torque as a fraction of (rpm / K_stall)² at speed ratio `sr` (see the header comment). */
+export function converterCapacity(sr: number, couplingRatio: number) {
+  if (sr < couplingRatio) return 1 - (1 - COUPLING_CAPACITY) * (sr / couplingRatio) ** 2;
+  return (COUPLING_CAPACITY * (1 - sr)) / (1 - couplingRatio);
+}
+
+/**
+ * K-factor at stall (rpm / sqrt(lb-ft)) from the stall speed, and the coupling speed ratio that gives
+ * the set full-throttle slip at peak power (clamped to 0.6-0.95).
+ */
+export function converterConstants(auto: AutomaticSetup, curve: PowerCurve, shiftRpm: number) {
+  const k = auto.stallRpm / Math.sqrt(Math.max(torqueAt(curve, auto.stallRpm), 1));
+  const peakRpm = Math.min(curvePeaks(curve).hp.rpm || shiftRpm, shiftRpm);
+  const capacityAtPeak = COUPLING_CAPACITY * (peakRpm / k) ** 2;
+  const slipSpan = (auto.couplingSlip * capacityAtPeak) / Math.max(torqueAt(curve, peakRpm), 1);
+  const couplingRatio = Math.min(Math.max(1 - slipSpan, 0.6), 0.95);
+  return { k, couplingRatio };
+}
+
 export type QuarterMileRun = RunResult & {
   launchRpm: number;
-  sixtyFtSource: "best" | "known";
+  /** best: launch rpm searched (manual); estimate: automatic launch from its settings; known: fitted. */
+  sixtyFtSource: "best" | "estimate" | "known";
   /** Drive-force multiplier over the first 60 ft that reproduces a known 60 ft (1 when estimating). */
   launchScale: number;
 };
@@ -331,12 +420,20 @@ export function bestLaunchRpm(input: RunInput) {
  * the pass continues from the resulting speed.
  */
 export function runQuarterMile(input: RunInput & { knownSixtyFtS: number | null }): QuarterMileRun {
-  const launch = bestLaunchRpm(input);
+  // Automatics launch from their trans-brake / foot-brake rpm; manuals search for the best launch rpm.
+  const launch = input.automatic
+    ? { rpm: Math.min(automaticLaunchRpm(input.automatic), input.shiftRpm) }
+    : bestLaunchRpm(input);
   const launched = { ...input, launchRpm: launch.rpm };
   const target = input.knownSixtyFtS;
 
   if (target === null || !(target > 0)) {
-    return { ...simulateQuarterMile(launched), launchRpm: launch.rpm, sixtyFtSource: "best", launchScale: 1 };
+    return {
+      ...simulateQuarterMile(launched),
+      launchRpm: launch.rpm,
+      sixtyFtSource: input.automatic ? "estimate" : "best",
+      launchScale: 1,
+    };
   }
 
   let lo = 0.02;

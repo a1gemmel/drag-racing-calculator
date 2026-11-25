@@ -1,3 +1,5 @@
+import { automaticDefaults, type AutomaticSetup } from "./automatic";
+
 export type TransmissionVariant = {
   name: string;
   /** Forward gear ratios, first gear first. */
@@ -8,11 +10,19 @@ export type TransmissionVariant = {
   source?: string;
 };
 
+export type TransmissionKind = "manual" | "automatic";
+
 export type TransmissionFamily = {
   manufacturer: string;
   model: string;
   variants: TransmissionVariant[];
+  /** Defaults to manual. */
+  kind?: TransmissionKind;
+  /** Converter and launch defaults for automatics. */
+  automatic?: AutomaticSetup;
 };
+
+export const familyKind = (family: TransmissionFamily): TransmissionKind => family.kind ?? "manual";
 
 // Shared citations. Several variants draw on the same reference tables.
 const TREMEC_AFTERMARKET_RATIOS =
@@ -32,6 +42,16 @@ const WIKIPEDIA_NV3500 = "New Venture Gear 3500 transmission: https://en.wikiped
 const ADVANCE_ADAPTERS_NV4500 = "Advance Adapters, NV4500 Specifications: https://advanceadapters.com/1-nv4500-specifications";
 const DIESELHUB_NV4500 = "DieselHub, NV4500 Transmission Ratios: https://dieselhub.com/trans/nv4500.html";
 const RANDYS_MUNCIE = "Randy's Worldwide, Muncie Transmission ID: https://www.randysworldwide.com/import_export/Muncie_Trans_ID.pdf";
+const WIKIPEDIA_POWERGLIDE = "Powerglide (1.76 / 1.82 low; reverse equals low): https://en.wikipedia.com/wiki/Powerglide";
+const CHEVY_1971_TRANS_MANUAL =
+  "1971 Chevrolet transmission service manual, Powerglide (reverse uses the low reduction): https://oldcarmanualproject.com/manuals/trans/TTransChev1971/TTransChev19718.html";
+const DIESELHUB_TH350 = "DieselHub, General Motors TH350: https://www.dieselhub.com/transmission/th350.html";
+const HOLLEY_GM_AUTOMATICS = "Holley, Everything you need to know about GM automatic transmissions: https://www.holley.com/blog/post/everything_you_need_to_know_about_gm_automatic_transmissions/";
+const F150HUB_C4_C6 = "F150Hub, C4 & C6 Transmission Gear Ratios: https://www.f150hub.com/trans/ford-c4-c6.html";
+const ADVANCE_ADAPTERS_C6 = "Advance Adapters, Ford C6: https://advanceadapters.com/2-ford-c6";
+const WIKIPEDIA_4L60E = "GM 4L60-E transmission: https://www.wikipedia.org/wiki/4L60-E";
+const DIESELHUB_4L80E = "DieselHub, 4L80E: https://www.dieselhub.com/trans/4l80e.html";
+const WIKIPEDIA_8HP = "ZF 8HP transmission (8HP70, 2010+ ratios): https://wikipedia.com/wiki/ZF_8HP_transmission";
 
 export const transmissionFamilies: TransmissionFamily[] = [
   {
@@ -439,6 +459,84 @@ export const transmissionFamilies: TransmissionFamily[] = [
       { name: "63-65 Wide Ratio", gear_ratios: [2.56, 1.91, 1.48, 1.0], application_manufacturers: ["GM"], source: RANDYS_MUNCIE },
       { name: "66-70 Wide Ratio", gear_ratios: [2.52, 1.88, 1.46, 1.0], application_manufacturers: ["GM"], source: RANDYS_MUNCIE },
       { name: "71-74 Wide Ratio", gear_ratios: [2.52, 1.88, 1.46, 1.0], application_manufacturers: ["GM"], source: RANDYS_MUNCIE },
+    ],
+  },
+
+  // Automatics. Ratios are cited per variant; converter/launch defaults are a typical street/strip
+  // setup chosen for this app (see "Automatic transmission defaults" in AGENTS.md), not factory specs.
+  {
+    manufacturer: "GM",
+    model: "Powerglide",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 4000, couplingSlip: 0.06, lockupCapable: false, shiftTimeS: 0.2, shiftLoss: 0.2, drivetrainLoss: 0.11 }),
+    variants: [
+      { name: "1.76 Low", gear_ratios: [1.76, 1.0], application_manufacturers: ["GM"], reverse_ratio: 1.76, source: `${WIKIPEDIA_POWERGLIDE}; ${CHEVY_1971_TRANS_MANUAL}` },
+      { name: "1.82 Low", gear_ratios: [1.82, 1.0], application_manufacturers: ["GM"], reverse_ratio: 1.82, source: `${WIKIPEDIA_POWERGLIDE}; ${CHEVY_1971_TRANS_MANUAL}` },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "TH350",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 3000, couplingSlip: 0.06, lockupCapable: false, shiftTimeS: 0.2, shiftLoss: 0.2, drivetrainLoss: 0.13 }),
+    variants: [
+      { name: "Turbo 350", gear_ratios: [2.52, 1.52, 1.0], application_manufacturers: ["GM"], reverse_ratio: 2.07, source: `${DIESELHUB_TH350}; ${HOLLEY_GM_AUTOMATICS}` },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "TH400",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 3200, couplingSlip: 0.06, lockupCapable: false, shiftTimeS: 0.2, shiftLoss: 0.2, drivetrainLoss: 0.14 }),
+    variants: [
+      { name: "Turbo 400", gear_ratios: [2.48, 1.48, 1.0], application_manufacturers: ["GM"], reverse_ratio: 2.07, source: HOLLEY_GM_AUTOMATICS },
+    ],
+  },
+  {
+    manufacturer: "Ford",
+    model: "C4",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 3000, couplingSlip: 0.06, lockupCapable: false, shiftTimeS: 0.2, shiftLoss: 0.2, drivetrainLoss: 0.13 }),
+    variants: [{ name: "Cruise-O-Matic C4", gear_ratios: [2.46, 1.46, 1.0], application_manufacturers: ["Ford"], reverse_ratio: 2.18, source: F150HUB_C4_C6 }],
+  },
+  {
+    manufacturer: "Ford",
+    model: "C6",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 3000, couplingSlip: 0.06, lockupCapable: false, shiftTimeS: 0.2, shiftLoss: 0.2, drivetrainLoss: 0.14 }),
+    variants: [{ name: "Cruise-O-Matic C6", gear_ratios: [2.46, 1.46, 1.0], application_manufacturers: ["Ford"], reverse_ratio: 2.18, source: `${ADVANCE_ADAPTERS_C6}; ${F150HUB_C4_C6}` }],
+  },
+  {
+    manufacturer: "GM",
+    model: "4L60E",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2800, couplingSlip: 0.06, lockupCapable: true, lockup: "off", shiftTimeS: 0.22, shiftLoss: 0.15, drivetrainLoss: 0.13 }),
+    variants: [
+      { name: "Hydra-Matic 4L60-E", gear_ratios: [3.06, 1.63, 1.0, 0.7], application_manufacturers: ["GM"], reverse_ratio: 2.29, source: WIKIPEDIA_4L60E },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "4L80E",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2800, couplingSlip: 0.06, lockupCapable: true, lockup: "off", shiftTimeS: 0.22, shiftLoss: 0.15, drivetrainLoss: 0.15 }),
+    variants: [
+      { name: "Hydra-Matic 4L80-E", gear_ratios: [2.482, 1.482, 1.0, 0.75], application_manufacturers: ["GM"], reverse_ratio: 2.077, source: DIESELHUB_4L80E },
+    ],
+  },
+  {
+    manufacturer: "ZF",
+    model: "8HP70",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2400, couplingSlip: 0.04, lockupCapable: true, lockup: "after1st", shiftTimeS: 0.15, shiftLoss: 0.1, drivetrainLoss: 0.12 }),
+    variants: [
+      {
+        name: "8HP70 (2010+)",
+        gear_ratios: [4.714, 3.143, 2.106, 1.667, 1.285, 1.0, 0.839, 0.667],
+        application_manufacturers: ["BMW", "Chrysler", "Dodge", "Jeep", "Ram", "Audi"],
+        reverse_ratio: 3.317,
+        source: WIKIPEDIA_8HP,
+      },
     ],
   },
 ];

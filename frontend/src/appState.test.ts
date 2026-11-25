@@ -62,3 +62,28 @@ describe("embedSettings", () => {
     expect(parseSettings(JSON.parse(json)).query).toBe("</script><b>x");
   });
 });
+
+describe("saved custom transmissions and automatic settings", () => {
+  it("keeps valid customs and drops malformed or duplicate ones", () => {
+    const settings = parseSettings({
+      customTransmissions: [
+        { name: "Glide 1.80", kind: "automatic", ratios: [1.8, 1.0], automatic: { stallRpm: 4200, lockup: "sideways" } },
+        { name: "glide 1.80", kind: "manual", ratios: [2, 1] },
+        { name: "Bad", kind: "manual", ratios: [2, -1] },
+        { name: "", ratios: [2] },
+        "nope",
+      ],
+    });
+    expect(settings.customTransmissions.map((c) => c.name)).toEqual(["Glide 1.80"]);
+    expect(settings.customTransmissions[0].automatic?.stallRpm).toBe(4200);
+    expect(settings.customTransmissions[0].automatic?.lockup).toBe("off");
+  });
+
+  it("keeps per-transmission automatic settings, filling gaps with defaults", () => {
+    const settings = parseSettings({ autoSetups: { TH400: { stallRpm: 3800, launch: "footbrake" }, Junk: 5 } });
+    expect(Object.keys(settings.autoSetups)).toEqual(["TH400"]);
+    expect(settings.autoSetups.TH400.stallRpm).toBe(3800);
+    expect(settings.autoSetups.TH400.launch).toBe("footbrake");
+    expect(settings.autoSetups.TH400.stallTorqueRatio).toBe(2);
+  });
+});
