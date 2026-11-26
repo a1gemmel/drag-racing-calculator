@@ -47,3 +47,12 @@ function build(label: string, nominal: number, rim: number): TireSize | null {
   if (!(rim >= 10 && rim <= 30) || !(nominal > rim && nominal <= 60)) return null;
   return { label, nominalDiameterIn: nominal, effectiveDiameterIn: nominal * ROLLING_DIAMETER_FACTOR };
 }
+
+/** Rolling resistance of a radial; the street and drag radial presets use it (and it's the car default). */
+export const RADIAL_ROLLING = 0.015;
+/**
+ * Bias-ply slick: 40% more rolling resistance than a radial (published bias vs radial gaps run ~14-150%
+ * by pressure and load). In the sim that costs ~0.65 mph of trap speed at the default car, in line with
+ * racers' reports of under 1 mph slower than a radial.
+ */
+export const BIAS_PLY_ROLLING = 0.021;

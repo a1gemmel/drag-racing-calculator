@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { AutomaticSetup } from "../automatic";
 import type { PowerBasis, PowerCurve } from "../power";
 import { runQuarterMile, type QuarterMileRun, type RunResult, type VehicleSetup } from "../quarterMile";
+import { BIAS_PLY_ROLLING, RADIAL_ROLLING } from "../tires";
 import type { Gear } from "./GearChart";
 import { LineChart, type Series } from "./LineChart";
 import { NumberField } from "./NumberField";
@@ -12,11 +13,12 @@ type VehicleProps = {
   onVehicleChange: (vehicle: VehicleSetup) => void;
 };
 
-const GRIP_PRESETS = [
-  { value: 0.9, label: "Street tire (0.9)" },
-  { value: 1.0, label: "Performance street (1.0)" },
-  { value: 1.3, label: "Drag radial (1.3)" },
-  { value: 1.6, label: "Slick, prepped track (1.6)" },
+/** Tire presets set grip and rolling resistance together. */
+const TIRE_PRESETS = [
+  { id: "street", grip: 0.9, rolling: RADIAL_ROLLING, label: "Street tire (0.9)" },
+  { id: "performance", grip: 1.0, rolling: RADIAL_ROLLING, label: "Performance street (1.0)" },
+  { id: "radial", grip: 1.3, rolling: RADIAL_ROLLING, label: "Drag radial (1.3)" },
+  { id: "slick", grip: 1.6, rolling: BIAS_PLY_ROLLING, label: "Bias-ply slick, prepped track (1.6)" },
 ];
 
 /** Traction and launch inputs for the Axle & tires section: grip, driven wheels, 60 ft, rollout. */
@@ -24,22 +26,29 @@ export function TractionInputs({ vehicle, onVehicleChange }: VehicleProps) {
   const set = (patch: Partial<VehicleSetup>) => onVehicleChange({ ...vehicle, ...patch });
   // Last known 60 ft typed in, kept while the user flips back to the estimate.
   const [lastKnownSixty, setLastKnownSixty] = useState(vehicle.knownSixtyFtS ?? 2.0);
-  const gripPreset = GRIP_PRESETS.find((preset) => preset.value === vehicle.grip);
+  const tirePreset = TIRE_PRESETS.find((preset) => preset.grip === vehicle.grip && preset.rolling === vehicle.rollingResistance);
   return (
     <>
       <div className="field">
         <label htmlFor="qm-grip">Tire grip</label>
         <select
           id="qm-grip"
-          value={gripPreset ? String(gripPreset.value) : "custom"}
-          onChange={(event) => event.target.value !== "custom" && set({ grip: Number(event.target.value) })}
+          value={tirePreset ? tirePreset.id : "custom"}
+          onChange={(event) => {
+            const preset = TIRE_PRESETS.find((p) => p.id === event.target.value);
+            if (preset) set({ grip: preset.grip, rollingResistance: preset.rolling });
+          }}
         >
-          {GRIP_PRESETS.map((preset) => (
-            <option key={preset.value} value={preset.value}>
+          {TIRE_PRESETS.map((preset) => (
+            <option key={preset.id} value={preset.id}>
               {preset.label}
             </option>
           ))}
-          {gripPreset ? null : <option value="custom">Custom ({vehicle.grip})</option>}
+          {tirePreset ? null : (
+            <option value="custom">
+              Custom ({vehicle.grip} · {vehicle.rollingResistance})
+            </option>
+          )}
         </select>
       </div>
       <div className="field">
@@ -87,6 +96,14 @@ export function TractionInputs({ vehicle, onVehicleChange }: VehicleProps) {
         <summary>Advanced</summary>
         <div className="advanced-grid">
           <NumberField label="Grip coefficient" step={0.05} min={0.2} max={3} value={vehicle.grip} onCommit={(grip) => set({ grip })} />
+          <NumberField
+            label="Rolling resistance"
+            step={0.001}
+            min={0.001}
+            max={0.1}
+            value={vehicle.rollingResistance}
+            onCommit={(rollingResistance) => set({ rollingResistance })}
+          />
           {vehicle.drive !== "awd" ? (
             <NumberField
               label="Weight on driven axle"
@@ -118,14 +135,6 @@ export function CarInputs({ vehicle, onVehicleChange }: VehicleProps) {
           <NumberField label="Wheelbase" unit="in" step={0.5} min={60} max={200} value={vehicle.wheelbaseIn} onCommit={(wheelbaseIn) => set({ wheelbaseIn })} />
           <NumberField label="Drag coefficient" step={0.01} min={0.1} max={1.5} value={vehicle.dragCoefficient} onCommit={(dragCoefficient) => set({ dragCoefficient })} />
           <NumberField label="Frontal area" unit="ft²" step={0.5} min={5} max={80} value={vehicle.frontalAreaFt2} onCommit={(frontalAreaFt2) => set({ frontalAreaFt2 })} />
-          <NumberField
-            label="Rolling resistance"
-            step={0.001}
-            min={0.001}
-            max={0.1}
-            value={vehicle.rollingResistance}
-            onCommit={(rollingResistance) => set({ rollingResistance })}
-          />
         </div>
       </details>
     </>

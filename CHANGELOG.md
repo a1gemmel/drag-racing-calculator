@@ -2,6 +2,11 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.4.1 — 2026-11-25
+
+- Tire grip presets also set rolling resistance: radials 0.015, the slick preset (now "Bias-ply slick, prepped track") 0.021, which traps about 0.65 mph slower than a radial at the default car.
+- Rolling resistance moved to the Axle & tires card's Advanced section.
+
 ## v0.4.0 — 2026-11-25
 
 - The page address now holds your setup as a short code as you change it, so the URL can be shared or bookmarked to open the exact same setup. Links keep working in later versions.

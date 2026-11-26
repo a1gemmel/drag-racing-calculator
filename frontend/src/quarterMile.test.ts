@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildCurve, DEFAULT_POWER, estimateFromTrap } from "./power";
 import { bestLaunchRpm, DEFAULT_VEHICLE, runQuarterMile, simulateQuarterMile, type RunInput } from "./quarterMile";
+import { BIAS_PLY_ROLLING, RADIAL_ROLLING } from "./tires";
 
 const curve = estimateFromTrap(3500, 113.5, 6000).curve!; // ≈ 400 hp
 const base: RunInput = {
@@ -144,5 +145,17 @@ describe("trap-speed power round trip", () => {
       const run = runQuarterMile({ ...car, weightLb, knownSixtyFtS: null, curve: power.curve!, curveBasis: power.basis });
       expect(Math.abs(run.eighth!.mph - trapEighthMph) / trapEighthMph).toBeLessThan(0.03);
     }
+  });
+});
+
+describe("tire construction", () => {
+  it("a bias-ply slick traps 0.4-1 mph slower than a radial at the same grip", () => {
+    const car = { ...base, grip: 1.6 };
+    const radial = simulateQuarterMile({ ...car, rollingResistance: RADIAL_ROLLING });
+    const bias = simulateQuarterMile({ ...car, rollingResistance: BIAS_PLY_ROLLING });
+    const loss = radial.trapMph! - bias.trapMph!;
+    expect(loss).toBeGreaterThan(0.4);
+    expect(loss).toBeLessThan(1);
+    expect(DEFAULT_VEHICLE.rollingResistance).toBe(RADIAL_ROLLING);
   });
 });

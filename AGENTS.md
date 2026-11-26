@@ -288,6 +288,11 @@ bookmark and post these links. When changing settings or `src/shareToken.ts`:
 - **Trap-speed weight:** the trap method has its own race-weight field (`power.trapWeightLb`, the weight on
   that pass). Editing it also sets the sim's race weight; editing the sim's race weight does not touch it,
   so power stays fixed and ET responds to weight.
+- **Tire construction (v0.4.1):** tire presets set grip and rolling resistance together (`TIRE_PRESETS` in
+  QuarterMileCard.tsx; constants in tires.ts). Radials 0.015; bias-ply slick 0.021 (+40%; published bias vs radial
+  rolling-resistance gaps are ~14-150% by pressure/load). That costs ~0.65 mph of trap at the default car, matching
+  racers' reports of a bias-ply slick trapping under 1 mph slower than a radial (test guards 0.4-1 mph). Bias-ply growth
+  at speed isn't modelled. A setup whose grip/rolling pair matches no preset shows "Custom".
 - **Tire rolling correction (3%) applies to size mode only;** a typed diameter is used as entered.
 
 ## Open questions for the owner
