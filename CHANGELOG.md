@@ -2,6 +2,12 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.4.0 — 2026-11-25
+
+- The page address now holds your setup as a short code as you change it, so the URL can be shared or bookmarked to open the exact same setup. Links keep working in later versions.
+- Copy link button in the header copies that address.
+- Fixed: an automatic set to have no lock-up clutch got its lock-up clutch back when an offline copy was opened.
+
 ## v0.3.0 — 2026-11-25 — UI Overhaul
 
 - Inputs are grouped into cards on the main page: Transmission, Engine, Axle & tires, and Car, followed by the quarter-mile results.

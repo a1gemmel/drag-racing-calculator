@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { rpmForSpeed, speedMph } from "./calculations";
 import { GENERIC_AUTOMATIC, type AutomaticSetup } from "./automatic";
 import { familyKind, transmissionFamilies } from "./catalog";
@@ -14,6 +14,7 @@ import { CarInputs, ManualInputs, QuarterMileCard, TractionInputs } from "./comp
 import { Subgroup } from "./components/Subgroup";
 import { TireField, type TireMode } from "./components/TireField";
 import { readEmbeddedSettings, type AppSettings } from "./appState";
+import { isDefaultSetup, settingsFromToken, settingsToToken } from "./shareToken";
 import { downloadOfflineCopy, OFFLINE_FILE_NAME, offlineCopyAvailable, offlineCopyKb } from "./offline";
 import { buildCurve, DEFAULT_POWER, type PowerState } from "./power";
 import { DEFAULT_VEHICLE, type VehicleSetup } from "./quarterMile";
@@ -30,8 +31,9 @@ const LUGGING_RPM = 800;
 const CRUISE_FLOOR_RPM = 1200;
 
 export function App() {
-  // Defaults, or the settings embedded in this page by a previous "Download offline copy".
-  const [initial] = useState(() => readEmbeddedSettings(document));
+  // A share link's settings, else those embedded by a previous "Download offline copy", else defaults.
+  const [initial] = useState(() => (window.location.hash ? settingsFromToken(window.location.hash) : null) ?? readEmbeddedSettings(document));
+  const [linkCopied, setLinkCopied] = useState(false);
   const [customTransmissions, setCustomTransmissions] = useState<CustomTransmission[]>(initial.customTransmissions);
   const [autoSetups, setAutoSetups] = useState<Record<string, AutomaticSetup>>(initial.autoSetups);
   // Custom transmission editor: what's being edited (null = closed) and the name it had, if existing.
@@ -147,6 +149,40 @@ export function App() {
     autoSetups,
   });
 
+  // Keep the URL fragment in step with the settings, so the address bar is always a share link.
+  // No fragment while everything is at the defaults.
+  const settingsNow = currentSettings();
+  const shareHash = isDefaultSetup(settingsNow) ? "" : settingsToToken(settingsNow);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const url = `${window.location.pathname}${window.location.search}${shareHash ? `#${shareHash}` : ""}`;
+      try {
+        window.history.replaceState(window.history.state, "", url);
+      } catch {
+        // Some browsers refuse history changes for pages opened from disk; the link button still works.
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [shareHash]);
+  // A fragment typed or pasted into the address bar (no reload) loads that setup.
+  useEffect(() => {
+    const onHashChange = () => {
+      if (window.location.hash.replace(/^#/, "") !== shareHash) window.location.reload();
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [shareHash]);
+  const shareUrl = () => `${window.location.href.split("#")[0]}${shareHash ? `#${shareHash}` : ""}`;
+  const copyLink = () => {
+    navigator.clipboard?.writeText(shareUrl()).then(
+      () => {
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2000);
+      },
+      () => window.prompt("Link", shareUrl()),
+    ) ?? window.prompt("Link", shareUrl());
+  };
+
   const gears = useMemo<Gear[]>(
     () =>
       (selection?.variant.gear_ratios ?? []).map((ratio, index) => ({
@@ -197,19 +233,27 @@ export function App() {
           </svg>
           <h1>Drag Racing Calculator</h1>
         </div>
-        <button
-          type="button"
-          className="download-button"
-          onClick={() => downloadOfflineCopy(currentSettings())}
-          disabled={!offlineCopyAvailable}
-          title={offlineCopyAvailable ? OFFLINE_FILE_NAME : "Dev server: use the built file (npm run build) to download"}
-        >
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13h10" />
-          </svg>
-          Download offline copy
-          {offlineCopyAvailable ? <span className="download-size">{offlineCopyKb} KB</span> : null}
-        </button>
+        <div className="topbar-actions">
+          <button type="button" className="download-button" onClick={copyLink} aria-live="polite">
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M6.5 9.5 9.5 6.5M7 4.5l1.2-1.2a2.5 2.5 0 0 1 3.5 3.5L10.5 8M9 11.5l-1.2 1.2a2.5 2.5 0 0 1-3.5-3.5L5.5 8" />
+            </svg>
+            {linkCopied ? "Link copied" : "Copy link"}
+          </button>
+          <button
+            type="button"
+            className="download-button"
+            onClick={() => downloadOfflineCopy(currentSettings())}
+            disabled={!offlineCopyAvailable}
+            title={offlineCopyAvailable ? OFFLINE_FILE_NAME : "Dev server: use the built file (npm run build) to download"}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M3 13h10" />
+            </svg>
+            Download offline copy
+            {offlineCopyAvailable ? <span className="download-size">{offlineCopyKb} KB</span> : null}
+          </button>
+        </div>
       </header>
 
       <main className="page">

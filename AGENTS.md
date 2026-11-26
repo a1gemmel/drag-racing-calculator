@@ -58,6 +58,8 @@ frontend/
   src/components/LineChart.tsx      generic single-axis line chart with crosshair tooltip
   src/offline.ts     "Download offline copy": captures the page before React renders (first import in main.tsx),
                      embeds current settings, saves as drag-racing-calculator.html via a Blob (no fetch)
+  src/shareToken.ts  share links: whole setup <-> short versioned binary token in the URL fragment (FORWARD-COMPATIBLE, see below)
+  src/shareToken.golden.json, src/shareToken.v1-schema.json  frozen fixtures guarding old tokens
   src/appState.ts    AppSettings + DEFAULT_SETTINGS; parseSettings (type-checked merge over defaults),
                      embedSettings / readEmbeddedSettings (<script type="application/json" id="saved-settings">)
   src/automatic.ts   AutomaticSetup (converter, launch, lock-up, shift time, loss), defaults, launchRpm, lockedInGear
@@ -252,7 +254,33 @@ section as release notes. (Older `build-1`/`build-2` releases predate versioning
   from there. See `runQuarterMile` in quarterMile.ts.
 - **Offline copy:** header button downloads the page itself with the on-screen settings embedded; the saved
   file opens with them as defaults. New settings must be added to AppSettings, DEFAULT_SETTINGS,
-  App's useState initializers and currentSettings(). Hidden in `npm run dev` (the dev page isn't standalone).
+  App's useState initializers, currentSettings() and a new field in TOKEN_SCHEMA (shareToken.ts). Hidden in `npm run dev` (the dev page isn't standalone).
+- **Share links (v0.4.0):** the URL fragment is a share token (`#ASHAAzGCOTmA6wZa…`) for the whole setup
+  (search text and filter excluded). Fragment rather than query params: works from file://, never sent to a
+  server. Updated with replaceState (debounced 250 ms); no fragment while the setup equals DEFAULT_SETTINGS. On load
+  a valid token wins over embedded offline-copy settings; a pasted fragment (hashchange) reloads. Header
+  "Copy link" copies it. Format: base64url(version byte 1 + protobuf-style message), fields tagged with numeric ids,
+  only values differing from each field's frozen base are written; the format is documented in shareToken.ts.
+
+## Share token compatibility (hard rule)
+
+**Every share token a released version wrote must decode to the same setup in every later version.** People
+bookmark and post these links. When changing settings or `src/shareToken.ts`:
+- Never change a field's id, kind or base, and never reuse an id. Enum value lists are append-only (tokens
+  store the index), so never reorder or remove a value.
+- Bases are literals in `TOKEN_SCHEMA`, never references to app defaults. Changing an app default is fine and
+  needs no token change; changing a base is not.
+- A new setting gets a new field (next free id in its message) whose base is the value that reproduces how the
+  app behaved before the setting existed. `shareToken.test.ts` fails if a setting in DEFAULT_SETTINGS (or
+  an automatic setup) has no field.
+- A removed setting keeps its field with `retired: true`. A renamed setting keeps its id (update the path in
+  the fixtures only for a pure rename).
+- The version byte changes only for an incompatible format change; keep decoders for every older version.
+- `src/shareToken.golden.json` (tokens and the complete setup each decodes to) and
+  `src/shareToken.v1-schema.json` (the field table at v1) are frozen: never edit or delete entries, only add.
+  When a release adds fields, add a golden token that uses them. Don't "fix" a failing compatibility test
+  by changing the fixtures.
+
 - **1/8-mile trap (v0.2.2):** the trap method has a 1/4 / 1/8 mile toggle (`power.trapDistance`, separate
   `trapEighthMph`, default 88). An eighth trap × `EIGHTH_TO_QUARTER_MPH` (1.25, power.ts) goes into Hale's formula.
   1.25 is the common rule of thumb (1.25-1.27) and matches this sim's own passes (1.20-1.29, mostly ~1.25);

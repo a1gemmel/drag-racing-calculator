@@ -307,6 +307,7 @@ input:disabled { opacity: 0.45; cursor: not-allowed; }
 .marker-line.distance { stroke: var(--text-2); stroke-dasharray: 1 4; stroke-linecap: round; stroke-width: 1.5; }
 
 /* ---------- Offline download ---------- */
+.topbar-actions { display: flex; gap: 8px; }
 .download-button { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--field); color: var(--text); padding: 8px 14px; font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
 .download-button:hover { border-color: var(--accent); }
 .download-button svg { width: 14px; height: 14px; fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }

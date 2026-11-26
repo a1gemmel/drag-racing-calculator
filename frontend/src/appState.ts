@@ -79,6 +79,8 @@ function mergeInto<T>(defaults: T, raw: unknown, path = ""): T {
     if (value === undefined) continue;
     if (typeof fallback === "number") {
       if (typeof value === "number" && Number.isFinite(value)) result[key] = value;
+    } else if (typeof fallback === "boolean") {
+      if (typeof value === "boolean") result[key] = value;
     } else if (typeof fallback === "string") {
       if (typeof value === "string" && (!ENUMS[at] || ENUMS[at].includes(value))) result[key] = value;
     } else if (fallback === null) {

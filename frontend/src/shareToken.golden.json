@@ -1,0 +1,358 @@
+[
+ {
+  "version": "0.4.0",
+  "token": "ATGRBQ",
+  "settings": {
+   "selectedModel": "Muncie M20",
+   "selectedVariantName": "66-70 Wide Ratio",
+   "tireMode": "diameter",
+   "tireDiameterIn": 26,
+   "tireSize": "275/55R15",
+   "axleRatio": 4.1,
+   "shiftRpm": 6500,
+   "gearsetView": "cruising",
+   "chartView": "shifts",
+   "power": {
+    "method": "trap",
+    "trapDistance": "quarter",
+    "trapMph": 110,
+    "trapEighthMph": 88,
+    "trapWeightLb": 3700,
+    "trapPeakRpm": 6000,
+    "peak": {
+     "peakHp": 430,
+     "peakHpRpm": 5900,
+     "peakTorque": 424,
+     "peakTorqueRpm": 4600
+    },
+    "peakBasis": "crank",
+    "dyno": [
+     {
+      "rpm": 2000,
+      "torque": 330
+     },
+     {
+      "rpm": 3000,
+      "torque": 375
+     },
+     {
+      "rpm": 4000,
+      "torque": 410
+     },
+     {
+      "rpm": 4600,
+      "torque": 424
+     },
+     {
+      "rpm": 5200,
+      "torque": 410
+     },
+     {
+      "rpm": 5900,
+      "torque": 383
+     },
+     {
+      "rpm": 6500,
+      "torque": 330
+     }
+    ],
+    "dynoBasis": "crank"
+   },
+   "vehicle": {
+    "weightLb": 3700,
+    "drivetrainLoss": 0.11,
+    "grip": 1,
+    "drive": "rear",
+    "driveWeightFraction": 0.5,
+    "cgHeightIn": 20,
+    "wheelbaseIn": 105,
+    "dragCoefficient": 0.35,
+    "frontalAreaFt2": 22,
+    "rollingResistance": 0.015,
+    "shiftTimeS": 0.15,
+    "launchRpm": 3500,
+    "clutchReleaseS": 0.25,
+    "rolloutIn": 11.5,
+    "knownSixtyFtS": null
+   },
+   "customTransmissions": [],
+   "autoSetups": {}
+  }
+ },
+ {
+  "version": "0.4.0",
+  "token": "ASHAAzGCOTmA6wZaCgmAkAMZ0QF5ohQ",
+  "settings": {
+   "selectedModel": "Muncie M20",
+   "selectedVariantName": "66-70 Wide Ratio",
+   "tireMode": "diameter",
+   "tireDiameterIn": 28,
+   "tireSize": "275/55R15",
+   "axleRatio": 4.56,
+   "shiftRpm": 7000,
+   "gearsetView": "cruising",
+   "chartView": "shifts",
+   "power": {
+    "method": "trap",
+    "trapDistance": "quarter",
+    "trapMph": 110,
+    "trapEighthMph": 88,
+    "trapWeightLb": 3700,
+    "trapPeakRpm": 6000,
+    "peak": {
+     "peakHp": 430,
+     "peakHpRpm": 5900,
+     "peakTorque": 424,
+     "peakTorqueRpm": 4600
+    },
+    "peakBasis": "crank",
+    "dyno": [
+     {
+      "rpm": 2000,
+      "torque": 330
+     },
+     {
+      "rpm": 3000,
+      "torque": 375
+     },
+     {
+      "rpm": 4000,
+      "torque": 410
+     },
+     {
+      "rpm": 4600,
+      "torque": 424
+     },
+     {
+      "rpm": 5200,
+      "torque": 410
+     },
+     {
+      "rpm": 5900,
+      "torque": 383
+     },
+     {
+      "rpm": 6500,
+      "torque": 330
+     }
+    ],
+    "dynoBasis": "crank"
+   },
+   "vehicle": {
+    "weightLb": 3200,
+    "drivetrainLoss": 0.11,
+    "grip": 1.3,
+    "drive": "rear",
+    "driveWeightFraction": 0.5,
+    "cgHeightIn": 20,
+    "wheelbaseIn": 105,
+    "dragCoefficient": 0.35,
+    "frontalAreaFt2": 22,
+    "rollingResistance": 0.015,
+    "shiftTimeS": 0.15,
+    "launchRpm": 3500,
+    "clutchReleaseS": 0.25,
+    "rolloutIn": 11.5,
+    "knownSixtyFtS": 1.62
+   },
+   "customTransmissions": [],
+   "autoSetups": {}
+  }
+ },
+ {
+  "version": "0.4.0",
+  "token": "AQoFVEg0MDASCFN0YW5kYXJkGAEqCTI3NS82MFIxNUgBUhUIAToPCYBAEYCHBhnR4gQhgNgEQAFqEAEFVEg0MDAICYCNBCgAMAE",
+  "settings": {
+   "selectedModel": "TH400",
+   "selectedVariantName": "Standard",
+   "tireMode": "size",
+   "tireDiameterIn": 26,
+   "tireSize": "275/60R15",
+   "axleRatio": 3.73,
+   "shiftRpm": 6500,
+   "gearsetView": "cruising",
+   "chartView": "full",
+   "power": {
+    "method": "peak",
+    "trapDistance": "quarter",
+    "trapMph": 110,
+    "trapEighthMph": 88,
+    "trapWeightLb": 3700,
+    "trapPeakRpm": 6000,
+    "peak": {
+     "peakHp": 512,
+     "peakHpRpm": 6200,
+     "peakTorque": 488.5,
+     "peakTorqueRpm": 4800
+    },
+    "peakBasis": "wheel",
+    "dyno": [
+     {
+      "rpm": 2000,
+      "torque": 330
+     },
+     {
+      "rpm": 3000,
+      "torque": 375
+     },
+     {
+      "rpm": 4000,
+      "torque": 410
+     },
+     {
+      "rpm": 4600,
+      "torque": 424
+     },
+     {
+      "rpm": 5200,
+      "torque": 410
+     },
+     {
+      "rpm": 5900,
+      "torque": 383
+     },
+     {
+      "rpm": 6500,
+      "torque": 330
+     }
+    ],
+    "dynoBasis": "crank"
+   },
+   "vehicle": {
+    "weightLb": 3700,
+    "drivetrainLoss": 0.11,
+    "grip": 1,
+    "drive": "rear",
+    "driveWeightFraction": 0.5,
+    "cgHeightIn": 20,
+    "wheelbaseIn": 105,
+    "dragCoefficient": 0.35,
+    "frontalAreaFt2": 22,
+    "rollingResistance": 0.015,
+    "shiftTimeS": 0.15,
+    "launchRpm": 3500,
+    "clutchReleaseS": 0.25,
+    "rolloutIn": 11.5,
+    "knownSixtyFtS": null
+   },
+   "customTransmissions": [],
+   "autoSetups": {
+    "TH400": {
+     "stallRpm": 4200,
+     "stallTorqueRatio": 2,
+     "couplingSlip": 0.06,
+     "lockup": "off",
+     "lockupCapable": false,
+     "launch": "footbrake",
+     "transbrakeRpm": 3000,
+     "footbrakeRpm": 2200,
+     "shiftTimeS": 0.2,
+     "shiftLoss": 0.15,
+     "drivetrainLoss": 0.13
+    }
+   }
+  }
+ },
+ {
+  "version": "0.4.0",
+  "token": "AQoKTXkgNi1zcGVlZBIGQ3VzdG9tQABSKAgCSiIEBwmA9wIRgDIICcCyBBGxuQQHCYDuBRGgMwcJgOsGEeArUAFaCCACQfIDUcMBYjQCGgoKTXkgNi1zcGVlZBoMBpIl8hnyERDCCoIHFwoHR2xpZGUgMhABGgQCghYQIgQJgPEE",
+  "settings": {
+   "selectedModel": "My 6-speed",
+   "selectedVariantName": "Custom",
+   "tireMode": "diameter",
+   "tireDiameterIn": 26,
+   "tireSize": "275/55R15",
+   "axleRatio": 3.73,
+   "shiftRpm": 6500,
+   "gearsetView": "ladder",
+   "chartView": "shifts",
+   "power": {
+    "method": "dyno",
+    "trapDistance": "quarter",
+    "trapMph": 110,
+    "trapEighthMph": 88,
+    "trapWeightLb": 3700,
+    "trapPeakRpm": 6000,
+    "peak": {
+     "peakHp": 430,
+     "peakHpRpm": 5900,
+     "peakTorque": 424,
+     "peakTorqueRpm": 4600
+    },
+    "peakBasis": "crank",
+    "dyno": [
+     {
+      "rpm": 3000,
+      "torque": 400
+     },
+     {
+      "rpm": 4500,
+      "torque": 455.5
+     },
+     {
+      "rpm": 6000,
+      "torque": 410
+     },
+     {
+      "rpm": 7000,
+      "torque": 350
+     }
+    ],
+    "dynoBasis": "wheel"
+   },
+   "vehicle": {
+    "weightLb": 3700,
+    "drivetrainLoss": 0.11,
+    "grip": 1,
+    "drive": "awd",
+    "driveWeightFraction": 0.5,
+    "cgHeightIn": 20,
+    "wheelbaseIn": 105,
+    "dragCoefficient": 0.31,
+    "frontalAreaFt2": 22,
+    "rollingResistance": 0.012,
+    "shiftTimeS": 0.15,
+    "launchRpm": 3500,
+    "clutchReleaseS": 0.25,
+    "rolloutIn": 11.5,
+    "knownSixtyFtS": null
+   },
+   "customTransmissions": [
+    {
+     "name": "My 6-speed",
+     "kind": "manual",
+     "ratios": [
+      2.97,
+      2.07,
+      1.43,
+      1,
+      0.84,
+      0.56
+     ]
+    },
+    {
+     "name": "Glide 2",
+     "kind": "automatic",
+     "ratios": [
+      1.76,
+      1
+     ],
+     "automatic": {
+      "stallRpm": 5000,
+      "stallTorqueRatio": 2,
+      "couplingSlip": 0.06,
+      "lockup": "off",
+      "lockupCapable": true,
+      "launch": "transbrake",
+      "transbrakeRpm": 3000,
+      "footbrakeRpm": 2200,
+      "shiftTimeS": 0.2,
+      "shiftLoss": 0.15,
+      "drivetrainLoss": 0.13
+     }
+    }
+   ],
+   "autoSetups": {}
+  }
+ }
+]
