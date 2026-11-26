@@ -2,6 +2,10 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.8.2 — 2026-11-26
+
+- The body preset moved out of Advanced into the main Car inputs, renamed Aero Preset. The fields it sets stay under Advanced; when Advanced is closed, its header flashes instead.
+
 ## v0.8.1 — 2026-11-26
 
 - The default car now uses the Classic Muscle body (weight on driven axle, CG height, wheelbase, drag coefficient and frontal area).

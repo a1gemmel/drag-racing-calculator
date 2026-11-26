@@ -366,14 +366,15 @@ bookmark and post these links. When changing settings or `src/shareToken.ts`:
   Drag-limited / rpm-limited explanation is a hover tooltip on the tile (owner request; an exception to the numbers-only
   copy rule). The sim shares the force balance (`steadyForces`): it upshifts only if the next gear's steady surplus at the
   current speed is positive, else it holds the gear on the limiter, so a pass levels off at topSpeed in the same gear.
-- **Car presets (v0.8.0, owner request):** `carPresets.ts` + `components/CarPresets.tsx`: a "Preset" field (the sixth cell of the
-  Car pane's Advanced grid, after Frontal area) opens a floating menu (absolute, z-index; closes on pick, outside click, Escape) so the layout never
+- **Car presets (v0.8.0, owner request):** `carPresets.ts` + `components/CarPresets.tsx`: an "Aero Preset" field in the main Car
+  inputs (after 60 ft; v0.8.2) opens a floating menu (absolute, z-index; closes on pick, outside click, Escape) so the layout never
   shifts. Labels: Full-size truck, Corvette, Modern Muscle (average of Mustang S550 GT and 2020 Challenger R/T Scat Pack: 111.7 in, 46% rear, Cd 0.36, 24 ft², CG 21 in; Challenger silhouette), Classic Muscle,
   Classic Pony, Dragster. Silhouettes: 160 × 56 side profiles (front left), body + glass + tire/rim/hub. Owner-supplied reference
   photos: F-150, C6, 2020 Challenger and 1969 Nova (Classic Muscle) were traced (outline + glass, tyres placed by hand);
   1969 Camaro (Classic Pony) and a rear-engine dragster were drawn from their pictures. A preset sets ONLY the Advanced fields (driven-axle weight, CG height, wheelbase, Cd, frontal
-  area); presets store the rear share, converted to the front share for FWD. The fields flash (`.preset-flash`, remount via a
-  key) after a pick. Not a saved setting: the active button is whichever preset the values match. Data: C6 105.7 in, 51/49,
+  area); presets store the rear share, converted to the front share for FWD. The Advanced fields flash (`.preset-flash`, remount via a
+  key) after a pick when Advanced is open; when it's closed the Advanced header flashes (`.advanced-flash`) instead,
+  restarted by toggling the class on the same element (re-keying a `<summary>` leaves the old one first inside `<details>`). Not a saved setting: the active button is whichever preset the values match. Data: C6 105.7 in, 51/49,
   Cd 0.28 (GM); Mustang S550 GT 107.1 in, 53/47, Cd ~0.35; muscle car = 1968-72 intermediates avg (Chevelle 112 in, 56/44,
   Cd 0.42-0.47); pony car = 1967-70 avg (Camaro 108 in, 55/45, Cd 0.34 catalog -> 0.40 class); truck = F-150 SuperCrew /
   Silverado crew (145 in, Cd 0.416/~0.41, 42% rear); bracket dragster ~230 in, ~75% rear. Frontal areas (0.82 × width × height),

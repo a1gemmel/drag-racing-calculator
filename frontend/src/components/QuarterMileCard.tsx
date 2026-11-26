@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AutomaticSetup } from "../automatic";
 import type { PowerBasis, PowerCurve } from "../power";
 import type { TrackConditions } from "../appState";
@@ -92,6 +92,16 @@ export function CarInputs({
   const set = (patch: Partial<VehicleSetup>) => onVehicleChange({ ...vehicle, ...patch });
   // Bumped on each preset pick: remounting the Advanced fields replays their flash, showing what the preset set.
   const [presetFlash, setPresetFlash] = useState(0);
+  const advancedRef = useRef<HTMLDetailsElement>(null);
+  const summaryRef = useRef<HTMLElement>(null);
+  // Restart the header flash on the same element: re-keying a <summary> leaves the old one first inside <details>.
+  const flashHeader = () => {
+    const el = summaryRef.current;
+    if (!el) return;
+    el.classList.remove("advanced-flash");
+    void el.offsetWidth;
+    el.classList.add("advanced-flash");
+  };
   // Last known 60 ft typed in, kept while the user flips back to the estimate.
   const [lastKnownSixty, setLastKnownSixty] = useState(vehicle.knownSixtyFtS ?? 2.0);
   return (
@@ -141,6 +151,18 @@ export function CarInputs({
           ]}
         />
       </div>
+      <div className="field">
+        <span className="field-label">Aero Preset</span>
+        <CarPresets
+          vehicle={vehicle}
+          onApply={(patch) => {
+            set(patch);
+            // Show what changed: flash the Advanced fields if they're on screen, else the Advanced header.
+            if (advancedRef.current?.open) setPresetFlash((n) => n + 1);
+            else flashHeader();
+          }}
+        />
+      </div>
       {vehicle.knownSixtyFtS !== null ? (
         <NumberField
           label="Known 60 ft"
@@ -155,8 +177,8 @@ export function CarInputs({
           }}
         />
       ) : null}
-      <details className="advanced">
-        <summary>Advanced</summary>
+      <details className="advanced" ref={advancedRef}>
+        <summary ref={summaryRef}>Advanced</summary>
         <div className={presetFlash ? "advanced-grid preset-flash" : "advanced-grid"} key={presetFlash}>
           {vehicle.drive !== "awd" ? (
             <NumberField
@@ -173,16 +195,6 @@ export function CarInputs({
           <NumberField label="Wheelbase" unit="in" step={0.5} min={60} max={400} value={vehicle.wheelbaseIn} onCommit={(wheelbaseIn) => set({ wheelbaseIn })} />
           <NumberField label="Drag coefficient" step={0.01} min={0.1} max={1.5} value={vehicle.dragCoefficient} onCommit={(dragCoefficient) => set({ dragCoefficient })} />
           <NumberField label="Frontal area" unit="ft²" step={0.5} min={5} max={80} value={vehicle.frontalAreaFt2} onCommit={(frontalAreaFt2) => set({ frontalAreaFt2 })} />
-          <div className="field">
-            <span className="field-label">Preset</span>
-            <CarPresets
-              vehicle={vehicle}
-              onApply={(patch) => {
-                set(patch);
-                setPresetFlash((n) => n + 1);
-              }}
-            />
-          </div>
         </div>
       </details>
     </>
