@@ -273,6 +273,8 @@ section as release notes. (Older `build-1`/`build-2` releases predate versioning
   toggle. The trap-speed estimate is crank hp (shown as whp · hp crank). Drivetrain loss is applied
   only to crank curves; the loss field is disabled for wheel curves.
 - **Default car:** 26" tire, 3.73 axle, 3,700 lb, trap-speed power at 110 mph, Muncie M20 66-70 wide ratio.
+  Since v0.8.1 (owner request) its Advanced fields come from the Classic Muscle preset (44% rear, 21 in CG, 114 in, Cd 0.45,
+  23 ft²) via DEFAULT_CAR in appState.ts; DEFAULT_VEHICLE (quarterMile.ts, used by sim tests and simple mode) keeps Cd 0.35.
 - **60 ft:** "Best estimate" searches launch RPM (250 rpm steps, lowest RPM wins ties within 1 ms) for the
   quickest 60 ft; launch RPM is no longer an input. "Known" binary-searches a drive-force multiplier over
   the first 60 ft (`launchScale`, 0.02-4) to hit the entered 60 ft; the rest of the pass runs normally

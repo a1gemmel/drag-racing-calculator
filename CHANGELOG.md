@@ -2,6 +2,10 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.8.1 — 2026-11-26
+
+- The default car now uses the Classic Muscle body (weight on driven axle, CG height, wheelbase, drag coefficient and frontal area).
+
 ## v0.8.0 — 2026-11-26
 
 - Body presets under Advanced in the Car pane: a Preset button opens a menu of Full-size truck, Corvette, Modern Muscle, Classic Muscle, Classic Pony and Dragster, each with a silhouette. A preset sets only the Advanced fields (weight on driven axle, CG height, wheelbase, drag coefficient, frontal area), and those fields flash so you can see what changed.

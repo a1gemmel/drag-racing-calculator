@@ -1,6 +1,7 @@
 import { GENERIC_AUTOMATIC, type AutomaticSetup } from "./automatic";
 import { MAX_GEARS, type CustomTransmission } from "./customTransmissions";
 import { DEFAULT_POWER, type PowerState } from "./power";
+import { CAR_PRESETS, presetPatch } from "./carPresets";
 import { DEFAULT_VEHICLE, type VehicleSetup } from "./quarterMile";
 import { DEFAULT_SIMPLE, type SimpleSetup } from "./simplePass";
 import { ALL_SCOPE } from "./transmissionSearch";
@@ -73,7 +74,8 @@ export const DEFAULT_CAR: CarSetup = {
   axleRatio: 3.73,
   shiftRpm: 6500,
   power: DEFAULT_POWER,
-  vehicle: DEFAULT_VEHICLE,
+  // The default car is a classic muscle car: its Advanced fields (weight split, CG, wheelbase, aero) come from that preset.
+  vehicle: { ...DEFAULT_VEHICLE, ...presetPatch(CAR_PRESETS.find((preset) => preset.id === "muscle")!, "rear") },
   autoSetups: {},
 };
 

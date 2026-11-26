@@ -122,7 +122,11 @@ describe("share token round trip", () => {
   });
 
   it("is short", () => {
-    expect(settingsToToken({ ...DEFAULT_SETTINGS, cars: [{ ...DEFAULT_CAR, axleRatio: 4.1 }] }).length).toBeLessThanOrEqual(8);
+    // Bases are frozen, so the defaults themselves cost a few bytes once app defaults move away from them
+    // (v0.8.1: the default car's Classic Muscle body); one changed setting adds only a few characters.
+    const base = settingsToToken(DEFAULT_SETTINGS).length;
+    expect(base).toBeLessThanOrEqual(32);
+    expect(settingsToToken({ ...DEFAULT_SETTINGS, cars: [{ ...DEFAULT_CAR, axleRatio: 4.1 }] }).length).toBeLessThanOrEqual(base + 6);
   });
 
   it("defaults to standard air", () => {
