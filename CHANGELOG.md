@@ -2,6 +2,43 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.7.0 — 2026-11-26
+
+- Tremec TR-9080 DCT (dual-clutch, 8-speed): C8 Corvette 8-speed.
+- Tremec TR6060 (manual, 6-speed): Challenger / Charger R/T, Scat Pack, 392 (2009-23); Challenger Hellcat (2015-23) / Viper (2013-17); Camaro SS (2010-15) / HSV (2008-13); Camaro ZL1 (2012-15) / CTS-V (2009-15) / CT4-V Blackwing; Camaro SS / ZL1 (2016-24) / Corvette C6 (2008-13); Corvette C6 Z51 (2008-09); Corvette C6 ZR1 (2009-13); CT5-V Blackwing; Shelby GT500 (2007-10); Shelby GT500 (2011-12); Shelby GT500 (2013-14); Pontiac G8 GXP (2009); Chevrolet SS (2014-17).
+- Tremec TR-6070 (manual, 7-speed): Corvette C7 (2014-19); Corvette C7 Z51 / Grand Sport; Corvette C7 Z06 / ZR1 (2015-19).
+- Tremec TR-3160 (manual, 6-speed): Mustang GT350 / Mach 1 / Dark Horse (2016+); Camaro 2.0T / V6 (2016-24); Cadillac ATS.
+- Getrag MT82 (manual, 6-speed): Mustang GT 5.0 (2011-17); Mustang V6 (2011-14); Mustang EcoBoost (2015-23); MT82-D4 Mustang GT (2018+).
+- GM Muncie M21 (manual, 4-speed): Close Ratio (1963-74).
+- GM Muncie M22 (manual, 4-speed): Rock Crusher (1967-74).
+- Ford Toploader (manual, 4-speed): Close Ratio (1964-73); Wide Ratio (1964-73).
+- Chrysler A833 (manual, 4-speed): Close Ratio (340 / 383 / 440 / Hemi); Wide Ratio (1964-79); Extra Wide (1964-66 A-body); Overdrive (1975-79 A-body).
+- Borg-Warner T-10 (manual, 4-speed): U set; W set; X set; Y set.
+- Doug Nash 4+3 (manual, 4-speed): Corvette C4 (1984-88), overdrive off.
+- ZF S6-40 (manual, 6-speed): Corvette C4 ZF6 (1989-96).
+- Toyota W58 (manual, 5-speed): Supra A60 / A70 / A80 non-turbo, SC300.
+- Toyota R154 (manual, 5-speed): Supra A70 Turbo (1987-92), JZ chassis.
+- Getrag V160 / V161 (manual, 6-speed): V160 Supra A80 Twin Turbo; V161 (later JDM).
+- Mazda RX-7 5-speed (manual, 5-speed): FD3S (1992-2002) / FC3S Turbo II (1987-91).
+- Subaru TY856 STI 6-speed (manual, 6-speed): STI (2004-07); STI (2008+).
+- Subaru TY75 WRX 5-speed (manual, 5-speed): WRX 2.0T (2002-05); WRX (2008-14).
+- Subaru WRX 6-speed (manual, 6-speed): WRX (2015-21).
+- Toyota TL70 (manual, 6-speed): BRZ / FR-S / GT86 (2013-20).
+- Honda K-series manual (manual, 5- and 6-speed): Civic Si EP3 5-speed (2002-05); RSX base 5-speed (2002-04); RSX Type-S 6-speed (2002-06); Civic Si FA5 / FG2 6-speed (2006-11); JDM DC5 / EP3 Type R 6-speed; TSX 6-speed (2004-08).
+- Honda B-series manual (manual, 5-speed): Integra Type R / Civic Si (B16); Integra GSR (1994-2001); Integra LS (B18B1).
+- GM 200-4R (automatic, 4-speed): THM 200-4R.
+- GM 6L80 (automatic, 6-speed): Hydra-Matic 6L80.
+- Mercedes-Benz NAG1 (automatic, 5-speed): W5A580 (Chrysler / Dodge / Jeep).
+- Ford 6R80 (automatic, 6-speed): 6R80 (2011-17 Mustang, F-150).
+- Aisin A340E (automatic, 4-speed): Supra A70 / A80, SC300 / SC400.
+- Chrysler A904 TorqueFlite (automatic, 3-speed): A904 standard; Wide ratio (A904 WR / A998 / A999).
+- Ford FMX (automatic, 3-speed): FMX (1968-79).
+- GM 700R4 / 4L60 (automatic, 4-speed): 700R4 / 4L60 (1982-93).
+- ZF 8HP90 (automatic, 8-speed): 8HP90 (Hellcat / Redeye).
+- GM 10L80 / 10L90 (automatic, 10-speed): 10L80 Camaro SS / 10L90 ZL1, CT4-V, CT5-V.
+- T56 variant names now list the C6 Corvette and GTO that use them; Muncie M20 gained reverse ratios.
+- Dual-clutch transmissions launch on the clutch like a manual and keep driving through every upshift; the manual shift-time field is hidden for them.
+
 ## v0.6.0 — 2026-11-25
 
 - Simple version for phones: horsepower, race weight and tires (plus an optional known 60 ft) give a simulated quarter-mile pass with 60 ft, 1/8 and 1/4 times, a timeslip and a speed chart. No gears to set up; a 15% driveline loss is used.

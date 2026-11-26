@@ -8,6 +8,8 @@ export type TransmissionVariant = {
   reverse_ratio?: number | null;
   /** Where the ratios came from: a URL or citation. */
   source?: string;
+  /** Names this variant had in released versions, so saved settings and share links still find it. */
+  formerNames?: string[];
 };
 
 export type TransmissionKind = "manual" | "automatic";
@@ -20,6 +22,11 @@ export type TransmissionFamily = {
   kind?: TransmissionKind;
   /** Converter and launch defaults for automatics. */
   automatic?: AutomaticSetup;
+  /**
+   * Dual-clutch manual: clutch launch like a manual, but upshifts hand drive from one clutch to the
+   * other with no coasting gap (see quarterMile.ts).
+   */
+  dualClutch?: boolean;
 };
 
 export const familyKind = (family: TransmissionFamily): TransmissionKind => family.kind ?? "manual";
@@ -75,7 +82,47 @@ const WIKIPEDIA_TORQUEFLITE = "TorqueFlite (A727): https://en.wikipedia.com/wiki
 const DIESELHUB_727 = "DieselHub, TorqueFlite A727: https://www.dieselhub.com/transmission/torqueflite-727.html";
 const WIKIPEDIA_10SPEED = "Ford-GM 10-speed automatic (10R80): https://en.wikipedia.org/wiki/Ford%E2%80%93GM_10-speed_automatic_transmission";
 const GM_8L90 = "GM Powered Solutions, 8L90: https://poweredsolutions.gm.com/products/8l90-8-speed-transmission/";
+const CORVETTE_MAG_TR9080 =
+  "Corvette Magazine, Two Clutches, No Waiting (TR-9080 ratios 2.91 / 1.76 / 1.22 / 0.88 / 0.65 / 0.51 / 0.40 / 0.33, reverse 2.63): https://www.corvette-mag.com/issues/135/articles/two-clutches-no-waiting";
+const LSX_TR9080 = "LSX Magazine, Inside the dual-clutch transmission that redefined the Corvette: TREMEC's TR-9080: https://www.lsxmag.com/?p=24296";
+const WIKIPEDIA_5GTRONIC = "Mercedes-Benz 5G-Tronic (W5A580 / NAG1): https://www.wikipedia.org/wiki/5G-TRONIC";
+const GEARSTAR_NAG1 = "Gearstar, Overview of the NAG1 transmission: https://gearstar.com/blog/overview-of-the-nag1-transmission";
+const GM_6L80_SPECS = "Global Transmission Parts, 6L80 / 6L90 general specs (4.03 / 2.36 / 1.53 / 1.15 / 0.85 / 0.67, reverse 3.06): https://globaltransmissionparts.com/6l80-6l90-general-specs";
+const JEGS_6L80 = "JEGS, Chevrolet Performance 6L80-E SuperMatic (lists 1st as 4.02): https://www.jegs.com/i/chevrolet-performance-809-19417102-6l80-e-supermatic-six-speed-automatic-transmission";
+const TH700R4HQ_2004R = "700R4 Transmission HQ, 200-4R identification and specs: https://www.700r4transmissionhq.com/gm-automatic-transmissions/2004r/";
+const ITSTILLRUNS_2004R = "It Still Runs, 200R4 technical information: https://itstillruns.com/200r4-technical-information-7805525.html";
 const CARS_8L90 = "Cars.com, Hydra-Matic 8L90: https://www.cars.com/articles/gm-stuffs-hydra-matic-8l90-with-technology-453444";
+
+// v0.7.0 additions.
+const WIKIPEDIA_TR6060 = "Tremec TR-6060 transmission: https://en.wikipedia.org/wiki/Tremec_TR-6060_transmission";
+const TORQUENEWS_CHALLENGER = "Torque News, 2020 Dodge Challenger transmission options: https://www.torquenews.com/106/2020-dodge-challenger-details-six-different-transmission-options";
+const WIKIPEDIA_TR6070 = "Tremec TR-6070 transmission: https://en.wikipedia.org/wiki/Tremec_TR-6070_transmission";
+const WIKIPEDIA_TR3160 = "Tremec TR-3160 transmission: https://en.wikipedia.org/wiki/Tremec_TR-3160_transmission";
+const FORD_MUSTANG_2014_MANUAL = "Ford Mustang 2014 workshop manual, MT82 specifications: https://reichwein.it/manuals/Mustang_2014/Workshop_Manual_Wiring_Diagrams/Resources/Service_Manual/seb83a01.htm";
+const FORD_2016_MUSTANG_SPECS = "Ford, 2016 Mustang technical specifications: https://media.ford.com/content/dam/lincolnmedia/lna/us/product/2016/2016-Ford-Mustang-Tech-Specs.pdf";
+const FORD_2024_MUSTANG_SPECS = "Ford, 2024 Mustang technical specifications: https://ffperformance.co/wp-content/uploads/2023/04/2024-mustang-technical-specifications.pdf";
+const MUSTANG6G_D4 = "Mustang6G forum, MT82-D4 ratios relayed from Ford Techline: https://www.mustang6g.com/forums/goto/post?id=2061994";
+const WIKIPEDIA_TOPLOADER = "Ford Toploader transmission: https://en.wikipedia.org/wiki/Ford_Toploader_transmission";
+const MACS_TOPLOADER = "Mac's Motor City Garage, Secrets of the Ford Toploader 4-speed: https://macsmotorcitygarage.com/secrets-of-the-ford-toploader-4-speed-1964-73/";
+const GEARVENDORS_A833 = "Gear Vendors, Chrysler A833 4-speed: https://www.gearvendors.com/?p=1221";
+const ADVANCE_T10 = "Advance Adapters, Borg-Warner T10 (ratio table by gear set letter): https://advanceadapters.com/4-borg-warner-t10";
+const CORVETTEFORUM_4PLUS3 = "CorvetteForum, Doug Nash 4+3 ratios (overdrive ratio not settled; forum only): https://www.corvetteforum.com/forums/c4-tech-performance/521581-4-3-ratios.html";
+const CORVETTEFORUM_ZF6 = "CorvetteForum, ZF6 ratios quoting ZF documentation (forum; some posts list 3rd 1.30, 6th 0.49): https://www.corvetteforum.com/forums/c4-tech-performance/207199-zf6-ratios.html";
+const WIKIPEDIA_TOYOTA_W = "Toyota W transmission (W58): https://en.wikipedia.org/wiki/Toyota_W_transmission";
+const WIKIPEDIA_TOYOTA_R = "Toyota R transmission (R154): https://en.wikipedia.org/wiki/Toyota_R_transmission";
+const MKIVSUPRA_V160 = "MKIVSupra.net, 6-speed V160 / V161 differences (forum; a parts listing agrees on the V160): https://mkivsupra.net/topic/1375-6-speed-v160-v161-differences";
+const RX7NZ_JDM_SPEC = "RX7.net.nz, Mazda JDM FD3S specifications: https://www.rx7.net.nz/jpnspc.htm";
+const JDMBUYSELL_FC = "JDMBuySell, FC3S RX-7: https://www.jdmbuysell.com/learn/mazda/rx-7/fc3s/";
+const SUBARU_2004_MANUAL = "Subaru 2004 Impreza owner's manual, specifications: https://www.manualsdir.com/manuals/151332/subaru-impreza-2004.html?page=16";
+const SUBARU_2012_WRX_STI = "Subaru Canada, 2012 WRX / STI specifications: https://www.subaru.ca/content/7907/media/en-ca/download/2012wrxsti_pg_enfinal-vi.pdf";
+const SUBARU_2018_WRX = "Subaru, 2018 WRX specifications: https://s3.amazonaws.com/subarumedia.iconicweb.com/mediasite/specs/2018_WRX_specs-FINAL15112017.pdf";
+const SUBARU_2013_BRZ = "Subaru, 2013 BRZ specifications: https://s3.amazonaws.com/subarumedia.iconicweb.com/mediasite/specs/2013_SubaruBRZspecs.pdf";
+const HYBRID_RACING_K = "Hybrid Racing, K-series transmission guide (vendor chart): https://www.hybrid-racing.com/blogs/hybrid-racing/k-series-transmission-guide";
+const HONDATECH_B = "Honda-Tech, B-series transmission guide (forum): https://honda-tech.com/forums/sitemap/t-2931549.html";
+const WIKIPEDIA_6R = "Ford 6R transmission (6R60 / 6R80 ratios): https://en.wikipedia.org/wiki/Ford_6R_transmission";
+const WIKIPEDIA_TOYOTA_A = "Toyota A transmission (A340E): https://en.wikipedia.org/wiki/Toyota_A_transmission";
+const WIKIPEDIA_FMX = "Ford FMX transmission: https://en.wikipedia.org/wiki/Ford_FMX_transmission";
+const WIKIPEDIA_4L60 = "GM 4L60 transmission (700R4): https://en.wikipedia.org/wiki/GM_4L60_transmission";
 
 export const transmissionFamilies: TransmissionFamily[] = [
   {
@@ -331,14 +378,16 @@ export const transmissionFamilies: TransmissionFamily[] = [
         source: WIKIPEDIA_T56,
       },
       {
-        name: "GM F-body (1994-2002) / Corvette C5 MM6 (1997-2004)",
+        name: "GM F-body (1994-2002) / Corvette C5 MM6 (1997-2004) / C6 MN6 (2005-07)",
+        formerNames: ["GM F-body (1994-2002) / Corvette C5 MM6 (1997-2004)"],
         gear_ratios: [2.66, 1.78, 1.3, 1.0, 0.74, 0.5],
         application_manufacturers: ["GM"],
         reverse_ratio: 2.9,
         source: WIKIPEDIA_T56,
       },
       {
-        name: "Corvette C5 Z06 MZ6 / Cadillac CTS-V (M12)",
+        name: "Corvette C5 Z06 / C6 Z51 MZ6 (2005-07) / CTS-V (M12) / GTO (2004-06)",
+        formerNames: ["Corvette C5 Z06 MZ6 / Cadillac CTS-V (M12)"],
         gear_ratios: [2.97, 2.07, 1.43, 1.0, 0.84, 0.56],
         application_manufacturers: ["GM"],
         reverse_ratio: 2.9,
@@ -480,9 +529,9 @@ export const transmissionFamilies: TransmissionFamily[] = [
     manufacturer: "GM",
     model: "Muncie M20",
     variants: [
-      { name: "63-65 Wide Ratio", gear_ratios: [2.56, 1.91, 1.48, 1.0], application_manufacturers: ["GM"], source: RANDYS_MUNCIE },
-      { name: "66-70 Wide Ratio", gear_ratios: [2.52, 1.88, 1.46, 1.0], application_manufacturers: ["GM"], source: RANDYS_MUNCIE },
-      { name: "71-74 Wide Ratio", gear_ratios: [2.52, 1.88, 1.46, 1.0], application_manufacturers: ["GM"], source: RANDYS_MUNCIE },
+      { name: "63-65 Wide Ratio", gear_ratios: [2.56, 1.91, 1.48, 1.0], application_manufacturers: ["GM"], reverse_ratio: 3.16, source: RANDYS_MUNCIE },
+      { name: "66-70 Wide Ratio", gear_ratios: [2.52, 1.88, 1.46, 1.0], application_manufacturers: ["GM"], reverse_ratio: 3.11, source: RANDYS_MUNCIE },
+      { name: "71-74 Wide Ratio", gear_ratios: [2.52, 1.88, 1.46, 1.0], application_manufacturers: ["GM"], reverse_ratio: 3.11, source: RANDYS_MUNCIE },
     ],
   },
   {
@@ -537,6 +586,204 @@ export const transmissionFamilies: TransmissionFamily[] = [
         reverse_ratio: 3.446,
         source: `${MOTORMATCHUP_350Z}; ${MY350Z_RATIOS} (no Nissan factory document found; sources agree)`,
       },
+    ],
+  },
+  {
+    manufacturer: "Tremec",
+    model: "TR-9080 DCT",
+    dualClutch: true,
+    variants: [
+      {
+        name: "C8 Corvette 8-speed",
+        gear_ratios: [2.91, 1.76, 1.22, 0.88, 0.65, 0.51, 0.4, 0.33],
+        application_manufacturers: ["Chevrolet"],
+        reverse_ratio: 2.63,
+        source: `${CORVETTE_MAG_TR9080}; ${LSX_TR9080} (transaxle final drive is the axle ratio: 5.17 on the Z51 Stingray)`,
+      },
+    ],
+  },
+
+  {
+    manufacturer: "Tremec",
+    model: "TR6060",
+    variants: [
+      { name: "Challenger / Charger R/T, Scat Pack, 392 (2009-23)", gear_ratios: [2.97, 2.1, 1.46, 1.0, 0.74, 0.5], application_manufacturers: ["Dodge"], reverse_ratio: 2.9, source: `${TORQUENEWS_CHALLENGER}; ${WIKIPEDIA_TR6060} (Wikipedia lists reverse 3.28)` },
+      { name: "Challenger Hellcat (2015-23) / Viper (2013-17)", gear_ratios: [2.26, 1.58, 1.19, 1.0, 0.77, 0.63], application_manufacturers: ["Dodge"], reverse_ratio: 2.9, source: `${TORQUENEWS_CHALLENGER}; ${WIKIPEDIA_TR6060} (Wikipedia lists 5th 0.76)` },
+      { name: "Camaro SS (2010-15) / HSV (2008-13)", gear_ratios: [3.01, 2.07, 1.43, 1.0, 0.84, 0.57], application_manufacturers: ["Chevrolet", "Holden"], reverse_ratio: 3.28, source: WIKIPEDIA_TR6060 },
+      { name: "Camaro ZL1 (2012-15) / CTS-V (2009-15) / CT4-V Blackwing", gear_ratios: [2.66, 1.78, 1.3, 1.0, 0.8, 0.63], application_manufacturers: ["Chevrolet", "Cadillac"], reverse_ratio: 2.9, source: WIKIPEDIA_TR6060 },
+      { name: "Camaro SS / ZL1 (2016-24) / Corvette C6 (2008-13)", gear_ratios: [2.66, 1.78, 1.3, 1.0, 0.74, 0.5], application_manufacturers: ["Chevrolet"], reverse_ratio: 2.9, source: WIKIPEDIA_TR6060 },
+      { name: "Corvette C6 Z51 (2008-09)", gear_ratios: [2.97, 2.07, 1.43, 1.0, 0.71, 0.57], application_manufacturers: ["Chevrolet"], reverse_ratio: 3.28, source: WIKIPEDIA_TR6060 },
+      { name: "Corvette C6 ZR1 (2009-13)", gear_ratios: [2.29, 1.61, 1.21, 1.0, 0.82, 0.68], application_manufacturers: ["Chevrolet"], reverse_ratio: 3.11, source: WIKIPEDIA_TR6060 },
+      { name: "CT5-V Blackwing", gear_ratios: [2.29, 1.61, 1.21, 1.0, 0.82, 0.54], application_manufacturers: ["Cadillac"], reverse_ratio: 3.11, source: WIKIPEDIA_TR6060 },
+      { name: "Shelby GT500 (2007-10)", gear_ratios: [2.97, 1.78, 1.3, 1.0, 0.8, 0.63], application_manufacturers: ["Ford"], reverse_ratio: 2.9, source: `${WIKIPEDIA_TR6060}; ${MODERN_DRIVELINE_MUSTANG} (reverse 2.90 per Wikipedia, 3.28 per Modern Driveline)` },
+      { name: "Shelby GT500 (2011-12)", gear_ratios: [2.97, 1.78, 1.3, 1.0, 0.74, 0.5], application_manufacturers: ["Ford"], reverse_ratio: 3.28, source: `${MODERN_DRIVELINE_MUSTANG}; ${WIKIPEDIA_TR6060} (Wikipedia lists reverse 3.98)` },
+      { name: "Shelby GT500 (2013-14)", gear_ratios: [2.66, 1.82, 1.3, 1.0, 0.77, 0.5], application_manufacturers: ["Ford"], reverse_ratio: 2.9, source: `${MODERN_DRIVELINE_MUSTANG}; ${WIKIPEDIA_TR6060} (Wikipedia lists reverse 3.98)` },
+      { name: "Pontiac G8 GXP (2009)", gear_ratios: [2.97, 2.1, 1.46, 1.0, 0.71, 0.56], application_manufacturers: ["Pontiac"], reverse_ratio: 3.28, source: WIKIPEDIA_TR6060 },
+      { name: "Chevrolet SS (2014-17)", gear_ratios: [3.01, 2.07, 1.43, 1.0, 0.71, 0.57], application_manufacturers: ["Chevrolet"], reverse_ratio: 3.28, source: WIKIPEDIA_TR6060 },
+    ],
+  },
+  {
+    manufacturer: "Tremec",
+    model: "TR-6070",
+    variants: [
+      { name: "Corvette C7 (2014-19)", gear_ratios: [2.66, 1.78, 1.3, 1.0, 0.74, 0.5, 0.42], application_manufacturers: ["Chevrolet"], reverse_ratio: 2.9, source: WIKIPEDIA_TR6070 },
+      { name: "Corvette C7 Z51 / Grand Sport", gear_ratios: [2.97, 2.07, 1.43, 1.0, 0.71, 0.57, 0.48], application_manufacturers: ["Chevrolet"], reverse_ratio: 2.9, source: WIKIPEDIA_TR6070 },
+      { name: "Corvette C7 Z06 / ZR1 (2015-19)", gear_ratios: [2.29, 1.61, 1.21, 1.0, 0.82, 0.68, 0.45], application_manufacturers: ["Chevrolet"], reverse_ratio: 2.7, source: WIKIPEDIA_TR6070 },
+    ],
+  },
+  {
+    manufacturer: "Tremec",
+    model: "TR-3160",
+    variants: [
+      { name: "Mustang GT350 / Mach 1 / Dark Horse (2016+)", gear_ratios: [3.25, 2.23, 1.61, 1.24, 1.0, 0.63], application_manufacturers: ["Ford"], reverse_ratio: 2.95, source: `${WIKIPEDIA_TR3160}; ${MODERN_DRIVELINE_MUSTANG}` },
+      { name: "Camaro 2.0T / V6 (2016-24)", gear_ratios: [4.4, 2.59, 1.8, 1.34, 1.0, 0.75], application_manufacturers: ["Chevrolet"], reverse_ratio: 3.99, source: WIKIPEDIA_TR3160 },
+      { name: "Cadillac ATS", gear_ratios: [4.12, 2.62, 1.81, 1.3, 1.0, 0.8], application_manufacturers: ["Cadillac"], reverse_ratio: 3.75, source: WIKIPEDIA_TR3160 },
+    ],
+  },
+  {
+    manufacturer: "Getrag",
+    model: "MT82",
+    variants: [
+      { name: "Mustang GT 5.0 (2011-17)", gear_ratios: [3.66, 2.43, 1.69, 1.31, 1.0, 0.65], application_manufacturers: ["Ford"], reverse_ratio: 3.32, source: `${FORD_MUSTANG_2014_MANUAL}; ${MODERN_DRIVELINE_MUSTANG} (Modern Driveline rounds 4th to 1.32)` },
+      { name: "Mustang V6 (2011-14)", gear_ratios: [4.24, 2.54, 1.66, 1.24, 1.0, 0.7], application_manufacturers: ["Ford"], reverse_ratio: 3.84, source: FORD_MUSTANG_2014_MANUAL },
+      { name: "Mustang EcoBoost (2015-23)", gear_ratios: [4.236, 2.538, 1.665, 1.238, 1.0, 0.704], application_manufacturers: ["Ford"], reverse_ratio: 3.84, source: `${FORD_2016_MUSTANG_SPECS} (reverse from the V6 manual: ${FORD_MUSTANG_2014_MANUAL})` },
+      { name: "MT82-D4 Mustang GT (2018+)", gear_ratios: [3.237, 2.104, 1.422, 1.0, 0.814, 0.622], application_manufacturers: ["Ford"], reverse_ratio: null, source: `${FORD_2024_MUSTANG_SPECS}; ${MUSTANG6G_D4} (reverse not found)` },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "Muncie M21",
+    variants: [
+      { name: "Close Ratio (1963-74)", gear_ratios: [2.2, 1.64, 1.28, 1.0], application_manufacturers: ["GM"], reverse_ratio: 2.27, source: RANDYS_MUNCIE },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "Muncie M22",
+    variants: [
+      { name: "Rock Crusher (1967-74)", gear_ratios: [2.2, 1.64, 1.28, 1.0], application_manufacturers: ["GM"], reverse_ratio: 2.27, source: RANDYS_MUNCIE },
+    ],
+  },
+  {
+    manufacturer: "Ford",
+    model: "Toploader",
+    variants: [
+      { name: "Close Ratio (1964-73)", gear_ratios: [2.32, 1.69, 1.29, 1.0], application_manufacturers: ["Ford", "Mercury"], reverse_ratio: null, source: `${WIKIPEDIA_TOPLOADER}; ${MACS_TOPLOADER} (reverse not found)` },
+      { name: "Wide Ratio (1964-73)", gear_ratios: [2.78, 1.93, 1.36, 1.0], application_manufacturers: ["Ford", "Mercury"], reverse_ratio: null, source: `${WIKIPEDIA_TOPLOADER}; ${MACS_TOPLOADER} (reverse not found)` },
+    ],
+  },
+  {
+    manufacturer: "Chrysler",
+    model: "A833",
+    variants: [
+      { name: "Close Ratio (340 / 383 / 440 / Hemi)", gear_ratios: [2.44, 1.77, 1.34, 1.0], application_manufacturers: ["Dodge", "Plymouth"], reverse_ratio: null, source: `${GEARVENDORS_A833} (reverse not found)` },
+      { name: "Wide Ratio (1964-79)", gear_ratios: [2.66, 1.91, 1.39, 1.0], application_manufacturers: ["Dodge", "Plymouth"], reverse_ratio: null, source: `${GEARVENDORS_A833} (reverse not found)` },
+      { name: "Extra Wide (1964-66 A-body)", gear_ratios: [3.09, 1.92, 1.4, 1.0], application_manufacturers: ["Dodge", "Plymouth"], reverse_ratio: null, source: `${GEARVENDORS_A833} (reverse not found)` },
+      { name: "Overdrive (1975-79 A-body)", gear_ratios: [3.09, 1.67, 1.0, 0.73], application_manufacturers: ["Dodge", "Plymouth"], reverse_ratio: null, source: `${GEARVENDORS_A833} (reverse not found)` },
+    ],
+  },
+  {
+    manufacturer: "Borg-Warner",
+    model: "T-10",
+    variants: [
+      { name: "U set", gear_ratios: [3.42, 2.28, 1.46, 1.0], application_manufacturers: ["GM", "Ford", "AMC"], reverse_ratio: 3.33, source: ADVANCE_T10 },
+      { name: "W set", gear_ratios: [2.64, 1.75, 1.33, 1.0], application_manufacturers: ["GM", "Ford", "AMC"], reverse_ratio: 2.71, source: ADVANCE_T10 },
+      { name: "X set", gear_ratios: [2.43, 1.61, 1.23, 1.0], application_manufacturers: ["GM", "Ford", "AMC"], reverse_ratio: 2.49, source: ADVANCE_T10 },
+      { name: "Y set", gear_ratios: [2.88, 1.75, 1.33, 1.0], application_manufacturers: ["GM", "Ford", "AMC"], reverse_ratio: 2.49, source: ADVANCE_T10 },
+    ],
+  },
+  {
+    manufacturer: "Doug Nash",
+    model: "4+3",
+    variants: [
+      { name: "Corvette C4 (1984-88), overdrive off", gear_ratios: [2.88, 1.91, 1.33, 1.0], application_manufacturers: ["Chevrolet"], reverse_ratio: 2.78, source: `${RICHMOND_SUPER_T10} (2.88 CC set: the 4+3 core); ${CORVETTEFORUM_4PLUS3}` },
+    ],
+  },
+  {
+    manufacturer: "ZF",
+    model: "S6-40",
+    variants: [
+      { name: "Corvette C4 ZF6 (1989-96)", gear_ratios: [2.68, 1.8, 1.29, 1.0, 0.75, 0.5], application_manufacturers: ["Chevrolet"], reverse_ratio: 2.5, source: CORVETTEFORUM_ZF6 },
+    ],
+  },
+  {
+    manufacturer: "Toyota",
+    model: "W58",
+    variants: [
+      { name: "Supra A60 / A70 / A80 non-turbo, SC300", gear_ratios: [3.285, 1.894, 1.275, 1.0, 0.783], application_manufacturers: ["Toyota", "Lexus"], reverse_ratio: 3.768, source: WIKIPEDIA_TOYOTA_W },
+    ],
+  },
+  {
+    manufacturer: "Toyota",
+    model: "R154",
+    variants: [
+      { name: "Supra A70 Turbo (1987-92), JZ chassis", gear_ratios: [3.251, 1.955, 1.31, 1.0, 0.753], application_manufacturers: ["Toyota"], reverse_ratio: 3.18, source: WIKIPEDIA_TOYOTA_R },
+    ],
+  },
+  {
+    manufacturer: "Getrag",
+    model: "V160 / V161",
+    variants: [
+      { name: "V160 Supra A80 Twin Turbo", gear_ratios: [3.827, 2.36, 1.685, 1.312, 1.0, 0.793], application_manufacturers: ["Toyota"], reverse_ratio: 3.28, source: MKIVSUPRA_V160 },
+      { name: "V161 (later JDM)", gear_ratios: [3.724, 2.246, 1.541, 1.205, 1.0, 0.818], application_manufacturers: ["Toyota"], reverse_ratio: 3.192, source: `${MKIVSUPRA_V160} (which markets and years got the V161 is unconfirmed)` },
+    ],
+  },
+  {
+    manufacturer: "Mazda",
+    model: "RX-7 5-speed",
+    variants: [
+      { name: "FD3S (1992-2002) / FC3S Turbo II (1987-91)", gear_ratios: [3.483, 2.015, 1.391, 1.0, 0.719], application_manufacturers: ["Mazda"], reverse_ratio: 3.288, source: `${RX7NZ_JDM_SPEC}; ${JDMBUYSELL_FC} (FC Turbo II shares 1st-4th; its 5th from forum lists)` },
+    ],
+  },
+  {
+    manufacturer: "Subaru",
+    model: "TY856 STI 6-speed",
+    variants: [
+      { name: "STI (2004-07)", gear_ratios: [3.636, 2.375, 1.761, 1.346, 0.971, 0.756], application_manufacturers: ["Subaru"], reverse_ratio: 3.545, source: SUBARU_2004_MANUAL },
+      { name: "STI (2008+)", gear_ratios: [3.636, 2.235, 1.521, 1.137, 0.971, 0.756], application_manufacturers: ["Subaru"], reverse_ratio: 3.545, source: SUBARU_2012_WRX_STI },
+    ],
+  },
+  {
+    manufacturer: "Subaru",
+    model: "TY75 WRX 5-speed",
+    variants: [
+      { name: "WRX 2.0T (2002-05)", gear_ratios: [3.454, 1.947, 1.366, 0.972, 0.738], application_manufacturers: ["Subaru"], reverse_ratio: 3.333, source: SUBARU_2004_MANUAL },
+      { name: "WRX (2008-14)", gear_ratios: [3.166, 1.882, 1.296, 0.972, 0.738], application_manufacturers: ["Subaru"], reverse_ratio: 3.333, source: SUBARU_2012_WRX_STI },
+    ],
+  },
+  {
+    manufacturer: "Subaru",
+    model: "WRX 6-speed",
+    variants: [
+      { name: "WRX (2015-21)", gear_ratios: [3.454, 1.947, 1.296, 0.972, 0.78, 0.666], application_manufacturers: ["Subaru"], reverse_ratio: 3.636, source: SUBARU_2018_WRX },
+    ],
+  },
+  {
+    manufacturer: "Toyota",
+    model: "TL70",
+    variants: [
+      { name: "BRZ / FR-S / GT86 (2013-20)", gear_ratios: [3.626, 2.188, 1.541, 1.213, 1.0, 0.767], application_manufacturers: ["Subaru", "Toyota", "Scion"], reverse_ratio: 3.437, source: SUBARU_2013_BRZ },
+    ],
+  },
+  {
+    manufacturer: "Honda",
+    model: "K-series manual",
+    variants: [
+      { name: "Civic Si EP3 5-speed (2002-05)", gear_ratios: [3.062, 1.769, 1.212, 0.921, 0.738], application_manufacturers: ["Honda"], reverse_ratio: 3.583, source: HYBRID_RACING_K },
+      { name: "RSX base 5-speed (2002-04)", gear_ratios: [3.266, 1.88, 1.212, 0.921, 0.738], application_manufacturers: ["Acura"], reverse_ratio: 3.583, source: HYBRID_RACING_K },
+      { name: "RSX Type-S 6-speed (2002-06)", gear_ratios: [3.266, 2.13, 1.517, 1.147, 0.921, 0.738], application_manufacturers: ["Acura"], reverse_ratio: 3.583, source: HYBRID_RACING_K },
+      { name: "Civic Si FA5 / FG2 6-speed (2006-11)", gear_ratios: [3.267, 2.13, 1.517, 1.147, 0.921, 0.659], application_manufacturers: ["Honda"], reverse_ratio: 3.583, source: HYBRID_RACING_K },
+      { name: "JDM DC5 / EP3 Type R 6-speed", gear_ratios: [3.266, 2.13, 1.517, 1.212, 0.972, 0.78], application_manufacturers: ["Honda", "Acura"], reverse_ratio: 3.583, source: HYBRID_RACING_K },
+      { name: "TSX 6-speed (2004-08)", gear_ratios: [3.266, 1.88, 1.354, 1.027, 0.825, 0.659], application_manufacturers: ["Acura"], reverse_ratio: 3.583, source: HYBRID_RACING_K },
+    ],
+  },
+  {
+    manufacturer: "Honda",
+    model: "B-series manual",
+    variants: [
+      { name: "Integra Type R / Civic Si (B16)", gear_ratios: [3.23, 2.105, 1.458, 1.107, 0.848], application_manufacturers: ["Honda", "Acura"], reverse_ratio: 3.0, source: `${HONDATECH_B} (Type R final drive disputed: 4.40 vs 4.785)` },
+      { name: "Integra GSR (1994-2001)", gear_ratios: [3.23, 1.9, 1.36, 1.034, 0.787], application_manufacturers: ["Acura"], reverse_ratio: 3.0, source: HONDATECH_B },
+      { name: "Integra LS (B18B1)", gear_ratios: [3.23, 1.9, 1.269, 0.966, 0.714], application_manufacturers: ["Acura"], reverse_ratio: 3.0, source: HONDATECH_B },
     ],
   },
 
@@ -720,6 +967,104 @@ export const transmissionFamilies: TransmissionFamily[] = [
     automatic: automaticDefaults({ stallRpm: 2400, couplingSlip: 0.04, lockupCapable: true, lockup: "after1st", shiftTimeS: 0.15, shiftLoss: 0.1, drivetrainLoss: 0.12 }),
     variants: [
       { name: "Hydra-Matic 8L90", gear_ratios: [4.56, 2.97, 2.08, 1.69, 1.27, 1.0, 0.85, 0.65], application_manufacturers: ["Chevrolet", "GMC", "Cadillac"], reverse_ratio: 3.82, source: `${GM_8L90}; ${CARS_8L90}` },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "200-4R",
+    kind: "automatic",
+    // Lock-up clutch in 3rd/4th; stock calibrations unlock at wide-open throttle.
+    automatic: automaticDefaults({ stallRpm: 2800, couplingSlip: 0.06, lockupCapable: true, lockup: "off", shiftTimeS: 0.2, shiftLoss: 0.2, drivetrainLoss: 0.14 }),
+    variants: [
+      { name: "THM 200-4R", gear_ratios: [2.74, 1.57, 1.0, 0.67], application_manufacturers: ["Buick", "Chevrolet", "Oldsmobile", "Pontiac", "Cadillac"], reverse_ratio: 2.07, source: `${TH700R4HQ_2004R}; ${ITSTILLRUNS_2004R}` },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "6L80",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2800, couplingSlip: 0.05, lockupCapable: true, lockup: "off", shiftTimeS: 0.18, shiftLoss: 0.12, drivetrainLoss: 0.13 }),
+    variants: [
+      { name: "Hydra-Matic 6L80", gear_ratios: [4.03, 2.36, 1.53, 1.15, 0.85, 0.67], application_manufacturers: ["Chevrolet", "GMC", "Cadillac", "Pontiac"], reverse_ratio: 3.06, source: `${GM_6L80_SPECS}; ${JEGS_6L80}` },
+    ],
+  },
+  {
+    manufacturer: "Mercedes-Benz",
+    model: "NAG1",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2800, couplingSlip: 0.06, lockupCapable: true, lockup: "off", shiftTimeS: 0.2, shiftLoss: 0.15, drivetrainLoss: 0.13 }),
+    variants: [
+      {
+        name: "W5A580 (Chrysler / Dodge / Jeep)",
+        gear_ratios: [3.59, 2.19, 1.41, 1.0, 0.83],
+        application_manufacturers: ["Chrysler", "Dodge", "Jeep", "Mercedes-Benz"],
+        reverse_ratio: 3.16,
+        source: `${WIKIPEDIA_5GTRONIC}; ${GEARSTAR_NAG1} (Chrysler gearset; reverse 1 3.16, some list 3.17)`,
+      },
+    ],
+  },
+  {
+    manufacturer: "Ford",
+    model: "6R80",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2800, couplingSlip: 0.05, lockupCapable: true, lockup: "off", shiftTimeS: 0.18, shiftLoss: 0.12, drivetrainLoss: 0.13 }),
+    variants: [
+      { name: "6R80 (2011-17 Mustang, F-150)", gear_ratios: [4.171, 2.34, 1.521, 1.143, 0.867, 0.691], application_manufacturers: ["Ford", "Lincoln"], reverse_ratio: 3.403, source: WIKIPEDIA_6R },
+    ],
+  },
+  {
+    manufacturer: "Aisin",
+    model: "A340E",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2800, couplingSlip: 0.06, lockupCapable: true, lockup: "off", shiftTimeS: 0.22, shiftLoss: 0.15, drivetrainLoss: 0.13 }),
+    variants: [
+      { name: "Supra A70 / A80, SC300 / SC400", gear_ratios: [2.804, 1.531, 1.0, 0.705], application_manufacturers: ["Toyota", "Lexus"], reverse_ratio: 2.393, source: WIKIPEDIA_TOYOTA_A },
+    ],
+  },
+  {
+    manufacturer: "Chrysler",
+    model: "A904 TorqueFlite",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 3000, couplingSlip: 0.06, lockupCapable: false, shiftTimeS: 0.2, shiftLoss: 0.2, drivetrainLoss: 0.13 }),
+    variants: [
+      { name: "A904 standard", gear_ratios: [2.45, 1.45, 1.0], application_manufacturers: ["Chrysler", "Dodge", "Plymouth"], reverse_ratio: 2.2, source: `${WIKIPEDIA_TORQUEFLITE} (some sources list reverse 2.21)` },
+      { name: "Wide ratio (A904 WR / A998 / A999)", gear_ratios: [2.74, 1.54, 1.0], application_manufacturers: ["Chrysler", "Dodge", "Plymouth"], reverse_ratio: 2.2, source: `${WIKIPEDIA_TORQUEFLITE} (A998 section lists 2nd 1.55; reverse 2.20-2.21)` },
+    ],
+  },
+  {
+    manufacturer: "Ford",
+    model: "FMX",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 3000, couplingSlip: 0.06, lockupCapable: false, shiftTimeS: 0.2, shiftLoss: 0.2, drivetrainLoss: 0.14 }),
+    variants: [
+      { name: "FMX (1968-79)", gear_ratios: [2.4, 1.47, 1.0], application_manufacturers: ["Ford", "Mercury"], reverse_ratio: 2.0, source: WIKIPEDIA_FMX },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "700R4 / 4L60",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2800, couplingSlip: 0.06, lockupCapable: true, lockup: "off", shiftTimeS: 0.22, shiftLoss: 0.15, drivetrainLoss: 0.13 }),
+    variants: [
+      { name: "700R4 / 4L60 (1982-93)", gear_ratios: [3.059, 1.625, 1.0, 0.696], application_manufacturers: ["GM"], reverse_ratio: 2.29, source: `${WIKIPEDIA_4L60} (same gearset as the 4L60E)` },
+    ],
+  },
+  {
+    manufacturer: "ZF",
+    model: "8HP90",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2400, couplingSlip: 0.04, lockupCapable: true, lockup: "after1st", shiftTimeS: 0.15, shiftLoss: 0.1, drivetrainLoss: 0.12 }),
+    variants: [
+      { name: "8HP90 (Hellcat / Redeye)", gear_ratios: [4.714, 3.143, 2.106, 1.667, 1.285, 1.0, 0.839, 0.667], application_manufacturers: ["Dodge", "Chrysler", "Jeep", "Ram"], reverse_ratio: 3.317, source: `${WIKIPEDIA_8HP}; ${TORQUENEWS_CHALLENGER} (same gearset as the 8HP70)` },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "10L80 / 10L90",
+    kind: "automatic",
+    automatic: automaticDefaults({ stallRpm: 2400, couplingSlip: 0.04, lockupCapable: true, lockup: "after1st", shiftTimeS: 0.15, shiftLoss: 0.1, drivetrainLoss: 0.12 }),
+    variants: [
+      { name: "10L80 Camaro SS / 10L90 ZL1, CT4-V, CT5-V", gear_ratios: [4.696, 2.985, 2.146, 1.769, 1.52, 1.275, 1.0, 0.854, 0.689, 0.636], application_manufacturers: ["Chevrolet", "Cadillac"], reverse_ratio: 4.866, source: `${WIKIPEDIA_10SPEED} (same gearset as the Ford 10R80)` },
     ],
   },
 ];

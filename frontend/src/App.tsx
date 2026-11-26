@@ -75,6 +75,7 @@ function deriveCar(car: CarSetup, families: TransmissionFamily[]) {
   const tireDiameter = parsedTire ? parsedTire.effectiveDiameterIn : car.tireDiameterIn;
   const tireLabel = parsedTire ? `${parsedTire.label} (${tireDiameter.toFixed(1)}″)` : `${tireDiameter}″ tire`;
   const isAutomatic = selection ? familyKind(selection.family) === "automatic" : false;
+  const dualClutch = !isAutomatic && !!selection?.family.dualClutch;
   const automaticDefaults = selection?.family.automatic ?? GENERIC_AUTOMATIC;
   const automaticSetup = (selection && car.autoSetups[selection.family.model]) || automaticDefaults;
   const gears: Gear[] = (selection?.variant.gear_ratios ?? []).map((ratio, index) => ({
@@ -82,7 +83,7 @@ function deriveCar(car: CarSetup, families: TransmissionFamily[]) {
     ratio,
     color: GEAR_COLORS[index % GEAR_COLORS.length],
   }));
-  return { filteredFamilies, selection, tireDiameter, tireLabel, isAutomatic, automaticDefaults, automaticSetup, gears, powerCurve: buildCurve(car.power) };
+  return { filteredFamilies, selection, tireDiameter, tireLabel, isAutomatic, automaticDefaults, automaticSetup, dualClutch, gears, powerCurve: buildCurve(car.power) };
 }
 
 export function App() {
@@ -136,7 +137,7 @@ export function App() {
   useEffect(() => setGearingOpen(!comparing), [comparing]);
   const [chartView, setChartView] = useState<"shifts" | "full">(initial.chartView);
   const derived = useMemo(() => cars.map((item) => deriveCar(item, families)), [cars, families]);
-  const { selection, filteredFamilies, tireDiameter, tireLabel, powerCurve, isAutomatic, automaticDefaults, automaticSetup } = derived[activeCar] ?? derived[0];
+  const { selection, filteredFamilies, tireDiameter, tireLabel, powerCurve, isAutomatic, automaticDefaults, automaticSetup, dualClutch } = derived[activeCar] ?? derived[0];
   // Trap-speed weight drives the sim's race weight (one way: editing race weight leaves the trap pass alone).
   const changePower = (next: PowerState) =>
     updateCar((current) => ({
@@ -268,6 +269,7 @@ export function App() {
               curve: item.powerCurve.curve,
               curveBasis: item.powerCurve.basis,
               automatic: item.isAutomatic ? item.automaticSetup : undefined,
+              dualClutch: item.dualClutch,
               gearRatios: item.gears.map((g) => g.ratio),
               axleRatio: cars[index].axleRatio,
               tireDiameterIn: item.tireDiameter,
@@ -491,7 +493,7 @@ export function App() {
                   <AutomaticPane setup={automaticSetup} defaults={automaticDefaults} onChange={changeAutomaticSetup} />
                 ) : (
                   <Subgroup title="Shifts & clutch">
-                    <ManualInputs vehicle={vehicle} onVehicleChange={setVehicle} curveBasis={powerCurve.basis} />
+                    <ManualInputs vehicle={vehicle} onVehicleChange={setVehicle} curveBasis={powerCurve.basis} dualClutch={dualClutch} />
                   </Subgroup>
                 )}
               </div>

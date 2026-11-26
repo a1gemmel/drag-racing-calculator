@@ -21,6 +21,8 @@ import { curvePeaks, torqueAt, type PowerBasis, type PowerCurve } from "./power"
  *    `shiftLoss` (shift-clutch overlap and slip). Into an unlocked gear the converter takes up the speed
  *    change; into a locked gear the shift clutches slip and pull the engine down to the new gear's speed
  *    over the shift time, and the torque that releases from the engine's inertia reaches the tires
+ *  - dual-clutch manuals (`dualClutch`): clutch launch like a manual; upshifts are power shifts into a
+ *    locked gear (as above) over DCT_SHIFT_TIME_S with no shift loss, so drive never stops
  *  - automatics (when `automatic` is set): a torque converter instead of the clutch (see below),
  *    optional lock-up per gear, and a trans-brake or foot-brake launch
  *  - air density (density altitude): drag scales with it, and callers scale the power curve by it
@@ -110,7 +112,12 @@ export type RunInput = VehicleSetup & {
    * drivetrain loss and launch rpm replace the vehicle's (and clutch settings are unused).
    */
   automatic?: AutomaticSetup;
+  /** Dual-clutch manual: power shifts over DCT_SHIFT_TIME_S instead of coasting for shiftTimeS. */
+  dualClutch?: boolean;
 };
+
+/** Clutch-to-clutch handover time of a dual-clutch upshift, s. */
+export const DCT_SHIFT_TIME_S = 0.08;
 
 export type Sample = { t: number; ft: number; mph: number; rpm: number; gear: number; shifting: boolean };
 export type Split = { label: string; ft: number; t: number; mph: number };
@@ -171,7 +178,8 @@ export function simulateQuarterMile(input: RunInput): RunResult {
   const auto = input.automatic;
   const drivetrainLoss = auto ? auto.drivetrainLoss : input.drivetrainLoss;
   const efficiency = input.curveBasis === "wheel" ? 1 : 1 - drivetrainLoss;
-  const shiftTimeS = auto ? auto.shiftTimeS : input.shiftTimeS;
+  const dct = !auto && !!input.dualClutch;
+  const shiftTimeS = auto ? auto.shiftTimeS : dct ? DCT_SHIFT_TIME_S : input.shiftTimeS;
   // Max tractive force with steady-state weight transfer: the driven axle's load changes by F·h/L,
   // so F = μ(W·f ± F·h/L), solved for F.
   const weightN = mass * G;
@@ -232,10 +240,11 @@ export function simulateQuarterMile(input: RunInput): RunResult {
     const engineRpm = omega * RAD_TO_RPM;
     const limiter = gear === gearRatios.length - 1 && engineRpm >= shiftRpm;
     // Manuals coast through a shift; automatics keep the throttle open (power shift).
-    const engineNm = (shifting && !converter) || limiter ? 0 : torqueNm(engineRpm) * scale;
+    const engineNm = (shifting && !converter && !dct) || limiter ? 0 : torqueNm(engineRpm) * scale;
     let accel: number;
 
-    const converterLocked = auto ? lockedInGear(auto, gear, gearRatios.length) : false;
+    // A dual-clutch box shifts like an automatic into a locked gear.
+    const converterLocked = auto ? lockedInGear(auto, gear, gearRatios.length) : dct;
     // During an automatic shift the shift clutches lose part of the drive.
     const shiftEfficiency = shifting && auto ? 1 - auto.shiftLoss : 1;
     // Engine decoupled from the tires (slipping clutch or converter): the car gets the drive force,
@@ -251,7 +260,7 @@ export function simulateQuarterMile(input: RunInput): RunResult {
       return a;
     };
 
-    if (shifting && !converter) {
+    if (shifting && !converter && !dct) {
       // Clutch open: the car coasts; the engine is matched to the next gear when the shift completes.
       accel = -resistN / (mass + wheelMass);
       u = Math.max(0, v + accel * DT);
@@ -327,7 +336,7 @@ export function simulateQuarterMile(input: RunInput): RunResult {
     } else if ((converter || clutchLocked) && gear < gearRatios.length - 1 && omega * RAD_TO_RPM >= shiftRpm) {
       gear += 1;
       // A power shift takes at least one step, so the engine's inertia always goes through the clutches.
-      shiftTimer = converter ? Math.max(shiftTimeS, DT) : shiftTimeS;
+      shiftTimer = converter || dct ? Math.max(shiftTimeS, DT) : shiftTimeS;
       shifts.push({ t, mph: v * MPS_TO_MPH, toGear: gear });
       u = v;
       if (shiftTimer <= 0 && (!converter || lockedInGear(auto!, gear, gearRatios.length))) {
@@ -341,7 +350,7 @@ export function simulateQuarterMile(input: RunInput): RunResult {
         t,
         ft: x / FT_TO_M,
         mph: v * MPS_TO_MPH,
-        rpm: (shiftTimer > 0 && !converter ? u * kNow : omega) * RAD_TO_RPM,
+        rpm: (shiftTimer > 0 && !converter && !dct ? u * kNow : omega) * RAD_TO_RPM,
         gear,
         shifting: shiftTimer > 0,
       });

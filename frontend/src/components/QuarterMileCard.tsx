@@ -177,11 +177,12 @@ export function CarInputs({
 }
 
 /** Manual transmission inputs: shift time, clutch release and drivetrain loss. */
-export function ManualInputs({ vehicle, onVehicleChange, curveBasis }: VehicleProps & { curveBasis: PowerBasis }) {
+export function ManualInputs({ vehicle, onVehicleChange, curveBasis, dualClutch }: VehicleProps & { curveBasis: PowerBasis; dualClutch?: boolean }) {
   const set = (patch: Partial<VehicleSetup>) => onVehicleChange({ ...vehicle, ...patch });
   return (
     <div className="field-row">
-      <NumberField label="Shift time" unit="s" step={0.05} min={0} max={2} value={vehicle.shiftTimeS} onCommit={(shiftTimeS) => set({ shiftTimeS })} />
+      {/* A dual-clutch box power-shifts in a fixed DCT_SHIFT_TIME_S, so the coasting shift time doesn't apply. */}
+      {dualClutch ? null : <NumberField label="Shift time" unit="s" step={0.05} min={0} max={2} value={vehicle.shiftTimeS} onCommit={(shiftTimeS) => set({ shiftTimeS })} />}
       <NumberField
         label="Clutch release"
         unit="s"

@@ -10,7 +10,7 @@ const family = (model: string) => transmissionFamilies.find((f) => f.model === m
 const curve = buildCurve(DEFAULT_POWER).curve!;
 const car = { ...DEFAULT_VEHICLE, curve, curveBasis: "crank" as const, axleRatio: 3.73, tireDiameterIn: 26, shiftRpm: 6500, knownSixtyFtS: null };
 const th400 = family("TH400");
-const AUTOMATICS = ["Powerglide", "TH350", "TH400", "C4", "C6", "AOD", "4L60E", "4L80E", "8HP70", "8HP45", "727 TorqueFlite", "545RFE", "65RFE", "10R80", "8L90"];
+const AUTOMATICS = ["Powerglide", "TH350", "TH400", "C4", "C6", "AOD", "4L60E", "4L80E", "8HP70", "8HP45", "727 TorqueFlite", "545RFE", "65RFE", "10R80", "8L90", "200-4R", "6L80", "NAG1", "6R80", "A340E", "A904 TorqueFlite", "FMX", "700R4 / 4L60", "8HP90", "10L80 / 10L90"];
 const th400Run = (overrides = {}, vehicle = {}) =>
   runQuarterMile({ ...car, ...vehicle, gearRatios: th400.variants[0].gear_ratios, automatic: { ...th400.automatic!, ...overrides } });
 
@@ -133,5 +133,25 @@ describe("custom transmissions", () => {
     expect(customProblems({ ...custom, name: "th400" }, ["TH400"])).toContain("Name is already used");
     expect(customProblems({ ...custom, ratios: [2, 0] }, [])).toContain("Ratios must be greater than 0");
     expect(customProblems({ ...custom, ratios: [] }, [])).toContain("1 to 10 gears");
+  });
+});
+
+describe("dual-clutch manual", () => {
+  const dct = family("TR-9080 DCT");
+  const c8 = { ...car, axleRatio: 5.17, tireDiameterIn: 27.5, gearRatios: dct.variants[0].gear_ratios };
+
+  it("is a manual flagged dual-clutch", () => {
+    expect(familyKind(dct)).toBe("manual");
+    expect(dct.dualClutch).toBe(true);
+  });
+
+  it("keeps driving through upshifts, so it beats the same gears shifted by hand", () => {
+    const manual = runQuarterMile(c8);
+    const dualClutch = runQuarterMile({ ...c8, dualClutch: true });
+    expect(dualClutch.et!).toBeLessThan(manual.et! - 0.1);
+    expect(dualClutch.trapMph!).toBeGreaterThan(manual.trapMph!);
+    // Speed never falls during a pass (no coasting gap at the shifts).
+    const speeds = dualClutch.samples.map((s) => s.mph);
+    for (let i = 1; i < speeds.length; i++) expect(speeds[i]).toBeGreaterThanOrEqual(speeds[i - 1] - 1e-9);
   });
 });

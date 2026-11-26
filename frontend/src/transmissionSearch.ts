@@ -71,6 +71,9 @@ export function resolveSelection(
 ): { family: TransmissionFamily; variant: TransmissionVariant } | null {
   const family = families.find((item) => item.model === model) ?? families[0];
   if (!family) return null;
-  const variant = family.variants.find((item) => item.name === variantName) ?? family.variants[0];
+  const variant =
+    family.variants.find((item) => item.name === variantName) ??
+    family.variants.find((item) => item.formerNames?.includes(variantName)) ??
+    family.variants[0];
   return variant ? { family, variant } : null;
 }

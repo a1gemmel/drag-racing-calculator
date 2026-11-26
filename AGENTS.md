@@ -119,6 +119,14 @@ Data
   the 2.88 Y set has no published ratios, left out), Saginaw 4-speed (4 groove-count variants, Advance Adapters values;
   Chevy Hardcore differs by 0.01-0.04 on some 2nd/3rd gears, noted in `source`), Nissan CD009 (350Z/G35; no Nissan
   document found, enthusiast/spec sources agree on 3.794-0.794, reverse 3.446).
+- v0.7.0 catalog round (owner list + a research pass): TR-9080 DCT, NAG1, 6L80, 200-4R; manuals TR6060 (13 sets), TR-6070,
+  TR-3160, MT82 / MT82-D4, Muncie M21 / M22, Toploader, A833, BW T-10, Doug Nash 4+3 (overdrive off; OD ratio unsettled),
+  ZF S6-40, W58, R154, V160 / V161, RX-7 5-speed, TY856, TY75, WRX 6-speed, TL70, Honda K- and B-series; automatics 6R80,
+  A340E, A904, FMX, 700R4 / 4L60, 8HP90, 10L80 / 10L90 (the last three reuse 4L60E / 8HP70 / 10R80 gearsets). Weak (forum
+  or vendor-only) sources are said so in `source`: ZF6, 4+3, V160/V161, Honda K/B, FC Turbo II 5th. Reverse unknown (null):
+  Toploader, A833, MT82-D4. Skipped as unsourced: FC non-turbo, FB RX-7, Honda D-series, Jerico/Liberty, 8HP95.
+- Renaming a variant: keep the old name in `formerNames` (resolveSelection matches it) so saved settings and share links still
+  pick it; a catalog test checks every former name resolves. Never rename a family `model` (autoSetups and tokens key on it).
 - Public sources disagree on several values (T5 Ford 5.0 year breaks and ODs, NV4500 reverse ratios,
   T56 Cobra 5th gear). Choices made are documented per entry in `source` strings; treat these as the
   first entries to re-check if a user reports a wrong ratio.
@@ -159,6 +167,14 @@ engineering choices; public converter sources give stall rules of thumb but not 
   coupling point (COUPLING_CAPACITY in quarterMile.ts), linear torque-ratio fall, linear coupling phase.
   Coupling point clamped to SR 0.6-0.95 (dragzine: stator freewheels around SR ~0.8).
 - Default stall torque ratio 2.0 for every automatic.
+- v0.7.0 automatics: 200-4R like the TH350 (2800 stall, band shifts 0.20 s / 20%, 14% loss; lock-up clutch present,
+  off at WOT like stock); 6L80 2800 stall, 5% slip, lock-up off, 0.18 s / 12% (clutch-to-clutch), 13% loss; NAG1 (Chrysler
+  W5A580 gearset) 2800 stall, 6% slip, lock-up off, 0.20 s / 15%, 13% loss.
+- Dual-clutch (v0.7.0): catalog `dualClutch: true` on a manual family (TR-9080). Clutch launch and best-launch search as a
+  manual; upshifts take the automatic locked-gear power-shift path over `DCT_SHIFT_TIME_S` (0.08 s, quarterMile.ts) with
+  no shift loss; the car's Shift time field is hidden. Custom transmissions can't be dual-clutch ("Copy as custom" gives a
+  plain manual). C8 check (495 hp, 3,750 lb, 5.17, 27.3", 60% rear, Cd 0.32, performance street + launch control):
+  11.23 @ 124.4 vs magazine ~11.2 @ 121-122.
 - AOD (v0.5.0): 2800 stall, 6% slip, lock-up "top" (4th is a direct mechanical drive through the split-torque input
   shaft; 3rd's 60/40 mechanical split isn't modelled), 0.22 s / 15% shift loss, 15% loss (known for parasitic loss).
 - v0.2.1 additions (same reasoning as the matching older units): 8HP45 like the 8HP70 but 11% loss; 727 like the
