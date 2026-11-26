@@ -2,6 +2,16 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.8.0 — 2026-11-26
+
+- Body presets under Advanced in the Car pane: a Preset button opens a menu of Full-size truck, Corvette, Modern Muscle, Classic Muscle, Classic Pony and Dragster, each with a silhouette. A preset sets only the Advanced fields (weight on driven axle, CG height, wheelbase, drag coefficient, frontal area), and those fields flash so you can see what changed.
+- Wheelbase now goes up to 400 in (dragsters).
+
+## v0.7.1 — 2026-11-26
+
+- Top speed now accounts for power and aerodynamic drag: it's the fastest speed the car can hold in any gear, capped at the shift point, at the current track conditions. Hover the tile to see whether it's drag-limited or rpm-limited.
+- The quarter-mile pass no longer upshifts into a gear that can't pull against drag at that speed; the car stays in its gear at the shift point, as the top speed works out.
+
 ## v0.7.0 — 2026-11-26
 
 - Tremec TR-9080 DCT (dual-clutch, 8-speed): C8 Corvette 8-speed.

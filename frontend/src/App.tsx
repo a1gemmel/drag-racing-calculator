@@ -20,7 +20,7 @@ import type { SimpleSetup } from "./simplePass";
 import { settingsFromToken, settingsToToken, shareUrl } from "./shareToken";
 import { downloadOfflineCopy, OFFLINE_FILE_NAME, offlineCopyAvailable, offlineCopyKb } from "./offline";
 import { buildCurve, type PowerState } from "./power";
-import { airCorrectedCurve, bestShiftRpm, type VehicleSetup } from "./quarterMile";
+import { airCorrectedCurve, bestShiftRpm, topSpeed, type VehicleSetup } from "./quarterMile";
 import type { TransmissionFamily } from "./catalog";
 import { parseTireSize } from "./tires";
 import { ALL_SCOPE, filterFamilies, resolveSelection, scopeOptions } from "./transmissionSearch";
@@ -291,6 +291,11 @@ export function App() {
   };
 
   const topRpm = shiftRpm;
+  // Top speed held back by power vs drag, at the current track conditions (null without a power curve).
+  const topAir = airFor(conditions);
+  const top = activeSim
+    ? topSpeed({ ...activeSim.input, curve: airCorrectedCurve(activeSim.input.curve, topAir.ratio), airDensityRatio: topAir.ratio })
+    : null;
   const speedAt = (rpm: number, ratio: number) => speedMph(rpm, tireDiameter, ratio, axleRatio);
   const rpmAt = (mph: number, ratio: number) => rpmForSpeed(mph, tireDiameter, ratio, axleRatio);
 
@@ -504,14 +509,23 @@ export function App() {
                 ) : (
                   <>
                   <section className="stats" aria-label="Key numbers">
-                    <div className="stat">
+                    <div className={top ? "stat has-tip" : "stat"} tabIndex={top ? 0 : undefined} aria-describedby={top ? "top-speed-tip" : undefined}>
+                      {top ? (
+                        <span role="tooltip" id="top-speed-tip" className="info-tip-text">
+                          {top.limit === "drag"
+                            ? `Drag-limited: above this speed, aero drag and rolling resistance take more than the power reaching the wheels in ${gears[top.gear]?.label}.`
+                            : `Rpm-limited: ${gears[top.gear]?.label} reaches the ${topRpm.toLocaleString()} rpm shift point with power to spare.`}
+                        </span>
+                      ) : null}
                       <p className="stat-label">Top speed</p>
                       <p className="stat-value">
-                        {speedAt(topRpm, topGear.ratio).toFixed(0)}
+                        {(top ? top.mph : speedAt(topRpm, topGear.ratio)).toFixed(0)}
                         <span>mph</span>
                       </p>
                       <p className="stat-note">
-                        {topGear.label} at {topRpm.toLocaleString()} rpm
+                        {top
+                          ? `${gears[top.gear]?.label} at ${(Math.round(top.rpm / 10) * 10).toLocaleString()} rpm`
+                          : `${topGear.label} at ${topRpm.toLocaleString()} rpm`}
                       </p>
                     </div>
                     <div className="stat">

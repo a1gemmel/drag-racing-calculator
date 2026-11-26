@@ -16,7 +16,8 @@ import { curvePeaks, torqueAt, type PowerBasis, type PowerCurve } from "./power"
  *    modulates clutch and throttle to hold wheelspin to 10% slip, or 7 m/s at low speed
  *  - timing-light rollout: the clock starts after the car has rolled `rolloutIn` (splits, ET and shift
  *    times are on that clock, like a timing slip)
- *  - manual upshifts at shift RPM with no drive force for the shift time; a limiter at shift RPM in top gear
+ *  - manual upshifts at shift RPM with no drive force for the shift time; a limiter at shift RPM in top gear,
+ *    or in any gear whose next gear can't out-pull drag at that speed (steadyForces; the car holds the gear)
  *  - automatic upshifts are power shifts: drive continues through the new gear for the shift time, less
  *    `shiftLoss` (shift-clutch overlap and slip). Into an unlocked gear the converter takes up the speed
  *    change; into a locked gear the shift clutches slip and pull the engine down to the new gear's speed
@@ -212,6 +213,10 @@ export function simulateQuarterMile(input: RunInput): RunResult {
 
   // Torque converter constants (see the header comment).
   const converter = auto ? converterConstants(auto, curve, shiftRpm) : null;
+  // An upshift happens only if the next gear can still out-pull drag at this speed; otherwise the car
+  // stays in its gear on the limiter (it has reached top speed, as topSpeed() works out).
+  const steady = steadyForces(input);
+  const upshiftPulls = (gear: number, v: number) => gear < gearRatios.length - 1 && steady.surplusN(gear + 1, v) > 0;
 
   let t = 0;
   let x = 0; // car position, m
@@ -238,7 +243,7 @@ export function simulateQuarterMile(input: RunInput): RunResult {
     const resistN = dragFactor * v * v + (v > 0 ? rollingN : 0);
     const shifting = shiftTimer > 0;
     const engineRpm = omega * RAD_TO_RPM;
-    const limiter = gear === gearRatios.length - 1 && engineRpm >= shiftRpm;
+    const limiter = engineRpm >= shiftRpm && !upshiftPulls(gear, v);
     // Manuals coast through a shift; automatics keep the throttle open (power shift).
     const engineNm = (shifting && !converter && !dct) || limiter ? 0 : torqueNm(engineRpm) * scale;
     let accel: number;
@@ -333,7 +338,7 @@ export function simulateQuarterMile(input: RunInput): RunResult {
       // Manual: clutch back in at the new gear. Automatic: the converter takes up the difference,
       // unless the new gear is locked up.
       if (shiftTimer <= 0 && (!converter || lockedInGear(auto!, gear, gearRatios.length))) omega = u * k;
-    } else if ((converter || clutchLocked) && gear < gearRatios.length - 1 && omega * RAD_TO_RPM >= shiftRpm) {
+    } else if ((converter || clutchLocked) && omega * RAD_TO_RPM >= shiftRpm && upshiftPulls(gear, v)) {
       gear += 1;
       // A power shift takes at least one step, so the engine's inertia always goes through the clutches.
       shiftTimer = converter || dct ? Math.max(shiftTimeS, DT) : shiftTimeS;
@@ -577,4 +582,85 @@ export function marginFt(run: RunResult, leader: RunResult): number | null {
   if (leader.et === null) return null;
   const at = ftAtTime(run, leader.et);
   return at === null ? null : QUARTER_FT - at;
+}
+
+/**
+ * Steady-speed force balance in a gear, shared by topSpeed and the run's upshift check: drive force at
+ * the tires (engine torque through the gearing, less drivetrain loss) minus aero drag and rolling
+ * resistance, at car speed v (m/s). Automatics slip `couplingSlip` in unlocked gears (engine rpm higher,
+ * that share of power lost).
+ */
+function steadyForces(input: RunInput) {
+  const auto = input.automatic;
+  const drivetrainLoss = auto ? auto.drivetrainLoss : input.drivetrainLoss;
+  const efficiency = input.curveBasis === "wheel" ? 1 : 1 - drivetrainLoss;
+  const radius = (input.tireDiameterIn / 2) * 0.0254;
+  const mass = input.weightLb * LB_TO_KG;
+  const dragFactor = 0.5 * AIR_DENSITY * (input.airDensityRatio ?? 1) * input.dragCoefficient * input.frontalAreaFt2 * FT2_TO_M2;
+  const rollingN = input.rollingResistance * mass * G;
+  const RAD_TO_RPM = 60 / (2 * Math.PI);
+  const n = input.gearRatios.length;
+  const k = (gear: number) => (input.gearRatios[gear] * input.axleRatio) / radius; // engine rad/s per m/s, locked
+  const slip = (gear: number) => (auto && !lockedInGear(auto, gear, n) ? auto.couplingSlip : 0);
+  const engineRpm = (gear: number, v: number) => (v * k(gear) * RAD_TO_RPM) / (1 - slip(gear));
+  /** Speed (m/s) at an engine rpm in a gear. */
+  const speedAt = (gear: number, rpm: number) => ((rpm / RAD_TO_RPM) * (1 - slip(gear))) / k(gear);
+  const surplusN = (gear: number, v: number) =>
+    torqueAt(input.curve, engineRpm(gear, v)) * LBFT_TO_NM * k(gear) * efficiency - (dragFactor * v * v + rollingN);
+  return { engineRpm, speedAt, surplusN };
+}
+
+export type TopSpeed = {
+  mph: number;
+  /** 0-based gear the top speed is reached in. */
+  gear: number;
+  /** Engine rpm at the top speed. */
+  rpm: number;
+  /** "rpm": the gear runs out at the shift rpm; "drag": wheel power only matches drag and rolling resistance there. */
+  limit: "rpm" | "drag";
+};
+
+/**
+ * Highest steady speed the car can hold: in each gear, the speed where drive force (engine torque
+ * through the gearing, less drivetrain loss) falls to aero drag plus rolling resistance, capped at the
+ * shift rpm. The car can't climb past the first such balance point in a gear, so each gear is scanned
+ * from the bottom of the power curve upward. Automatics slip their converter's `couplingSlip` in
+ * unlocked gears (engine rpm higher, that share of power lost). Callers pass an air-corrected curve and
+ * `airDensityRatio`, as for the run.
+ */
+export function topSpeed(input: RunInput): TopSpeed | null {
+  const { curve, gearRatios, shiftRpm } = input;
+  if (curve.length === 0 || gearRatios.length === 0) return null;
+  const { engineRpm, speedAt, surplusN } = steadyForces(input);
+  const STEP = 0.02; // m/s
+  let best: TopSpeed | null = null;
+
+  gearRatios.forEach((_, gear) => {
+    const surplus = (v: number) => surplusN(gear, v);
+    const vStart = speedAt(gear, curve[0].rpm);
+    const vCap = speedAt(gear, shiftRpm);
+    if (vStart >= vCap || surplus(vStart) < 0) return;
+    let v = vStart;
+    let limit: TopSpeed["limit"] = "rpm";
+    while (v < vCap) {
+      const next = Math.min(v + STEP, vCap);
+      if (surplus(next) < 0) {
+        // Balance point between v and next: bisect.
+        let lo = v;
+        let hi = next;
+        for (let i = 0; i < 30; i++) {
+          const mid = (lo + hi) / 2;
+          if (surplus(mid) >= 0) lo = mid;
+          else hi = mid;
+        }
+        v = lo;
+        limit = "drag";
+        break;
+      }
+      v = next;
+    }
+    const mph = v * MPS_TO_MPH;
+    if (!best || mph > best.mph + 1e-9) best = { mph, gear, rpm: engineRpm(gear, v), limit };
+  });
+  return best;
 }

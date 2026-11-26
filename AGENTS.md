@@ -357,6 +357,25 @@ bookmark and post these links. When changing settings or `src/shareToken.ts`:
   3.55, 26.6") on "Performance street" runs 11.85 @ 118.8 vs magazine 11.83-11.98 @ 119 (test guards 11.75-12.05).
   The owner asked for a tooltip on this toggle (InfoTip, text set by the owner: "More accurate 60 foot calculation for
   late-model cars"), an exception to the numbers-only copy rule.
+- **Top speed (v0.7.1, owner request):** the Gearing stats tile uses `topSpeed` (quarterMile.ts): per gear, the first speed
+  where drive force (torque × gearing × (1 − loss)) falls to drag + rolling resistance, capped at the shift rpm; best gear
+  wins. Automatics slip `couplingSlip` in unlocked gears. Open car's vehicle and power, air-corrected. Falls back to the
+  gearing speed when there's no power curve. The ladder table's "Speed at <rpm>" column stays pure gearing.
+  Drag-limited / rpm-limited explanation is a hover tooltip on the tile (owner request; an exception to the numbers-only
+  copy rule). The sim shares the force balance (`steadyForces`): it upshifts only if the next gear's steady surplus at the
+  current speed is positive, else it holds the gear on the limiter, so a pass levels off at topSpeed in the same gear.
+- **Car presets (v0.8.0, owner request):** `carPresets.ts` + `components/CarPresets.tsx`: a "Preset" field (the sixth cell of the
+  Car pane's Advanced grid, after Frontal area) opens a floating menu (absolute, z-index; closes on pick, outside click, Escape) so the layout never
+  shifts. Labels: Full-size truck, Corvette, Modern Muscle (average of Mustang S550 GT and 2020 Challenger R/T Scat Pack: 111.7 in, 46% rear, Cd 0.36, 24 ft², CG 21 in; Challenger silhouette), Classic Muscle,
+  Classic Pony, Dragster. Silhouettes: 160 × 56 side profiles (front left), body + glass + tire/rim/hub. Owner-supplied reference
+  photos: F-150, C6, 2020 Challenger and 1969 Nova (Classic Muscle) were traced (outline + glass, tyres placed by hand);
+  1969 Camaro (Classic Pony) and a rear-engine dragster were drawn from their pictures. A preset sets ONLY the Advanced fields (driven-axle weight, CG height, wheelbase, Cd, frontal
+  area); presets store the rear share, converted to the front share for FWD. The fields flash (`.preset-flash`, remount via a
+  key) after a pick. Not a saved setting: the active button is whichever preset the values match. Data: C6 105.7 in, 51/49,
+  Cd 0.28 (GM); Mustang S550 GT 107.1 in, 53/47, Cd ~0.35; muscle car = 1968-72 intermediates avg (Chevelle 112 in, 56/44,
+  Cd 0.42-0.47); pony car = 1967-70 avg (Camaro 108 in, 55/45, Cd 0.34 catalog -> 0.40 class); truck = F-150 SuperCrew /
+  Silverado crew (145 in, Cd 0.416/~0.41, 42% rear); bracket dragster ~230 in, ~75% rear. Frontal areas (0.82 × width × height),
+  CG heights and the dragster's aero are estimates. Wheelbase field max raised to 400 in.
 - **Trap RPM (v0.5.0):** its own tile (rpm and gear at 1,320 ft) instead of the 1/4 tile hover.
 - **Powerglide gearsets (v0.5.0):** ATI's aftermarket low gears (1.58-2.18, 2nd 1.00) added as "x.xx Low (aftermarket)"
   variants, source ATI gear set catalog.

@@ -17,6 +17,7 @@ import { BIAS_PLY_ROLLING, RADIAL_ROLLING } from "../tires";
 import type { Gear } from "./GearChart";
 import { LineChart, type ChartDot, type ChartPoint, type Series } from "./LineChart";
 import { NumberField } from "./NumberField";
+import { CarPresets } from "./CarPresets";
 import { InfoTip } from "./InfoTip";
 import { PassReplay } from "./PassReplay";
 import { Segmented } from "./Segmented";
@@ -89,6 +90,8 @@ export function CarInputs({
   onAxleRatioChange,
 }: VehicleProps & { axleRatio: number; onAxleRatioChange: (ratio: number) => void }) {
   const set = (patch: Partial<VehicleSetup>) => onVehicleChange({ ...vehicle, ...patch });
+  // Bumped on each preset pick: remounting the Advanced fields replays their flash, showing what the preset set.
+  const [presetFlash, setPresetFlash] = useState(0);
   // Last known 60 ft typed in, kept while the user flips back to the estimate.
   const [lastKnownSixty, setLastKnownSixty] = useState(vehicle.knownSixtyFtS ?? 2.0);
   return (
@@ -154,7 +157,7 @@ export function CarInputs({
       ) : null}
       <details className="advanced">
         <summary>Advanced</summary>
-        <div className="advanced-grid">
+        <div className={presetFlash ? "advanced-grid preset-flash" : "advanced-grid"} key={presetFlash}>
           {vehicle.drive !== "awd" ? (
             <NumberField
               label="Weight on driven axle"
@@ -167,9 +170,19 @@ export function CarInputs({
             />
           ) : null}
           <NumberField label="CG height" unit="in" step={0.5} min={5} max={60} value={vehicle.cgHeightIn} onCommit={(cgHeightIn) => set({ cgHeightIn })} />
-          <NumberField label="Wheelbase" unit="in" step={0.5} min={60} max={200} value={vehicle.wheelbaseIn} onCommit={(wheelbaseIn) => set({ wheelbaseIn })} />
+          <NumberField label="Wheelbase" unit="in" step={0.5} min={60} max={400} value={vehicle.wheelbaseIn} onCommit={(wheelbaseIn) => set({ wheelbaseIn })} />
           <NumberField label="Drag coefficient" step={0.01} min={0.1} max={1.5} value={vehicle.dragCoefficient} onCommit={(dragCoefficient) => set({ dragCoefficient })} />
           <NumberField label="Frontal area" unit="ft²" step={0.5} min={5} max={80} value={vehicle.frontalAreaFt2} onCommit={(frontalAreaFt2) => set({ frontalAreaFt2 })} />
+          <div className="field">
+            <span className="field-label">Preset</span>
+            <CarPresets
+              vehicle={vehicle}
+              onApply={(patch) => {
+                set(patch);
+                setPresetFlash((n) => n + 1);
+              }}
+            />
+          </div>
         </div>
       </details>
     </>
