@@ -59,7 +59,9 @@ frontend/
   src/offline.ts     "Download offline copy": captures the page before React renders (first import in main.tsx),
                      embeds current settings, saves as drag-racing-calculator.html via a Blob (no fetch)
   src/shareToken.ts  share links: whole setup <-> short versioned binary token in the URL fragment (FORWARD-COMPATIBLE, see below)
-  src/shareToken.golden.json, src/shareToken.v1-schema.json, src/shareToken.v0.5.0-schema.json  frozen fixtures guarding old tokens
+  src/shareToken.golden.json, src/shareToken.v*-schema.json  frozen fixtures guarding old tokens
+  src/simplePass.ts  simple (phone) mode pass: constant wheel power, traction limit, no gears
+  src/components/SimpleView.tsx  simple mode page: hp / weight / tires / 60 ft inputs, tiles, timeslip, speed chart
   src/appState.ts    AppSettings + DEFAULT_SETTINGS; parseSettings (type-checked merge over defaults),
                      embedSettings / readEmbeddedSettings (<script type="application/json" id="saved-settings">)
   src/automatic.ts   AutomaticSetup (converter, launch, lock-up, shift time, loss), defaults, launchRpm, lockedInGear
@@ -218,7 +220,7 @@ section as release notes. (Older `build-1`/`build-2` releases predate versioning
 - `.github/workflows/release.yml`: every push to `main` builds and tests, then publishes
   `frontend/dist/index.html` as a GitHub Release asset (tag `vX.Y.Z`, marked latest) using the
   built-in token, and POSTs the `CLOUDFLARE_DEPLOY_HOOK` secret (if set) to redeploy the website.
-- The website (a1gemmel/andrewgemmel.com, Cloudflare Pages) downloads
+- The website (repo a1gemmel/andrewgemmel.com; the live domain is andrewgemmel.ca, Cloudflare Pages) downloads
   `https://github.com/a1gemmel/drag-racing-calculator/releases/latest/download/index.html` in its build
   command (`scripts/build.sh` in that repo). Requires this repo to stay public.
 - Local branch is `master`, tracking `origin/main`.
@@ -268,7 +270,7 @@ section as release notes. (Older `build-1`/`build-2` releases predate versioning
   search text and filter excluded) in the URL fragment. Fragment rather than query params: works from file://, never
   sent to a server. Since v0.5.0 (owner request) the address bar is NOT updated as settings change; the header
   "Copy link" button builds the link (`shareUrl`: the page's own address over http(s); from file:// it uses `PUBLIC_URL`,
-  https://andrewgemmel.com/applications/drag-racing-calculator/, where the website build publishes the latest release —
+  https://andrewgemmel.ca/applications/drag-racing-calculator/, where the website build publishes the latest release —
   update it if the site path changes). On load a valid token wins over embedded offline-copy settings; a fragment pasted
   into an open page (hashchange) reloads it. Format: base64url(version byte 1 + protobuf-style message), fields tagged
   with numeric ids, only values differing from each field's frozen base are written; documented in shareToken.ts.
@@ -290,7 +292,7 @@ bookmark and post these links. When changing settings or `src/shareToken.ts`:
   the fixtures only for a pure rename).
 - The version byte changes only for an incompatible format change; keep decoders for every older version.
 - `src/shareToken.golden.json` (tokens and the complete setup each decodes to, in `toTokenView` layout) and the
-  schema snapshots (`src/shareToken.v1-schema.json` = v0.4.0, `src/shareToken.v0.5.0-schema.json`) are frozen: never
+  schema snapshots (`src/shareToken.v1-schema.json` = v0.4.0, `src/shareToken.v0.5.0-schema.json`, `src/shareToken.v0.6.0-schema.json`) are frozen: never
   edit or delete entries, only add. When a release adds fields, add golden tokens that use them and a new
   `shareToken.v<version>-schema.json` snapshot listed in SCHEMA_SNAPSHOTS (shareToken.test.ts). Don't "fix" a failing compatibility test
   by changing the fixtures.
@@ -371,6 +373,26 @@ No sidebar. Car tabs over the setup cards, then the quarter-mile card. Setup car
 Quarter-mile card order: air conditions, tiles (winner), timing table (comparing) or one-line `TimeslipStrip` (one car),
 speed chart, rpm chart, shifts table, pass replay. Cards stack below 1100 px (split) and 900 px (pair). The trap method
 keeps its own race weight in Engine (it drives Car's race weight one way).
+
+## Simple mode (v0.6.0, owner request)
+
+Phones get a simple version: one car, no racing, no gears. `src/simplePass.ts` + `components/SimpleView.tsx`.
+- Inputs: crank hp, race weight, tire preset (grip + rolling resistance from `TIRE_PRESETS`), 60 ft estimate / known.
+  Settings in `AppSettings.simple` (separate from the full mode's cars), token field 19 `simple`.
+- Model: constant wheel power (an ideal gearbox at the power peak) = hp × (1 − 15% `SIMPLE_DRIVELINE_LOSS`) ×
+  `GEARING_UTILIZATION` 0.94, capped by the traction limit (RWD, weight transfer), with the full sim's default
+  geometry, aero, rolling resistance, rollout timing and trap windows; rotating mass ×1.08. 0.94 is calibrated so trap
+  speed reproduces Hale's rule (the same one the full mode's trap-speed power estimate uses) within ±0.6% from 250 to
+  1,000 hp (tests guard 1%). Default car (384 hp / 3,700 lb): 13.07 @ 110.3 vs full mode 12.95 @ 110.9. Known 60 ft:
+  traction over the first 60 ft scaled by binary search, like the full mode.
+- Output: 1/4 (hero), 60 ft, 1/8 tiles; `TimeslipStrip`; one speed chart with Time / Distance / Completion and 1/8, 1/4
+  dots. No replay, rpm chart, air conditions or comparison.
+- Mode: `AppSettings.mode` "auto" | "simple" | "full" (token field 20). On load: a link's or saved copy's explicit mode,
+  else the last choice in localStorage (`drag-racing-calculator:mode`), else simple when `(max-width: 700px)` matches.
+  Copy link and offline copies carry the mode in use. Simple / Full toggle in the top bar.
+- First-load notice (owner asked for a warning; an exception to the numbers-only copy rule): shown when simple was picked
+  by screen size and `drag-racing-calculator:phone-notice` isn't set; OK or "Use full version" sets it. These two
+  localStorage keys are the app's only browser storage (wrapped in try/catch; blocked storage just means no memory).
 
 ## Design system (2026-11-24 redesign)
 

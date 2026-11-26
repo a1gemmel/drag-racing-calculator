@@ -2,6 +2,7 @@ import { GENERIC_AUTOMATIC, type AutomaticSetup } from "./automatic";
 import { MAX_GEARS, type CustomTransmission } from "./customTransmissions";
 import { DEFAULT_POWER, type PowerState } from "./power";
 import { DEFAULT_VEHICLE, type VehicleSetup } from "./quarterMile";
+import { DEFAULT_SIMPLE, type SimpleSetup } from "./simplePass";
 import { ALL_SCOPE } from "./transmissionSearch";
 
 /** One car's setup: a tab in the setup section. The quarter-mile simulation overlays every car. */
@@ -50,6 +51,10 @@ export type AppSettings = {
   conditions: TrackConditions;
   /** User-made transmissions, shared by all cars. */
   customTransmissions: CustomTransmission[];
+  /** Simple mode (phones): hp, weight, tires and 60 ft only. */
+  simple: SimpleSetup;
+  /** Which version of the page: "auto" picks simple on phones and full elsewhere (or the user's last choice). */
+  mode: "auto" | "simple" | "full";
 };
 
 export const MAX_CARS = 6;
@@ -81,6 +86,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   chartView: "shifts",
   conditions: DEFAULT_CONDITIONS,
   customTransmissions: [],
+  simple: DEFAULT_SIMPLE,
+  mode: "auto",
 };
 
 export const SETTINGS_ELEMENT_ID = "saved-settings";
@@ -96,6 +103,7 @@ const ENUMS: Record<string, readonly string[]> = {
   "power.dynoBasis": ["crank", "wheel"],
   "vehicle.drive": ["rear", "front", "awd"],
   "conditions.mode": ["standard", "da", "weather"],
+  mode: ["auto", "simple", "full"],
   lockup: ["off", "top", "after1st"],
   launch: ["transbrake", "footbrake"],
 };
@@ -167,13 +175,14 @@ export function parseSettings(raw: unknown): AppSettings {
     : [{ ...source, name: source.carName, color: source.carColor }, ...(Array.isArray(source.extraCars) ? source.extraCars : [])];
   const cars = rawCars.slice(0, MAX_CARS).map(parseCar);
   const activeCar = typeof source.activeCar === "number" && Number.isInteger(source.activeCar) ? Math.min(Math.max(source.activeCar, 0), cars.length - 1) : 0;
-  const views = mergeInto({ gearsetView: DEFAULT_SETTINGS.gearsetView, chartView: DEFAULT_SETTINGS.chartView }, source);
+  const views = mergeInto({ gearsetView: DEFAULT_SETTINGS.gearsetView, chartView: DEFAULT_SETTINGS.chartView, mode: DEFAULT_SETTINGS.mode }, source);
   return {
     cars,
     activeCar,
     ...views,
     conditions: mergeInto(DEFAULT_CONDITIONS, source.conditions, "conditions"),
     customTransmissions: parseCustoms(source.customTransmissions),
+    simple: mergeInto(DEFAULT_SIMPLE, source.simple, "simple"),
   };
 }
 

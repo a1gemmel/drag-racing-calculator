@@ -338,6 +338,8 @@ input:disabled { opacity: 0.45; cursor: not-allowed; }
 a.version-link:hover { color: var(--text); text-decoration: underline; }
 .site-footer .text-button { justify-self: auto; color: var(--text-2); font-size: 0.78rem; }
 .site-footer .text-button:hover { color: var(--text); }
+.site-footer { flex-wrap: wrap; }
+.attribution { color: var(--text-2); }
 .changelog-dialog { width: min(720px, calc(100vw - 32px)); max-height: min(80vh, 760px); padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--text); }
 .changelog-dialog::backdrop { background: rgba(5, 6, 7, 0.7); }
 .changelog-content { display: flex; flex-direction: column; max-height: inherit; }
@@ -458,3 +460,20 @@ a.version-link:hover { color: var(--text); text-decoration: underline; }
 .split.collapsed .subgroup { grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); align-items: start; gap: 14px 18px; }
 .split.collapsed .subgroup > :is(.subgroup-title-row, details, .hint) { grid-column: 1 / -1; }
 .split.collapsed .subgroup > .field-row { grid-column: 1 / -1; grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr)); }
+
+/* Simple / Full toggle and the first-load phone notice (v0.6.0) */
+.topbar { flex-wrap: wrap; row-gap: 10px; }
+@media (max-width: 560px) {
+  .brand h1 { font-size: 0.95rem; }
+  .brand-mark { width: 30px; height: 30px; }
+}
+.notice-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: rgba(5, 6, 8, 0.72); }
+.notice { width: min(420px, 100%); padding: 22px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface-raised); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); }
+.notice h2 { margin-bottom: 10px; font-size: 1.05rem; }
+.notice p { margin-top: 8px; color: var(--text-2); font-size: 0.9rem; line-height: 1.45; }
+.notice-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.notice-actions .button { padding: 9px 16px; font-size: 0.88rem; }
+.simple-tiles { grid-template-columns: 1.4fr 1fr 1fr; }
+@media (max-width: 900px) {
+  .simple-tiles { grid-template-columns: 1fr 1fr; }
+}

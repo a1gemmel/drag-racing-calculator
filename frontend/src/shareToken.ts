@@ -191,6 +191,20 @@ export const TOKEN_SCHEMA: readonly Field[] = [
     ],
   },
   str(18, "carColor", ""),
+  // v0.6.0: simple mode (phones) and the page version a link was made in.
+  {
+    id: 19,
+    key: "simple",
+    kind: "message",
+    fields: [
+      num(1, "hp", 400),
+      num(2, "weightLb", 3700),
+      num(3, "grip", 1),
+      num(4, "rollingResistance", 0.015),
+      { id: 5, key: "knownSixtyFtS", kind: "nullableNumber", base: null },
+    ],
+  },
+  enm(20, "mode", ["auto", "simple", "full"], "auto"),
 ];
 
 // ---------------------------------------------------------------- bytes
@@ -526,6 +540,8 @@ export function toTokenView(settings: AppSettings): Record<string, unknown> {
     extraCars: rest.map(({ query: _qq, scope: _ss, ...car }) => car),
     activeCar: settings.activeCar,
     conditions: settings.conditions,
+    simple: settings.simple,
+    mode: settings.mode,
   };
 }
 
@@ -533,7 +549,7 @@ export function toTokenView(settings: AppSettings): Record<string, unknown> {
  * Where the app is published (the website's build copies the latest release here). Share links made
  * in a copy opened from disk (file://) point here, since a file path on one computer is no use to anyone else.
  */
-export const PUBLIC_URL = "https://andrewgemmel.com/applications/drag-racing-calculator/";
+export const PUBLIC_URL = "https://andrewgemmel.ca/applications/drag-racing-calculator/";
 
 /** The share link for a token, from the page's address: the page itself when served over http(s), else PUBLIC_URL. */
 export function shareUrl(pageHref: string, token: string): string {

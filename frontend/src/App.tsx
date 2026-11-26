@@ -15,6 +15,8 @@ import { Subgroup } from "./components/Subgroup";
 import { TireField, type TireMode } from "./components/TireField";
 import { MAX_CAR_NAME, MAX_CARS, readEmbeddedSettings, type AppSettings, type CarSetup, type TrackConditions } from "./appState";
 import { CarTabs } from "./components/CarTabs";
+import { SimpleView } from "./components/SimpleView";
+import type { SimpleSetup } from "./simplePass";
 import { settingsFromToken, settingsToToken, shareUrl } from "./shareToken";
 import { downloadOfflineCopy, OFFLINE_FILE_NAME, offlineCopyAvailable, offlineCopyKb } from "./offline";
 import { buildCurve, type PowerState } from "./power";
@@ -35,6 +37,33 @@ const CRUISE_FLOOR_RPM = 1200;
 // unless the user picked one.
 const CAR_COLORS = GEAR_COLORS;
 const carColor = (car: CarSetup, index: number) => car.color || CAR_COLORS[index % CAR_COLORS.length];
+
+const MODE_KEY = "drag-racing-calculator:mode";
+const PHONE_NOTICE_KEY = "drag-racing-calculator:phone-notice";
+/** Small preferences (simple/full, notice seen) in browser storage; ignored where storage is unavailable. */
+function readStored(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeStored(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Storage blocked (private mode, some file:// pages): the choice lasts for this visit only.
+  }
+}
+/** Phones get simple mode by default. */
+const PHONE_QUERY = "(max-width: 700px)";
+function resolveMode(saved: AppSettings["mode"]): { mode: "simple" | "full"; byScreen: boolean } {
+  if (saved !== "auto") return { mode: saved, byScreen: false };
+  const stored = readStored(MODE_KEY);
+  if (stored === "simple" || stored === "full") return { mode: stored, byScreen: false };
+  const phone = typeof window.matchMedia === "function" && window.matchMedia(PHONE_QUERY).matches;
+  return { mode: phone ? "simple" : "full", byScreen: true };
+}
 
 /** What the page needs from one car's setup: its transmission pick, gears, tire, power curve, automatic setup. */
 function deriveCar(car: CarSetup, families: TransmissionFamily[]) {
@@ -64,6 +93,20 @@ export function App() {
   const [cars, setCars] = useState<CarSetup[]>(initial.cars);
   const [activeCar, setActiveCar] = useState(initial.activeCar);
   const [conditions, setConditions] = useState<TrackConditions>(initial.conditions);
+  const [simple, setSimple] = useState<SimpleSetup>(initial.simple);
+  // Simple (phones) or full: a link or saved copy's mode, else the user's last choice, else by screen size.
+  const [modeInfo] = useState(() => resolveMode(initial.mode));
+  const [mode, setModeState] = useState<"simple" | "full">(modeInfo.mode);
+  const [phoneNotice, setPhoneNotice] = useState(modeInfo.byScreen && modeInfo.mode === "simple" && !readStored(PHONE_NOTICE_KEY));
+  const setMode = (next: "simple" | "full") => {
+    setModeState(next);
+    writeStored(MODE_KEY, next);
+  };
+  const closePhoneNotice = (next?: "full") => {
+    writeStored(PHONE_NOTICE_KEY, "1");
+    setPhoneNotice(false);
+    if (next) setMode(next);
+  };
   const car = cars[activeCar] ?? cars[0];
   // Changes to the open car. A function patch sees the car's latest state.
   const updateCar = (patch: Partial<CarSetup> | ((current: CarSetup) => Partial<CarSetup>)) =>
@@ -172,6 +215,8 @@ export function App() {
     chartView,
     conditions,
     customTransmissions,
+    simple,
+    mode,
   });
 
   // Car tabs.
@@ -283,6 +328,16 @@ export function App() {
           </svg>
           <h1>Drag Racing Calculator</h1>
         </div>
+        <Segmented<"simple" | "full">
+          label="Page version"
+          size="small"
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: "simple", label: "Simple" },
+            { value: "full", label: "Full" },
+          ]}
+        />
         <div className="topbar-actions">
           <button type="button" className="download-button" onClick={copyLink} aria-live="polite">
             <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -307,6 +362,10 @@ export function App() {
       </header>
 
       <main className="page">
+        {mode === "simple" ? (
+          <SimpleView setup={simple} onChange={setSimple} />
+        ) : (
+        <>
         <div className="car-setup">
           <CarTabs
             cars={cars.map((item, index) => ({ name: item.name, color: carColor(item, index) }))}
@@ -692,7 +751,28 @@ export function App() {
         </div>
 
         <QuarterMileCard cars={simCars} conditions={conditions} onConditionsChange={setConditions} />
+        </>
+        )}
       </main>
+      {phoneNotice ? (
+        <div className="notice-backdrop">
+          <div className="notice" role="dialog" aria-modal="true" aria-labelledby="phone-notice-title">
+            <h2 id="phone-notice-title">Simple version</h2>
+            <p>
+              You are viewing the simplified model optimized for small screens. Switch any time to Full mode at the top of
+              the page.
+            </p>
+            <div className="notice-actions">
+              <button type="button" className="button" onClick={() => closePhoneNotice()}>
+                OK
+              </button>
+              <button type="button" className="button button-ghost" onClick={() => closePhoneNotice("full")}>
+                Use full version
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <SiteFooter />
       <CustomTransmissionDialog
         draft={customDraft}

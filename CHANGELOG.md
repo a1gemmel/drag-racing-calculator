@@ -2,6 +2,16 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.6.0 — 2026-11-25
+
+- Simple version for phones: horsepower, race weight and tires (plus an optional known 60 ft) give a simulated quarter-mile pass with 60 ft, 1/8 and 1/4 times, a timeslip and a speed chart. No gears to set up; a 15% driveline loss is used.
+- Simple / Full toggle at the top of the page. Phones start in Simple, with a one-time notice; other screens start in Full. Your choice is remembered, and share links open in the version they were made in.
+
+## v0.5.2 — 2026-11-25
+
+- Footer credit: © 2026 Andrew Gemmel.
+- Fixed: Copy link in a downloaded offline copy pointed at the wrong website address (andrewgemmel.com); it now uses andrewgemmel.ca.
+
 ## v0.5.1 — 2026-11-25
 
 - Copy link in a downloaded offline copy now links to the published site instead of a file on your computer.

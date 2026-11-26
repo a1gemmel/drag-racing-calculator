@@ -1023,5 +1023,205 @@
     "humidityPct": 40
    }
   }
+ },
+ {
+  "version": "0.6.0",
+  "token": "AZoBDQnQQRHgogMZ0QEpwhWgAQE",
+  "settings": {
+   "selectedModel": "Muncie M20",
+   "selectedVariantName": "66-70 Wide Ratio",
+   "tireMode": "diameter",
+   "tireDiameterIn": 26,
+   "tireSize": "275/55R15",
+   "axleRatio": 3.73,
+   "shiftRpm": 6500,
+   "power": {
+    "method": "trap",
+    "trapDistance": "quarter",
+    "trapMph": 110,
+    "trapEighthMph": 88,
+    "trapWeightLb": 3700,
+    "trapPeakRpm": 6000,
+    "peak": {
+     "peakHp": 430,
+     "peakHpRpm": 5900,
+     "peakTorque": 424,
+     "peakTorqueRpm": 4600
+    },
+    "peakBasis": "crank",
+    "dyno": [
+     {
+      "rpm": 2000,
+      "torque": 330
+     },
+     {
+      "rpm": 3000,
+      "torque": 375
+     },
+     {
+      "rpm": 4000,
+      "torque": 410
+     },
+     {
+      "rpm": 4600,
+      "torque": 424
+     },
+     {
+      "rpm": 5200,
+      "torque": 410
+     },
+     {
+      "rpm": 5900,
+      "torque": 383
+     },
+     {
+      "rpm": 6500,
+      "torque": 330
+     }
+    ],
+    "dynoBasis": "crank"
+   },
+   "vehicle": {
+    "weightLb": 3700,
+    "drivetrainLoss": 0.11,
+    "grip": 1,
+    "drive": "rear",
+    "driveWeightFraction": 0.5,
+    "cgHeightIn": 20,
+    "wheelbaseIn": 105,
+    "dragCoefficient": 0.35,
+    "frontalAreaFt2": 22,
+    "rollingResistance": 0.015,
+    "shiftTimeS": 0.15,
+    "launchRpm": 3500,
+    "clutchReleaseS": 0.25,
+    "rolloutIn": 11.5,
+    "knownSixtyFtS": null,
+    "launchControl": false
+   },
+   "autoSetups": {},
+   "carName": "Car 1",
+   "carColor": "",
+   "gearsetView": "cruising",
+   "chartView": "shifts",
+   "customTransmissions": [],
+   "extraCars": [],
+   "activeCar": 0,
+   "conditions": {
+    "mode": "standard",
+    "densityAltitudeFt": 0,
+    "tempF": 70,
+    "baroInHg": 29.92,
+    "humidityPct": 40
+   },
+   "simple": {
+    "hp": 525,
+    "weightLb": 3350,
+    "grip": 1.3,
+    "rollingResistance": 0.015,
+    "knownSixtyFtS": 1.72
+   },
+   "mode": "simple"
+  }
+ },
+ {
+  "version": "0.6.0",
+  "token": "AaABAg",
+  "settings": {
+   "selectedModel": "Muncie M20",
+   "selectedVariantName": "66-70 Wide Ratio",
+   "tireMode": "diameter",
+   "tireDiameterIn": 26,
+   "tireSize": "275/55R15",
+   "axleRatio": 3.73,
+   "shiftRpm": 6500,
+   "power": {
+    "method": "trap",
+    "trapDistance": "quarter",
+    "trapMph": 110,
+    "trapEighthMph": 88,
+    "trapWeightLb": 3700,
+    "trapPeakRpm": 6000,
+    "peak": {
+     "peakHp": 430,
+     "peakHpRpm": 5900,
+     "peakTorque": 424,
+     "peakTorqueRpm": 4600
+    },
+    "peakBasis": "crank",
+    "dyno": [
+     {
+      "rpm": 2000,
+      "torque": 330
+     },
+     {
+      "rpm": 3000,
+      "torque": 375
+     },
+     {
+      "rpm": 4000,
+      "torque": 410
+     },
+     {
+      "rpm": 4600,
+      "torque": 424
+     },
+     {
+      "rpm": 5200,
+      "torque": 410
+     },
+     {
+      "rpm": 5900,
+      "torque": 383
+     },
+     {
+      "rpm": 6500,
+      "torque": 330
+     }
+    ],
+    "dynoBasis": "crank"
+   },
+   "vehicle": {
+    "weightLb": 3700,
+    "drivetrainLoss": 0.11,
+    "grip": 1,
+    "drive": "rear",
+    "driveWeightFraction": 0.5,
+    "cgHeightIn": 20,
+    "wheelbaseIn": 105,
+    "dragCoefficient": 0.35,
+    "frontalAreaFt2": 22,
+    "rollingResistance": 0.015,
+    "shiftTimeS": 0.15,
+    "launchRpm": 3500,
+    "clutchReleaseS": 0.25,
+    "rolloutIn": 11.5,
+    "knownSixtyFtS": null,
+    "launchControl": false
+   },
+   "autoSetups": {},
+   "carName": "Car 1",
+   "carColor": "",
+   "gearsetView": "cruising",
+   "chartView": "shifts",
+   "customTransmissions": [],
+   "extraCars": [],
+   "activeCar": 0,
+   "conditions": {
+    "mode": "standard",
+    "densityAltitudeFt": 0,
+    "tempF": 70,
+    "baroInHg": 29.92,
+    "humidityPct": 40
+   },
+   "simple": {
+    "hp": 400,
+    "weightLb": 3700,
+    "grip": 1,
+    "rollingResistance": 0.015,
+    "knownSixtyFtS": null
+   },
+   "mode": "full"
+  }
  }
 ]

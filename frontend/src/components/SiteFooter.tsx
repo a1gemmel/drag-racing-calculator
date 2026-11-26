@@ -41,6 +41,7 @@ export function SiteFooter() {
       <button type="button" className="text-button" onClick={() => dialog.current?.showModal()}>
         Changelog
       </button>
+      <span className="attribution">© 2026 Andrew Gemmel</span>
 
       <dialog
         ref={dialog}

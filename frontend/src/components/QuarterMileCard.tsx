@@ -27,7 +27,7 @@ type VehicleProps = {
 };
 
 /** Tire presets set grip and rolling resistance together. */
-const TIRE_PRESETS = [
+export const TIRE_PRESETS = [
   { id: "street", grip: 0.9, rolling: RADIAL_ROLLING, label: "Street tire (0.9)" },
   { id: "performance", grip: 1.0, rolling: RADIAL_ROLLING, label: "Performance street (1.0)" },
   { id: "radial", grip: 1.3, rolling: RADIAL_ROLLING, label: "Drag radial (1.3)" },
@@ -420,8 +420,8 @@ function lighten(color: string, amount: number) {
 export const gearShade = (color: string, gear: number) => (gear % 2 === 0 ? color : lighten(color, 0.5));
 
 /** Distance axes tick at the timing marks (the origin stays unlabelled: 0 and 60 would collide). */
-const DISTANCE_TICKS = [60, 330, 660, 1000, 1320];
-const COMPLETION_TICKS = [0, 330, 660, 1000, 1320];
+export const DISTANCE_TICKS = [60, 330, 660, 1000, 1320];
+export const COMPLETION_TICKS = [0, 330, 660, 1000, 1320];
 
 /** Speed chart: speed vs time, speed vs distance, or distance vs time ("completion"). */
 type SpeedAxis = "time" | "distance" | "completion";
@@ -636,7 +636,7 @@ function ShiftTable({ runs }: { runs: CarRun[] }) {
 }
 
 /** One car's timing slip on a single line: every mark's time, with speed at the 1/8 and 1/4. */
-function TimeslipStrip({ run }: { run: QuarterMileRun }) {
+export function TimeslipStrip({ run }: { run: QuarterMileRun }) {
   const trap = (label: string) => (label === "1/8 mile" ? run.eighth?.mph : label === "1/4 mile" ? run.trapMph : null);
   return (
     <dl className="timeslip-strip" aria-label="Timeslip">

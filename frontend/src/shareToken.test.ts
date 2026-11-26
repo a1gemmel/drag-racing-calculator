@@ -5,9 +5,10 @@ import { decodeTokenRaw, describeSchema, PUBLIC_URL, settingsFromToken, settings
 import golden from "./shareToken.golden.json";
 import v1Schema from "./shareToken.v1-schema.json";
 import v050Schema from "./shareToken.v0.5.0-schema.json";
+import v060Schema from "./shareToken.v0.6.0-schema.json";
 
 /** Frozen schema snapshots, one per release that added fields. Never edit; add one when a release adds fields. */
-const SCHEMA_SNAPSHOTS = { "0.4.0 (v1)": v1Schema, "0.5.0": v050Schema } as Record<string, Record<string, unknown>[]>;
+const SCHEMA_SNAPSHOTS = { "0.4.0 (v1)": v1Schema, "0.5.0": v050Schema, "0.6.0": v060Schema } as Record<string, Record<string, unknown>[]>;
 
 /**
  * FROZEN (shareToken.golden.json): tokens written by released versions and the complete setup each
@@ -102,6 +103,8 @@ describe("share token round trip", () => {
       ],
       activeCar: 2,
       conditions: { mode: "weather", densityAltitudeFt: 1200, tempF: 91, baroInHg: 29.11, humidityPct: 63 },
+      simple: { hp: 612.5, weightLb: 3180, grip: 1.6, rollingResistance: 0.021, knownSixtyFtS: 1.55 },
+      mode: "simple",
       customTransmissions: [{ name: "Box", kind: "automatic", ratios: [2.8, 1.6, 1], automatic: { ...GENERIC_AUTOMATIC } }],
     };
     expect(settingsFromToken(settingsToToken(settings))).toEqual(settings);
@@ -130,8 +133,8 @@ describe("share token round trip", () => {
 
 describe("share link address", () => {
   it("uses the page's own address when it's served over http(s)", () => {
-    expect(shareUrl("https://andrewgemmel.com/applications/drag-racing-calculator/#OLD", "ATGRBQ")).toBe(
-      "https://andrewgemmel.com/applications/drag-racing-calculator/#ATGRBQ",
+    expect(shareUrl("https://andrewgemmel.ca/applications/drag-racing-calculator/#OLD", "ATGRBQ")).toBe(
+      "https://andrewgemmel.ca/applications/drag-racing-calculator/#ATGRBQ",
     );
     expect(shareUrl("http://localhost:5173/", "ATGRBQ")).toBe("http://localhost:5173/#ATGRBQ");
   });

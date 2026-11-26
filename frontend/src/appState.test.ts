@@ -137,3 +137,13 @@ describe("car colors", () => {
     expect(parseSettings({ carColor: "#00ff00" }).cars[0].color).toBe("#00ff00");
   });
 });
+
+describe("simple mode settings", () => {
+  it("defaults to auto with the simple defaults, and checks values", () => {
+    expect(DEFAULT_SETTINGS.mode).toBe("auto");
+    const settings = parseSettings({ mode: "simple", simple: { hp: 525, weightLb: "heavy", knownSixtyFtS: 1.7 } });
+    expect(settings.mode).toBe("simple");
+    expect(settings.simple).toEqual({ ...DEFAULT_SETTINGS.simple, hp: 525, knownSixtyFtS: 1.7 });
+    expect(parseSettings({ mode: "tiny" }).mode).toBe("auto");
+  });
+});
