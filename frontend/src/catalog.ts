@@ -42,6 +42,21 @@ const WIKIPEDIA_NV3500 = "New Venture Gear 3500 transmission: https://en.wikiped
 const ADVANCE_ADAPTERS_NV4500 = "Advance Adapters, NV4500 Specifications: https://advanceadapters.com/1-nv4500-specifications";
 const DIESELHUB_NV4500 = "DieselHub, NV4500 Transmission Ratios: https://dieselhub.com/trans/nv4500.html";
 const RANDYS_MUNCIE = "Randy's Worldwide, Muncie Transmission ID: https://www.randysworldwide.com/import_export/Muncie_Trans_ID.pdf";
+const ATI_GLIDE_GEARSETS =
+  "ATI Performance Products Powerglide gear sets (aftermarket low gear ratios, 2nd direct 1.00): https://www.atiracing.com/products/gears/gearsets.htm";
+const RICHMOND_SUPER_T10 =
+  "Richmond Gear catalog, Super T-10 Plus 4-Speed general specifications (part no., 1st-4th, reverse): https://www.richmondgear.com/wp-content/uploads/pdfs/richmond/RG26.pdf";
+const ADVANCE_SAGINAW =
+  "Advance Adapters, Saginaw 3 & 4 speeds (ratios by input shaft groove count): https://advanceadapters.com/4-saginaw-3-4-speeds";
+const CHEVYHARDCORE_GM_4SPEEDS =
+  "Chevy Hardcore, Identify General Motors' four-speed transmissions: https://www.chevyhardcore.com/tech-stories/identify-four-speed-transmissions/";
+const FORD_AOD_MANUAL =
+  "Ford workshop manual, Transmission, Automatic - AODE (2.40 / 1.47 / 1.00 / 0.67, reverse 2.00): https://www.fordservicecontent.dealerconnection.com/pubs/content/~WSRB/~MUS~LEN/19/SRB71008.HTM";
+const F150HUB_AOD = "F150hub, Ford AOD / AODE automatic transmission: https://www.f150hub.com/trans/aod.html";
+const MOTORMATCHUP_350Z =
+  "MotorMatchup, 2008 Nissan 350Z Touring 6-speed manual specifications: https://www.motormatchup.com/catalog/Nissan/350Z/2008/Touring-(6_speed-Manual)";
+const MY350Z_RATIOS =
+  "MY350Z.COM, gear ratios for the 6-speed (reverse 3.446): https://my350z.com/forum/2003-2009-nissan-350z/3541-gear-ratios-for-the-6speed-anyone-kno.html";
 const WIKIPEDIA_POWERGLIDE = "Powerglide (1.76 / 1.82 low; reverse equals low): https://en.wikipedia.com/wiki/Powerglide";
 const CHEVY_1971_TRANS_MANUAL =
   "1971 Chevrolet transmission service manual, Powerglide (reverse uses the low reduction): https://oldcarmanualproject.com/manuals/trans/TTransChev1971/TTransChev19718.html";
@@ -470,6 +485,60 @@ export const transmissionFamilies: TransmissionFamily[] = [
       { name: "71-74 Wide Ratio", gear_ratios: [2.52, 1.88, 1.46, 1.0], application_manufacturers: ["GM"], source: RANDYS_MUNCIE },
     ],
   },
+  {
+    manufacturer: "Richmond",
+    model: "Super T-10",
+    variants: [
+      { name: "2.43 S", gear_ratios: [2.43, 1.61, 1.23, 1.0], application_manufacturers: ["GM"], reverse_ratio: 2.35, source: `${RICHMOND_SUPER_T10} (7021510)` },
+      { name: "2.64 W", gear_ratios: [2.64, 1.75, 1.34, 1.0], application_manufacturers: ["GM"], reverse_ratio: 2.55, source: `${RICHMOND_SUPER_T10} (7021520)` },
+      { name: "2.64 X", gear_ratios: [2.64, 1.6, 1.23, 1.0], application_manufacturers: ["GM"], reverse_ratio: 2.55, source: `${RICHMOND_SUPER_T10} (7021530)` },
+      { name: "2.88 CC", gear_ratios: [2.88, 1.91, 1.33, 1.0], application_manufacturers: ["GM"], reverse_ratio: 2.78, source: `${RICHMOND_SUPER_T10} (7021540)` },
+      { name: "3.42 Z", gear_ratios: [3.42, 2.28, 1.46, 1.0], application_manufacturers: ["GM"], reverse_ratio: 3.51, source: `${RICHMOND_SUPER_T10} (7021560)` },
+    ],
+  },
+  {
+    manufacturer: "GM",
+    model: "Saginaw 4-speed",
+    variants: [
+      {
+        name: "2.54 (1 groove)",
+        gear_ratios: [2.54, 1.8, 1.44, 1.0],
+        application_manufacturers: ["GM"],
+        source: `${ADVANCE_SAGINAW}; Chevy Hardcore lists 2nd as 1.84: ${CHEVYHARDCORE_GM_4SPEEDS}`,
+      },
+      {
+        name: "2.84 (no grooves)",
+        gear_ratios: [2.84, 2.01, 1.35, 1.0],
+        application_manufacturers: ["GM"],
+        source: `${ADVANCE_SAGINAW}; Chevy Hardcore lists 3rd as 1.34: ${CHEVYHARDCORE_GM_4SPEEDS}`,
+      },
+      {
+        name: "3.11 (2 grooves)",
+        gear_ratios: [3.11, 2.2, 1.47, 1.0],
+        application_manufacturers: ["GM"],
+        source: `${ADVANCE_SAGINAW}; ${CHEVYHARDCORE_GM_4SPEEDS}`,
+      },
+      {
+        name: "3.50 (3 grooves)",
+        gear_ratios: [3.5, 2.47, 1.65, 1.0],
+        application_manufacturers: ["GM"],
+        source: `${ADVANCE_SAGINAW}; Chevy Hardcore lists 2nd as 2.46: ${CHEVYHARDCORE_GM_4SPEEDS}`,
+      },
+    ],
+  },
+  {
+    manufacturer: "Nissan",
+    model: "CD009",
+    variants: [
+      {
+        name: "350Z / G35 6-speed",
+        gear_ratios: [3.794, 2.324, 1.624, 1.271, 1.0, 0.794],
+        application_manufacturers: ["Nissan", "Infiniti"],
+        reverse_ratio: 3.446,
+        source: `${MOTORMATCHUP_350Z}; ${MY350Z_RATIOS} (no Nissan factory document found; sources agree)`,
+      },
+    ],
+  },
 
   // Automatics. Ratios are cited per variant; converter/launch defaults are a typical street/strip
   // setup chosen for this app (see "Automatic transmission defaults" in AGENTS.md), not factory specs.
@@ -481,6 +550,16 @@ export const transmissionFamilies: TransmissionFamily[] = [
     variants: [
       { name: "1.76 Low", gear_ratios: [1.76, 1.0], application_manufacturers: ["GM"], reverse_ratio: 1.76, source: `${WIKIPEDIA_POWERGLIDE}; ${CHEVY_1971_TRANS_MANUAL}` },
       { name: "1.82 Low", gear_ratios: [1.82, 1.0], application_manufacturers: ["GM"], reverse_ratio: 1.82, source: `${WIKIPEDIA_POWERGLIDE}; ${CHEVY_1971_TRANS_MANUAL}` },
+      { name: "1.58 Low (aftermarket)", gear_ratios: [1.58, 1.0], application_manufacturers: ["GM"], source: ATI_GLIDE_GEARSETS },
+      { name: "1.62 Low (aftermarket)", gear_ratios: [1.62, 1.0], application_manufacturers: ["GM"], source: ATI_GLIDE_GEARSETS },
+      { name: "1.64 Low (aftermarket)", gear_ratios: [1.64, 1.0], application_manufacturers: ["GM"], source: ATI_GLIDE_GEARSETS },
+      { name: "1.74 Low (aftermarket)", gear_ratios: [1.74, 1.0], application_manufacturers: ["GM"], source: ATI_GLIDE_GEARSETS },
+      { name: "1.80 Low (aftermarket)", gear_ratios: [1.8, 1.0], application_manufacturers: ["GM"], source: ATI_GLIDE_GEARSETS },
+      { name: "1.87 Low (aftermarket)", gear_ratios: [1.87, 1.0], application_manufacturers: ["GM"], source: ATI_GLIDE_GEARSETS },
+      { name: "1.94 Low (aftermarket)", gear_ratios: [1.94, 1.0], application_manufacturers: ["GM"], source: ATI_GLIDE_GEARSETS },
+      { name: "1.98 Low (aftermarket)", gear_ratios: [1.98, 1.0], application_manufacturers: ["GM"], source: ATI_GLIDE_GEARSETS },
+      { name: "2.08 Low (aftermarket)", gear_ratios: [2.08, 1.0], application_manufacturers: ["GM"], source: ATI_GLIDE_GEARSETS },
+      { name: "2.18 Low (aftermarket)", gear_ratios: [2.18, 1.0], application_manufacturers: ["GM"], source: ATI_GLIDE_GEARSETS },
     ],
   },
   {
@@ -514,6 +593,16 @@ export const transmissionFamilies: TransmissionFamily[] = [
     kind: "automatic",
     automatic: automaticDefaults({ stallRpm: 3000, couplingSlip: 0.06, lockupCapable: false, shiftTimeS: 0.2, shiftLoss: 0.2, drivetrainLoss: 0.14 }),
     variants: [{ name: "Cruise-O-Matic C6", gear_ratios: [2.46, 1.46, 1.0], application_manufacturers: ["Ford"], reverse_ratio: 2.18, source: `${ADVANCE_ADAPTERS_C6}; ${F150HUB_C4_C6}` }],
+  },
+  {
+    manufacturer: "Ford",
+    model: "AOD",
+    kind: "automatic",
+    // 4th is a direct mechanical drive through the split-torque input shaft (locked); 3rd's 60/40 split isn't modelled.
+    automatic: automaticDefaults({ stallRpm: 2800, couplingSlip: 0.06, lockupCapable: true, lockup: "top", shiftTimeS: 0.22, shiftLoss: 0.15, drivetrainLoss: 0.15 }),
+    variants: [
+      { name: "AOD / AODE", gear_ratios: [2.4, 1.47, 1.0, 0.67], application_manufacturers: ["Ford", "Lincoln", "Mercury"], reverse_ratio: 2.0, source: `${FORD_AOD_MANUAL}; ${F150HUB_AOD}` },
+    ],
   },
   {
     manufacturer: "GM",

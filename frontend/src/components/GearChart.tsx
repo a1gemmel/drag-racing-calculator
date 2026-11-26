@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { rpmForSpeed, speedMph } from "../calculations";
+import { useMeasuredWidth } from "./useMeasuredWidth";
 
 export type Gear = { label: string; ratio: number; color: string };
 
@@ -19,9 +20,12 @@ type Props = {
   view: "shifts" | "full";
 };
 
-// SVG viewBox is 720x360; the plot area sits inside these edges.
-const VIEW = { width: 720, height: 360 };
-const PLOT = { left: 56, right: 700, top: 16, bottom: 316 };
+// Drawn in real pixels (the measured width; height 240-360 px), so text is the same size on every screen.
+// Left and bottom leave room for the axis titles.
+const chartGeometry = (width: number) => {
+  const view = { width, height: Math.round(Math.min(360, Math.max(240, width * 0.5))) };
+  return { view, plot: { left: 62, right: width - 20, top: 16, bottom: view.height - 46 } };
+};
 const TOOLTIP = { width: 150, height: 44 };
 /** Where 1st gear's line starts in shift-point mode (roughly idle). */
 const LAUNCH_RPM = 600;
@@ -39,6 +43,8 @@ export function niceStep(max: number, maxTicks: number) {
 }
 
 export function GearChart({ gears, tireDiameter, axleRatio, shiftRpm, view }: Props) {
+  const [boxRef, measuredWidth] = useMeasuredWidth<HTMLDivElement>(720);
+  const { view: VIEW, plot: PLOT } = chartGeometry(measuredWidth);
   const [hover, setHover] = useState<Hover>(null);
   const topRpm = shiftRpm;
   const speedAt = (rpm: number, ratio: number) => speedMph(rpm, tireDiameter, ratio, axleRatio);
@@ -64,7 +70,7 @@ export function GearChart({ gears, tireDiameter, axleRatio, shiftRpm, view }: Pr
   );
 
   const maxSpeedRaw = Math.max(...lines.map((line) => line.end.x), 1);
-  const speedStep = niceStep(maxSpeedRaw, 8);
+  const speedStep = niceStep(maxSpeedRaw, Math.max(3, Math.min(8, Math.floor(measuredWidth / 80))));
   const maxSpeed = Math.ceil(maxSpeedRaw / speedStep) * speedStep;
   const speedTicks = Array.from({ length: Math.round(maxSpeed / speedStep) + 1 }, (_, i) => i * speedStep);
   const rpmCeiling = Math.max(Math.ceil(topRpm / 1000) * 1000, 1000);
@@ -96,7 +102,7 @@ export function GearChart({ gears, tireDiameter, axleRatio, shiftRpm, view }: Pr
   };
 
   return (
-    <div className="chart">
+    <div className="chart" ref={boxRef}>
       <ul className="legend" aria-label="Gears">
         {gears.map((gear) => (
           <li key={gear.label}>
@@ -128,10 +134,10 @@ export function GearChart({ gears, tireDiameter, axleRatio, shiftRpm, view }: Pr
           </text>
         ))}
         <line className="baseline" x1={PLOT.left} x2={PLOT.right} y1={PLOT.bottom} y2={PLOT.bottom} />
-        <text className="axis-title" x={PLOT.right} y={VIEW.height - 4} textAnchor="end">
+        <text className="axis-title" x={(PLOT.left + PLOT.right) / 2} y={VIEW.height - 6} textAnchor="middle">
           mph
         </text>
-        <text className="axis-title" x={PLOT.left - 8} y={PLOT.top - 4} textAnchor="end">
+        <text className="axis-title" transform={`translate(14 ${(PLOT.top + PLOT.bottom) / 2}) rotate(-90)`} textAnchor="middle">
           rpm
         </text>
 

@@ -1,0 +1,963 @@
+[
+ {
+  "path": "selectedModel",
+  "id": "1",
+  "kind": "string",
+  "base": "Muncie M20"
+ },
+ {
+  "path": "selectedVariantName",
+  "id": "2",
+  "kind": "string",
+  "base": "66-70 Wide Ratio"
+ },
+ {
+  "path": "tireMode",
+  "id": "3",
+  "kind": "enum",
+  "values": [
+   "diameter",
+   "size"
+  ],
+  "base": "diameter"
+ },
+ {
+  "path": "tireDiameterIn",
+  "id": "4",
+  "kind": "number",
+  "base": 26
+ },
+ {
+  "path": "tireSize",
+  "id": "5",
+  "kind": "string",
+  "base": "275/55R15"
+ },
+ {
+  "path": "axleRatio",
+  "id": "6",
+  "kind": "number",
+  "base": 3.73
+ },
+ {
+  "path": "shiftRpm",
+  "id": "7",
+  "kind": "number",
+  "base": 6500
+ },
+ {
+  "path": "gearsetView",
+  "id": "8",
+  "kind": "enum",
+  "values": [
+   "ladder",
+   "cruising"
+  ],
+  "base": "cruising"
+ },
+ {
+  "path": "chartView",
+  "id": "9",
+  "kind": "enum",
+  "values": [
+   "shifts",
+   "full"
+  ],
+  "base": "shifts"
+ },
+ {
+  "path": "power",
+  "id": "10",
+  "kind": "message"
+ },
+ {
+  "path": "power.method",
+  "id": "10.1",
+  "kind": "enum",
+  "values": [
+   "trap",
+   "peak",
+   "dyno"
+  ],
+  "base": "trap"
+ },
+ {
+  "path": "power.trapDistance",
+  "id": "10.2",
+  "kind": "enum",
+  "values": [
+   "quarter",
+   "eighth"
+  ],
+  "base": "quarter"
+ },
+ {
+  "path": "power.trapMph",
+  "id": "10.3",
+  "kind": "number",
+  "base": 110
+ },
+ {
+  "path": "power.trapEighthMph",
+  "id": "10.4",
+  "kind": "number",
+  "base": 88
+ },
+ {
+  "path": "power.trapWeightLb",
+  "id": "10.5",
+  "kind": "number",
+  "base": 3700
+ },
+ {
+  "path": "power.trapPeakRpm",
+  "id": "10.6",
+  "kind": "number",
+  "base": 6000
+ },
+ {
+  "path": "power.peak",
+  "id": "10.7",
+  "kind": "message"
+ },
+ {
+  "path": "power.peak.peakHp",
+  "id": "10.7.1",
+  "kind": "number",
+  "base": 430
+ },
+ {
+  "path": "power.peak.peakHpRpm",
+  "id": "10.7.2",
+  "kind": "number",
+  "base": 5900
+ },
+ {
+  "path": "power.peak.peakTorque",
+  "id": "10.7.3",
+  "kind": "number",
+  "base": 424
+ },
+ {
+  "path": "power.peak.peakTorqueRpm",
+  "id": "10.7.4",
+  "kind": "number",
+  "base": 4600
+ },
+ {
+  "path": "power.peakBasis",
+  "id": "10.8",
+  "kind": "enum",
+  "values": [
+   "crank",
+   "wheel"
+  ],
+  "base": "crank"
+ },
+ {
+  "path": "power.dyno",
+  "id": "10.9",
+  "kind": "list",
+  "base": [
+   {
+    "rpm": 2000,
+    "torque": 330
+   },
+   {
+    "rpm": 3000,
+    "torque": 375
+   },
+   {
+    "rpm": 4000,
+    "torque": 410
+   },
+   {
+    "rpm": 4600,
+    "torque": 424
+   },
+   {
+    "rpm": 5200,
+    "torque": 410
+   },
+   {
+    "rpm": 5900,
+    "torque": 383
+   },
+   {
+    "rpm": 6500,
+    "torque": 330
+   }
+  ]
+ },
+ {
+  "path": "power.dyno.rpm",
+  "id": "10.9.1",
+  "kind": "number",
+  "base": 0
+ },
+ {
+  "path": "power.dyno.torque",
+  "id": "10.9.2",
+  "kind": "number",
+  "base": 0
+ },
+ {
+  "path": "power.dynoBasis",
+  "id": "10.10",
+  "kind": "enum",
+  "values": [
+   "crank",
+   "wheel"
+  ],
+  "base": "crank"
+ },
+ {
+  "path": "vehicle",
+  "id": "11",
+  "kind": "message"
+ },
+ {
+  "path": "vehicle.weightLb",
+  "id": "11.1",
+  "kind": "number",
+  "base": 3700
+ },
+ {
+  "path": "vehicle.drivetrainLoss",
+  "id": "11.2",
+  "kind": "number",
+  "base": 0.11
+ },
+ {
+  "path": "vehicle.grip",
+  "id": "11.3",
+  "kind": "number",
+  "base": 1
+ },
+ {
+  "path": "vehicle.drive",
+  "id": "11.4",
+  "kind": "enum",
+  "values": [
+   "rear",
+   "front",
+   "awd"
+  ],
+  "base": "rear"
+ },
+ {
+  "path": "vehicle.driveWeightFraction",
+  "id": "11.5",
+  "kind": "number",
+  "base": 0.5
+ },
+ {
+  "path": "vehicle.cgHeightIn",
+  "id": "11.6",
+  "kind": "number",
+  "base": 20
+ },
+ {
+  "path": "vehicle.wheelbaseIn",
+  "id": "11.7",
+  "kind": "number",
+  "base": 105
+ },
+ {
+  "path": "vehicle.dragCoefficient",
+  "id": "11.8",
+  "kind": "number",
+  "base": 0.35
+ },
+ {
+  "path": "vehicle.frontalAreaFt2",
+  "id": "11.9",
+  "kind": "number",
+  "base": 22
+ },
+ {
+  "path": "vehicle.rollingResistance",
+  "id": "11.10",
+  "kind": "number",
+  "base": 0.015
+ },
+ {
+  "path": "vehicle.shiftTimeS",
+  "id": "11.11",
+  "kind": "number",
+  "base": 0.15
+ },
+ {
+  "path": "vehicle.launchRpm",
+  "id": "11.12",
+  "kind": "number",
+  "base": 3500
+ },
+ {
+  "path": "vehicle.clutchReleaseS",
+  "id": "11.13",
+  "kind": "number",
+  "base": 0.25
+ },
+ {
+  "path": "vehicle.rolloutIn",
+  "id": "11.14",
+  "kind": "number",
+  "base": 11.5
+ },
+ {
+  "path": "vehicle.knownSixtyFtS",
+  "id": "11.15",
+  "kind": "nullableNumber",
+  "base": null
+ },
+ {
+  "path": "vehicle.launchControl",
+  "id": "11.16",
+  "kind": "boolean",
+  "base": false
+ },
+ {
+  "path": "customTransmissions",
+  "id": "12",
+  "kind": "list",
+  "base": []
+ },
+ {
+  "path": "customTransmissions.name",
+  "id": "12.1",
+  "kind": "string",
+  "base": ""
+ },
+ {
+  "path": "customTransmissions.kind",
+  "id": "12.2",
+  "kind": "enum",
+  "values": [
+   "manual",
+   "automatic"
+  ],
+  "base": "manual"
+ },
+ {
+  "path": "customTransmissions.ratios",
+  "id": "12.3",
+  "kind": "numbers",
+  "base": []
+ },
+ {
+  "path": "customTransmissions.automatic",
+  "id": "12.4",
+  "kind": "message",
+  "optional": true
+ },
+ {
+  "path": "customTransmissions.automatic.stallRpm",
+  "id": "12.4.1",
+  "kind": "number",
+  "base": 3000
+ },
+ {
+  "path": "customTransmissions.automatic.stallTorqueRatio",
+  "id": "12.4.2",
+  "kind": "number",
+  "base": 2
+ },
+ {
+  "path": "customTransmissions.automatic.couplingSlip",
+  "id": "12.4.3",
+  "kind": "number",
+  "base": 0.06
+ },
+ {
+  "path": "customTransmissions.automatic.lockup",
+  "id": "12.4.4",
+  "kind": "enum",
+  "values": [
+   "off",
+   "top",
+   "after1st"
+  ],
+  "base": "off"
+ },
+ {
+  "path": "customTransmissions.automatic.lockupCapable",
+  "id": "12.4.5",
+  "kind": "boolean",
+  "base": true
+ },
+ {
+  "path": "customTransmissions.automatic.launch",
+  "id": "12.4.6",
+  "kind": "enum",
+  "values": [
+   "transbrake",
+   "footbrake"
+  ],
+  "base": "transbrake"
+ },
+ {
+  "path": "customTransmissions.automatic.transbrakeRpm",
+  "id": "12.4.7",
+  "kind": "number",
+  "base": 3000
+ },
+ {
+  "path": "customTransmissions.automatic.footbrakeRpm",
+  "id": "12.4.8",
+  "kind": "number",
+  "base": 2200
+ },
+ {
+  "path": "customTransmissions.automatic.shiftTimeS",
+  "id": "12.4.9",
+  "kind": "number",
+  "base": 0.2
+ },
+ {
+  "path": "customTransmissions.automatic.shiftLoss",
+  "id": "12.4.10",
+  "kind": "number",
+  "base": 0.15
+ },
+ {
+  "path": "customTransmissions.automatic.drivetrainLoss",
+  "id": "12.4.11",
+  "kind": "number",
+  "base": 0.13
+ },
+ {
+  "path": "autoSetups",
+  "id": "13",
+  "kind": "map"
+ },
+ {
+  "path": "autoSetups.stallRpm",
+  "id": "13.1",
+  "kind": "number",
+  "base": 3000
+ },
+ {
+  "path": "autoSetups.stallTorqueRatio",
+  "id": "13.2",
+  "kind": "number",
+  "base": 2
+ },
+ {
+  "path": "autoSetups.couplingSlip",
+  "id": "13.3",
+  "kind": "number",
+  "base": 0.06
+ },
+ {
+  "path": "autoSetups.lockup",
+  "id": "13.4",
+  "kind": "enum",
+  "values": [
+   "off",
+   "top",
+   "after1st"
+  ],
+  "base": "off"
+ },
+ {
+  "path": "autoSetups.lockupCapable",
+  "id": "13.5",
+  "kind": "boolean",
+  "base": true
+ },
+ {
+  "path": "autoSetups.launch",
+  "id": "13.6",
+  "kind": "enum",
+  "values": [
+   "transbrake",
+   "footbrake"
+  ],
+  "base": "transbrake"
+ },
+ {
+  "path": "autoSetups.transbrakeRpm",
+  "id": "13.7",
+  "kind": "number",
+  "base": 3000
+ },
+ {
+  "path": "autoSetups.footbrakeRpm",
+  "id": "13.8",
+  "kind": "number",
+  "base": 2200
+ },
+ {
+  "path": "autoSetups.shiftTimeS",
+  "id": "13.9",
+  "kind": "number",
+  "base": 0.2
+ },
+ {
+  "path": "autoSetups.shiftLoss",
+  "id": "13.10",
+  "kind": "number",
+  "base": 0.15
+ },
+ {
+  "path": "autoSetups.drivetrainLoss",
+  "id": "13.11",
+  "kind": "number",
+  "base": 0.13
+ },
+ {
+  "path": "carName",
+  "id": "14",
+  "kind": "string",
+  "base": "Car 1"
+ },
+ {
+  "path": "extraCars",
+  "id": "15",
+  "kind": "list",
+  "base": []
+ },
+ {
+  "path": "extraCars.selectedModel",
+  "id": "15.1",
+  "kind": "string",
+  "base": "Muncie M20"
+ },
+ {
+  "path": "extraCars.selectedVariantName",
+  "id": "15.2",
+  "kind": "string",
+  "base": "66-70 Wide Ratio"
+ },
+ {
+  "path": "extraCars.tireMode",
+  "id": "15.3",
+  "kind": "enum",
+  "values": [
+   "diameter",
+   "size"
+  ],
+  "base": "diameter"
+ },
+ {
+  "path": "extraCars.tireDiameterIn",
+  "id": "15.4",
+  "kind": "number",
+  "base": 26
+ },
+ {
+  "path": "extraCars.tireSize",
+  "id": "15.5",
+  "kind": "string",
+  "base": "275/55R15"
+ },
+ {
+  "path": "extraCars.axleRatio",
+  "id": "15.6",
+  "kind": "number",
+  "base": 3.73
+ },
+ {
+  "path": "extraCars.shiftRpm",
+  "id": "15.7",
+  "kind": "number",
+  "base": 6500
+ },
+ {
+  "path": "extraCars.power",
+  "id": "15.10",
+  "kind": "message"
+ },
+ {
+  "path": "extraCars.power.method",
+  "id": "15.10.1",
+  "kind": "enum",
+  "values": [
+   "trap",
+   "peak",
+   "dyno"
+  ],
+  "base": "trap"
+ },
+ {
+  "path": "extraCars.power.trapDistance",
+  "id": "15.10.2",
+  "kind": "enum",
+  "values": [
+   "quarter",
+   "eighth"
+  ],
+  "base": "quarter"
+ },
+ {
+  "path": "extraCars.power.trapMph",
+  "id": "15.10.3",
+  "kind": "number",
+  "base": 110
+ },
+ {
+  "path": "extraCars.power.trapEighthMph",
+  "id": "15.10.4",
+  "kind": "number",
+  "base": 88
+ },
+ {
+  "path": "extraCars.power.trapWeightLb",
+  "id": "15.10.5",
+  "kind": "number",
+  "base": 3700
+ },
+ {
+  "path": "extraCars.power.trapPeakRpm",
+  "id": "15.10.6",
+  "kind": "number",
+  "base": 6000
+ },
+ {
+  "path": "extraCars.power.peak",
+  "id": "15.10.7",
+  "kind": "message"
+ },
+ {
+  "path": "extraCars.power.peak.peakHp",
+  "id": "15.10.7.1",
+  "kind": "number",
+  "base": 430
+ },
+ {
+  "path": "extraCars.power.peak.peakHpRpm",
+  "id": "15.10.7.2",
+  "kind": "number",
+  "base": 5900
+ },
+ {
+  "path": "extraCars.power.peak.peakTorque",
+  "id": "15.10.7.3",
+  "kind": "number",
+  "base": 424
+ },
+ {
+  "path": "extraCars.power.peak.peakTorqueRpm",
+  "id": "15.10.7.4",
+  "kind": "number",
+  "base": 4600
+ },
+ {
+  "path": "extraCars.power.peakBasis",
+  "id": "15.10.8",
+  "kind": "enum",
+  "values": [
+   "crank",
+   "wheel"
+  ],
+  "base": "crank"
+ },
+ {
+  "path": "extraCars.power.dyno",
+  "id": "15.10.9",
+  "kind": "list",
+  "base": [
+   {
+    "rpm": 2000,
+    "torque": 330
+   },
+   {
+    "rpm": 3000,
+    "torque": 375
+   },
+   {
+    "rpm": 4000,
+    "torque": 410
+   },
+   {
+    "rpm": 4600,
+    "torque": 424
+   },
+   {
+    "rpm": 5200,
+    "torque": 410
+   },
+   {
+    "rpm": 5900,
+    "torque": 383
+   },
+   {
+    "rpm": 6500,
+    "torque": 330
+   }
+  ]
+ },
+ {
+  "path": "extraCars.power.dyno.rpm",
+  "id": "15.10.9.1",
+  "kind": "number",
+  "base": 0
+ },
+ {
+  "path": "extraCars.power.dyno.torque",
+  "id": "15.10.9.2",
+  "kind": "number",
+  "base": 0
+ },
+ {
+  "path": "extraCars.power.dynoBasis",
+  "id": "15.10.10",
+  "kind": "enum",
+  "values": [
+   "crank",
+   "wheel"
+  ],
+  "base": "crank"
+ },
+ {
+  "path": "extraCars.vehicle",
+  "id": "15.11",
+  "kind": "message"
+ },
+ {
+  "path": "extraCars.vehicle.weightLb",
+  "id": "15.11.1",
+  "kind": "number",
+  "base": 3700
+ },
+ {
+  "path": "extraCars.vehicle.drivetrainLoss",
+  "id": "15.11.2",
+  "kind": "number",
+  "base": 0.11
+ },
+ {
+  "path": "extraCars.vehicle.grip",
+  "id": "15.11.3",
+  "kind": "number",
+  "base": 1
+ },
+ {
+  "path": "extraCars.vehicle.drive",
+  "id": "15.11.4",
+  "kind": "enum",
+  "values": [
+   "rear",
+   "front",
+   "awd"
+  ],
+  "base": "rear"
+ },
+ {
+  "path": "extraCars.vehicle.driveWeightFraction",
+  "id": "15.11.5",
+  "kind": "number",
+  "base": 0.5
+ },
+ {
+  "path": "extraCars.vehicle.cgHeightIn",
+  "id": "15.11.6",
+  "kind": "number",
+  "base": 20
+ },
+ {
+  "path": "extraCars.vehicle.wheelbaseIn",
+  "id": "15.11.7",
+  "kind": "number",
+  "base": 105
+ },
+ {
+  "path": "extraCars.vehicle.dragCoefficient",
+  "id": "15.11.8",
+  "kind": "number",
+  "base": 0.35
+ },
+ {
+  "path": "extraCars.vehicle.frontalAreaFt2",
+  "id": "15.11.9",
+  "kind": "number",
+  "base": 22
+ },
+ {
+  "path": "extraCars.vehicle.rollingResistance",
+  "id": "15.11.10",
+  "kind": "number",
+  "base": 0.015
+ },
+ {
+  "path": "extraCars.vehicle.shiftTimeS",
+  "id": "15.11.11",
+  "kind": "number",
+  "base": 0.15
+ },
+ {
+  "path": "extraCars.vehicle.launchRpm",
+  "id": "15.11.12",
+  "kind": "number",
+  "base": 3500
+ },
+ {
+  "path": "extraCars.vehicle.clutchReleaseS",
+  "id": "15.11.13",
+  "kind": "number",
+  "base": 0.25
+ },
+ {
+  "path": "extraCars.vehicle.rolloutIn",
+  "id": "15.11.14",
+  "kind": "number",
+  "base": 11.5
+ },
+ {
+  "path": "extraCars.vehicle.knownSixtyFtS",
+  "id": "15.11.15",
+  "kind": "nullableNumber",
+  "base": null
+ },
+ {
+  "path": "extraCars.vehicle.launchControl",
+  "id": "15.11.16",
+  "kind": "boolean",
+  "base": false
+ },
+ {
+  "path": "extraCars.autoSetups",
+  "id": "15.13",
+  "kind": "map"
+ },
+ {
+  "path": "extraCars.autoSetups.stallRpm",
+  "id": "15.13.1",
+  "kind": "number",
+  "base": 3000
+ },
+ {
+  "path": "extraCars.autoSetups.stallTorqueRatio",
+  "id": "15.13.2",
+  "kind": "number",
+  "base": 2
+ },
+ {
+  "path": "extraCars.autoSetups.couplingSlip",
+  "id": "15.13.3",
+  "kind": "number",
+  "base": 0.06
+ },
+ {
+  "path": "extraCars.autoSetups.lockup",
+  "id": "15.13.4",
+  "kind": "enum",
+  "values": [
+   "off",
+   "top",
+   "after1st"
+  ],
+  "base": "off"
+ },
+ {
+  "path": "extraCars.autoSetups.lockupCapable",
+  "id": "15.13.5",
+  "kind": "boolean",
+  "base": true
+ },
+ {
+  "path": "extraCars.autoSetups.launch",
+  "id": "15.13.6",
+  "kind": "enum",
+  "values": [
+   "transbrake",
+   "footbrake"
+  ],
+  "base": "transbrake"
+ },
+ {
+  "path": "extraCars.autoSetups.transbrakeRpm",
+  "id": "15.13.7",
+  "kind": "number",
+  "base": 3000
+ },
+ {
+  "path": "extraCars.autoSetups.footbrakeRpm",
+  "id": "15.13.8",
+  "kind": "number",
+  "base": 2200
+ },
+ {
+  "path": "extraCars.autoSetups.shiftTimeS",
+  "id": "15.13.9",
+  "kind": "number",
+  "base": 0.2
+ },
+ {
+  "path": "extraCars.autoSetups.shiftLoss",
+  "id": "15.13.10",
+  "kind": "number",
+  "base": 0.15
+ },
+ {
+  "path": "extraCars.autoSetups.drivetrainLoss",
+  "id": "15.13.11",
+  "kind": "number",
+  "base": 0.13
+ },
+ {
+  "path": "extraCars.name",
+  "id": "15.14",
+  "kind": "string",
+  "base": ""
+ },
+ {
+  "path": "extraCars.color",
+  "id": "15.15",
+  "kind": "string",
+  "base": ""
+ },
+ {
+  "path": "activeCar",
+  "id": "16",
+  "kind": "number",
+  "base": 0
+ },
+ {
+  "path": "conditions",
+  "id": "17",
+  "kind": "message"
+ },
+ {
+  "path": "conditions.mode",
+  "id": "17.1",
+  "kind": "enum",
+  "values": [
+   "standard",
+   "da",
+   "weather"
+  ],
+  "base": "standard"
+ },
+ {
+  "path": "conditions.densityAltitudeFt",
+  "id": "17.2",
+  "kind": "number",
+  "base": 0
+ },
+ {
+  "path": "conditions.tempF",
+  "id": "17.3",
+  "kind": "number",
+  "base": 70
+ },
+ {
+  "path": "conditions.baroInHg",
+  "id": "17.4",
+  "kind": "number",
+  "base": 29.92
+ },
+ {
+  "path": "conditions.humidityPct",
+  "id": "17.5",
+  "kind": "number",
+  "base": 40
+ },
+ {
+  "path": "carColor",
+  "id": "18",
+  "kind": "string",
+  "base": ""
+ }
+]

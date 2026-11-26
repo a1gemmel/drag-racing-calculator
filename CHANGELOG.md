@@ -2,6 +2,25 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.5.0 — 2026-11-25 — The Racer Update
+
+- Compare cars: the setup cards sit under car tabs. [+] adds a car (a copy of the open one), tabs can be renamed, recolored and removed, and the quarter-mile charts overlay every car, labelled by name, alternating dark and light at every shift.
+- Pass replay: play the run on a drag strip, one lane per car, at 1×, ½× or ¼× speed or scrubbed by hand, with each car's distance, speed, gear and rpm and a win light at the finish. Cars drive on past the finish line and off the strip; changing any setting stops and rewinds it.
+- Timing table lists every car in finishing order with its ET and distance behind the winner; the open tab's row is bold. The 1/4 mile tiles show the winning car. The shift table below the charts has a car picker, defaulting to the open tab.
+- Speed chart Time / Distance / Completion toggle: speed against time or distance, or distance against time with dotted 1/8 and 1/4 lines. Completion is the default when comparing, time with one car. Dots mark the 1/8 and 1/4 on every line; hover for time and speed.
+- The engine rpm chart runs on distance (feet).
+- Track conditions at the top of the quarter-mile simulation: standard air, a density altitude, or weather (temperature, uncorrected barometer, humidity) with the density altitude it works out to. Power and drag follow the air density.
+- Trap RPM tile: engine rpm and gear at the finish line, also in the comparison table.
+- Launch control toggle in the Car card: raises traction off the line for cars with launch or traction control.
+- Shift at: Auto button picks the shift rpm (to the nearest 50) with the quickest ET for the car.
+- Powerglide aftermarket low gears: 1.58, 1.62, 1.64, 1.74, 1.80, 1.87, 1.94, 1.98, 2.08 and 2.18.
+- New transmissions: Ford AOD, Richmond Super T-10 (2.43 S, 2.64 W, 2.64 X, 2.88 CC, 3.42 Z), Saginaw 4-speed (2.54, 2.84, 3.11 and 3.50 first gears) and Nissan CD009.
+- The address bar no longer changes as you edit; Copy link makes the share link. Links and offline copies from v0.4 still open.
+- Layout: the Transmission card's gearing numbers, RPM chart and gearset tables fold away under a Gearing button (open with one car, folded when comparing). Axle ratio, driven wheels and 60 ft moved to the Car card; tires have their own card.
+- Charts keep the same text size on phones and wide screens, axis titles sit beside and below the axes, and distance axes mark 60, 330, 660, 1,000 and 1,320 ft.
+- One car: a one-line timeslip under the tiles replaces the table. The replay moved below the charts and shows "Staged" before the clock starts.
+- Refreshed colors: selected toggles use a soft orange tint instead of a solid fill, card titles get an accent bar, links and section labels are light orange, and secondary text is easier to read.
+
 ## v0.4.1 — 2026-11-25
 
 - Tire grip presets also set rolling resistance: radials 0.015, the slick preset (now "Bias-ply slick, prepped track") 0.021, which traps about 0.65 mph slower than a radial at the default car.

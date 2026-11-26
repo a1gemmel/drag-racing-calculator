@@ -4,11 +4,13 @@ import { DEFAULT_POWER, type PowerState } from "./power";
 import { DEFAULT_VEHICLE, type VehicleSetup } from "./quarterMile";
 import { ALL_SCOPE } from "./transmissionSearch";
 
-/**
- * Everything on the page a user can set. A downloaded offline copy embeds the settings that were on
- * screen (as JSON in a <script type="application/json"> tag), and the app starts from them.
- */
-export type AppSettings = {
+/** One car's setup: a tab in the setup section. The quarter-mile simulation overlays every car. */
+export type CarSetup = {
+  /** Tab name; also the car's label in the simulation charts. */
+  name: string;
+  /** Chosen color (#rrggbb) for the car's tab and chart lines; "" = the palette color for its tab position. */
+  color: string;
+  /** Transmission search text and manufacturer filter (kept per car so a filter can't hide another car's pick). */
   query: string;
   scope: string;
   selectedModel: string;
@@ -18,18 +20,44 @@ export type AppSettings = {
   tireSize: string;
   axleRatio: number;
   shiftRpm: number;
-  gearsetView: "ladder" | "cruising";
-  /** RPM vs road speed: gears from where each upshift lands, or each gear from 1,200 rpm (1st from launch). */
-  chartView: "shifts" | "full";
   power: PowerState;
   vehicle: VehicleSetup;
-  /** User-made transmissions. */
-  customTransmissions: CustomTransmission[];
   /** Automatic settings the user changed, by transmission model; others use the transmission's defaults. */
   autoSetups: Record<string, AutomaticSetup>;
 };
 
-export const DEFAULT_SETTINGS: AppSettings = {
+/** Air for the simulation: standard (no correction), a density altitude, or weather that gives one. */
+export type TrackConditions = {
+  mode: "standard" | "da" | "weather";
+  densityAltitudeFt: number;
+  tempF: number;
+  /** Station (uncorrected) barometer, inHg. */
+  baroInHg: number;
+  humidityPct: number;
+};
+
+/**
+ * Everything on the page a user can set. A downloaded offline copy embeds the settings that were on
+ * screen (as JSON in a <script type="application/json"> tag), and the app starts from them.
+ */
+export type AppSettings = {
+  cars: CarSetup[];
+  /** Index of the car whose tab is open. */
+  activeCar: number;
+  gearsetView: "ladder" | "cruising";
+  /** RPM vs road speed: gears from where each upshift lands, or each gear from 1,200 rpm (1st from launch). */
+  chartView: "shifts" | "full";
+  conditions: TrackConditions;
+  /** User-made transmissions, shared by all cars. */
+  customTransmissions: CustomTransmission[];
+};
+
+export const MAX_CARS = 6;
+export const MAX_CAR_NAME = 24;
+
+export const DEFAULT_CAR: CarSetup = {
+  name: "Car 1",
+  color: "",
   query: "",
   scope: ALL_SCOPE,
   selectedModel: "Muncie M20",
@@ -39,12 +67,20 @@ export const DEFAULT_SETTINGS: AppSettings = {
   tireSize: "275/55R15",
   axleRatio: 3.73,
   shiftRpm: 6500,
-  gearsetView: "cruising",
-  chartView: "shifts",
   power: DEFAULT_POWER,
   vehicle: DEFAULT_VEHICLE,
-  customTransmissions: [],
   autoSetups: {},
+};
+
+export const DEFAULT_CONDITIONS: TrackConditions = { mode: "standard", densityAltitudeFt: 0, tempF: 70, baroInHg: 29.92, humidityPct: 40 };
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  cars: [DEFAULT_CAR],
+  activeCar: 0,
+  gearsetView: "cruising",
+  chartView: "shifts",
+  conditions: DEFAULT_CONDITIONS,
+  customTransmissions: [],
 };
 
 export const SETTINGS_ELEMENT_ID = "saved-settings";
@@ -59,6 +95,7 @@ const ENUMS: Record<string, readonly string[]> = {
   "power.peakBasis": ["crank", "wheel"],
   "power.dynoBasis": ["crank", "wheel"],
   "vehicle.drive": ["rear", "front", "awd"],
+  "conditions.mode": ["standard", "da", "weather"],
   lockup: ["off", "top", "after1st"],
   launch: ["transbrake", "footbrake"],
 };
@@ -102,14 +139,41 @@ function mergeInto<T>(defaults: T, raw: unknown, path = ""): T {
   return result as T;
 }
 
-export function parseSettings(raw: unknown): AppSettings {
-  // The vehicle's knownSixtyFtS defaults to null, so it's handled by the nullable branch.
-  const settings = mergeInto(DEFAULT_SETTINGS, raw);
+const carName = (raw: unknown, index: number) =>
+  typeof raw === "string" && raw.trim() ? raw.trim().slice(0, MAX_CAR_NAME) : `Car ${index + 1}`;
+
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
+function parseCar(raw: unknown, index: number): CarSetup {
+  const { name: _name, color: _color, autoSetups: _auto, ...fields } = DEFAULT_CAR;
   const source = isObject(raw) ? raw : {};
   return {
-    ...settings,
-    customTransmissions: parseCustoms(source.customTransmissions),
+    name: carName(source.name, index),
+    color: typeof source.color === "string" && HEX_COLOR.test(source.color) ? source.color.toLowerCase() : "",
+    ...mergeInto(fields, source),
     autoSetups: parseAutoSetups(source.autoSetups),
+  };
+}
+
+/**
+ * Settings from saved JSON. Reads the current shape ({ cars: [...] }) and the single-car shape saved
+ * before v0.5.0 (the car's fields at the top level, as share tokens still decode, with any further
+ * cars in `extraCars` and the first car's name in `carName`).
+ */
+export function parseSettings(raw: unknown): AppSettings {
+  const source = isObject(raw) ? raw : {};
+  const rawCars = Array.isArray(source.cars) && source.cars.length
+    ? source.cars
+    : [{ ...source, name: source.carName, color: source.carColor }, ...(Array.isArray(source.extraCars) ? source.extraCars : [])];
+  const cars = rawCars.slice(0, MAX_CARS).map(parseCar);
+  const activeCar = typeof source.activeCar === "number" && Number.isInteger(source.activeCar) ? Math.min(Math.max(source.activeCar, 0), cars.length - 1) : 0;
+  const views = mergeInto({ gearsetView: DEFAULT_SETTINGS.gearsetView, chartView: DEFAULT_SETTINGS.chartView }, source);
+  return {
+    cars,
+    activeCar,
+    ...views,
+    conditions: mergeInto(DEFAULT_CONDITIONS, source.conditions, "conditions"),
+    customTransmissions: parseCustoms(source.customTransmissions),
   };
 }
 

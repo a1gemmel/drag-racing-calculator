@@ -49,3 +49,12 @@ describe("transmission catalog", () => {
     }
   });
 });
+
+describe("Powerglide gearsets", () => {
+  it("has the OEM and aftermarket low gears, all with direct 2nd", () => {
+    const glide = transmissionFamilies.find((f) => f.model === "Powerglide")!;
+    const lows = glide.variants.map((v) => v.gear_ratios[0]);
+    expect(lows).toEqual(expect.arrayContaining([1.58, 1.62, 1.64, 1.74, 1.76, 1.8, 1.82, 1.87, 1.94, 1.98, 2.08, 2.18]));
+    for (const v of glide.variants) expect(v.gear_ratios[1]).toBe(1);
+  });
+});

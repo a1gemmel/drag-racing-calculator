@@ -1,9 +1,21 @@
 import { useState } from "react";
 import { niceStep } from "./GearChart";
+import { useMeasuredWidth } from "./useMeasuredWidth";
 
-/** `ft` is optional extra data carried to the tooltip (distance into a run). */
-export type ChartPoint = { x: number; y: number; ft?: number };
-export type Series = { key: string; label: string; color: string; points: ChartPoint[]; /** Tooltip unit; defaults to yLabel. */ unit?: string };
+/** `ft` and `t` are optional extra data carried to the tooltip (distance into a run). */
+export type ChartPoint = { x: number; y: number; ft?: number; t?: number };
+export type Series = {
+  key: string;
+  label: string;
+  color: string;
+  points: ChartPoint[];
+  /** Tooltip unit; defaults to yLabel. */
+  unit?: string;
+  /** With `endLabels`: text at the line's end (defaults to label; "" for none, e.g. all but a car's last gear segment). */
+  endLabel?: string;
+};
+/** A marked point (e.g. a car crossing the 1/8 or 1/4) with its own hover text. */
+export type ChartDot = { key: string; x: number; y: number; color: string; label: string };
 /** A labelled point on the chart, e.g. a peak. */
 export type PointLabel = { key: string; x: number; y: number; label: string; color: string };
 
@@ -22,32 +34,50 @@ type Props = {
   /** Custom one-line tooltip text per series reading; replaces the default title + "label: value" lines. */
   formatReading?: (series: Series, point: ChartPoint) => string;
   pointLabels?: PointLabel[];
+  /** Label each series at the end of its line (series names, e.g. compared cars). */
+  endLabels?: boolean;
+  dots?: ChartDot[];
+  /** Horizontal reference lines, e.g. the 1/8 and 1/4 on a distance axis. */
+  hMarkers?: { y: number; label: string }[];
+  /** Fixed tick values (e.g. the drag-strip timing marks); default: evenly spaced "nice" steps. */
+  xTicks?: number[];
+  yTicks?: number[];
+  /** Fixed y range top; defaults to a nice step above the data. */
+  yMax?: number;
 };
 
-const WIDTH = 640;
-const PAD = { left: 50, right: 14, top: 14, bottom: 30 };
+const DOT_HIT = 12; // svg units
+
+// Drawn in real pixels (the svg's measured width), so text is the same size on every screen.
+// Left and bottom leave room for the axis titles: rotated beside the y ticks, centred under the x ticks.
+const PAD = { left: 62, right: 14, top: 14, bottom: 46 };
 const TOOLTIP_MIN_W = 150;
 const TOOLTIP_CHAR_W = 6.6; // approx. width of an 11px monospace character
 
 /** Small single-axis line chart with a hover crosshair. Used for power curves and run traces. */
-export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMax, markers = [], height = 220, formatReading, pointLabels = [] }: Props) {
+export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMax, markers = [], height = 220, formatReading, pointLabels = [], endLabels = false, dots = [], hMarkers = [], xTicks: fixedXTicks, yTicks: fixedYTicks, yMax }: Props) {
+  const [figureRef, WIDTH] = useMeasuredWidth<HTMLElement>(640);
   const [hoverX, setHoverX] = useState<number | null>(null);
+  const [hoverDot, setHoverDot] = useState<ChartDot | null>(null);
   const all = series.flatMap((s) => s.points);
   if (all.length === 0) return null;
 
   const dataXMax = xMax ?? Math.max(...all.map((p) => p.x));
-  const xStep = niceStep(dataXMax, 8);
-  const xTop = Math.ceil(dataXMax / xStep) * xStep;
+  const xStep = niceStep(dataXMax, Math.max(3, Math.min(8, Math.floor(WIDTH / 90))));
+  const xTop = fixedXTicks ? (xMax ?? Math.max(...fixedXTicks)) : Math.ceil(dataXMax / xStep) * xStep;
   // Headroom for point labels drawn above their points.
   const yMaxRaw = Math.max(...all.map((p) => p.y), 1) * (pointLabels.length ? 1 + 0.1 * (pointLabels.length + 1) : 1);
   const yStep = niceStep(yMaxRaw, 5);
-  const yTop = Math.ceil(yMaxRaw / yStep) * yStep;
-  const right = WIDTH - PAD.right;
+  const yTop = yMax ?? (fixedYTicks ? Math.max(...fixedYTicks) : Math.ceil(yMaxRaw / yStep) * yStep);
+  // Room on the right for end labels.
+  const endText = (s: Series) => s.endLabel ?? s.label;
+  const endLabelWidth = endLabels ? Math.max(...series.map((s) => endText(s).length)) * TOOLTIP_CHAR_W + 14 : 0;
+  const right = WIDTH - PAD.right - endLabelWidth;
   const bottom = height - PAD.bottom;
   const x = (value: number) => PAD.left + (value / xTop) * (right - PAD.left);
   const y = (value: number) => bottom - (value / yTop) * (bottom - PAD.top);
-  const xTicks = Array.from({ length: Math.round(xTop / xStep) + 1 }, (_, i) => i * xStep);
-  const yTicks = Array.from({ length: Math.round(yTop / yStep) + 1 }, (_, i) => i * yStep);
+  const xTicks = fixedXTicks ?? Array.from({ length: Math.round(xTop / xStep) + 1 }, (_, i) => i * xStep);
+  const yTicks = fixedYTicks ?? Array.from({ length: Math.round(yTop / yStep) + 1 }, (_, i) => i * yStep);
 
   // Value of each series at the hovered x (nearest sample), skipping series that don't span it.
   const readings =
@@ -62,7 +92,7 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
         });
 
   return (
-    <figure className="line-chart">
+    <figure className="line-chart" ref={figureRef}>
       <figcaption>{title}</figcaption>
       <svg
         viewBox={`0 0 ${WIDTH} ${height}`}
@@ -71,10 +101,19 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
         onMouseMove={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
           const svgX = ((event.clientX - rect.left) / rect.width) * WIDTH;
+          const svgY = ((event.clientY - rect.top) / rect.height) * height;
           const value = ((svgX - PAD.left) / (right - PAD.left)) * xTop;
           setHoverX(value >= 0 && value <= xTop ? value : null);
+          const near = dots
+            .map((dot) => ({ dot, d: Math.hypot(x(dot.x) - svgX, y(dot.y) - svgY) }))
+            .filter((hit) => hit.d <= DOT_HIT)
+            .sort((a, b) => a.d - b.d)[0];
+          setHoverDot(near ? near.dot : null);
         }}
-        onMouseLeave={() => setHoverX(null)}
+        onMouseLeave={() => {
+          setHoverX(null);
+          setHoverDot(null);
+        }}
       >
         {yTicks.map((tick) => (
           <g key={`y${tick}`}>
@@ -90,10 +129,10 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
           </text>
         ))}
         <line className="baseline" x1={PAD.left} x2={right} y1={bottom} y2={bottom} />
-        <text className="axis-title" x={right} y={height - 2} textAnchor="end">
+        <text className="axis-title" x={(PAD.left + right) / 2} y={height - 6} textAnchor="middle">
           {xLabel}
         </text>
-        <text className="axis-title" x={PAD.left - 8} y={PAD.top - 4} textAnchor="end">
+        <text className="axis-title" transform={`translate(14 ${(PAD.top + bottom) / 2}) rotate(-90)`} textAnchor="middle">
           {yLabel}
         </text>
 
@@ -112,6 +151,15 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
           </g>
         ))}
 
+        {hMarkers.map((marker) => (
+          <g key={`h${marker.y}`}>
+            <line className="marker-line distance" x1={PAD.left} x2={right} y1={y(marker.y)} y2={y(marker.y)} />
+            <text className="marker-label" x={PAD.left + 6} y={y(marker.y) - 5}>
+              {marker.label}
+            </text>
+          </g>
+        ))}
+
         {series.map((s) => (
           <polyline
             key={s.key}
@@ -120,6 +168,27 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
             style={{ stroke: s.color }}
           />
         ))}
+
+        {endLabels
+          ? (() => {
+              // At each line's last point, nudged apart vertically so they don't overlap.
+              const ends = series
+                .flatMap((s) => {
+                  const last = s.points[s.points.length - 1];
+                  return last && endText(s) ? [{ s, px: x(last.x), py: y(last.y), labelY: y(last.y) }] : [];
+                })
+                .sort((a, b) => a.py - b.py);
+              for (let i = 1; i < ends.length; i++) ends[i].labelY = Math.max(ends[i].labelY, ends[i - 1].labelY + 13);
+              return ends.map(({ s, px, py, labelY }) => (
+                <g key={`end-${s.key}`} className="end-label">
+                  <circle cx={px} cy={py} r={3} style={{ fill: s.color }} />
+                  <text x={right + 8} y={labelY + 4}>
+                    {endText(s)}
+                  </text>
+                </g>
+              ));
+            })()
+          : null}
 
         {/* Point labels sit in rows along the top, with a dashed leader down to the point. */}
         {(() => {
@@ -145,7 +214,29 @@ export function LineChart({ title, series, xLabel, yLabel, formatX, formatY, xMa
           });
         })()}
 
-        {hoverX !== null && readings.length > 0 ? (
+        {dots.map((dot) => (
+          <circle key={`dot-${dot.key}`} className="chart-dot" cx={x(dot.x)} cy={y(dot.y)} r={hoverDot?.key === dot.key ? 6 : 4.5} style={{ fill: dot.color }} />
+        ))}
+
+        {hoverDot
+          ? (() => {
+              const boxW = Math.max(TOOLTIP_MIN_W, 20 + hoverDot.label.length * TOOLTIP_CHAR_W);
+              const px = x(hoverDot.x);
+              const py = y(hoverDot.y);
+              const boxX = px + 12 + boxW > right ? px - 12 - boxW : px + 12;
+              const boxY = Math.max(PAD.top, Math.min(py - 30, bottom - 28));
+              return (
+                <g className="tooltip" pointerEvents="none">
+                  <rect x={boxX} y={boxY} width={boxW} height={24} rx={6} />
+                  <text className="tooltip-value" x={boxX + 10} y={boxY + 16}>
+                    {hoverDot.label}
+                  </text>
+                </g>
+              );
+            })()
+          : null}
+
+        {hoverX !== null && readings.length > 0 && !hoverDot ? (
           <g pointerEvents="none">
             <line className="crosshair" x1={x(hoverX)} x2={x(hoverX)} y1={PAD.top} y2={bottom} />
             {readings.map(({ series: s, point }) => (

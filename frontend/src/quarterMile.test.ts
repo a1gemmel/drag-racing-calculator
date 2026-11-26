@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { buildCurve, DEFAULT_POWER, estimateFromTrap } from "./power";
-import { bestLaunchRpm, DEFAULT_VEHICLE, runQuarterMile, simulateQuarterMile, type RunInput } from "./quarterMile";
+import {
+  airCorrectedCurve,
+  bestLaunchRpm,
+  bestShiftRpm,
+  DEFAULT_VEHICLE,
+  densityFromWeather,
+  densityRatioAtAltitude,
+  ftAtTime,
+  marginFt,
+  stateAtTime,
+  runQuarterMile,
+  simulateQuarterMile,
+  type RunInput,
+} from "./quarterMile";
+import { transmissionFamilies } from "./catalog";
+import { curvePeaks } from "./power";
 import { BIAS_PLY_ROLLING, RADIAL_ROLLING } from "./tires";
 
 const curve = estimateFromTrap(3500, 113.5, 6000).curve!; // ≈ 400 hp
@@ -157,5 +172,106 @@ describe("tire construction", () => {
     expect(loss).toBeGreaterThan(0.4);
     expect(loss).toBeLessThan(1);
     expect(DEFAULT_VEHICLE.rollingResistance).toBe(RADIAL_ROLLING);
+  });
+});
+
+describe("launch control", () => {
+  it("puts a stock 2018 Mustang GT where magazines ran it (11.83-11.98 @ 119)", () => {
+    const tenSpeed = transmissionFamilies.find((f) => f.model === "10R80")!;
+    const curve = buildCurve({ ...DEFAULT_POWER, method: "peak", peak: { peakHp: 460, peakHpRpm: 7000, peakTorque: 420, peakTorqueRpm: 4600 } }).curve!;
+    const gt = { ...DEFAULT_VEHICLE, weightLb: 4000, curve, gearRatios: tenSpeed.variants[0].gear_ratios, axleRatio: 3.55, tireDiameterIn: 26.6, shiftRpm: 7400, automatic: tenSpeed.automatic };
+    const without = runQuarterMile({ ...gt, launchControl: false });
+    const withLc = runQuarterMile({ ...gt, launchControl: true });
+    expect(withLc.et!).toBeGreaterThan(11.75);
+    expect(withLc.et!).toBeLessThan(12.05);
+    expect(withLc.trapMph!).toBeGreaterThan(117.5);
+    expect(withLc.splits[0].t).toBeLessThan(without.splits[0].t - 0.15);
+  });
+});
+
+describe("density altitude", () => {
+  it("follows the standard atmosphere", () => {
+    expect(densityRatioAtAltitude(0)).toBe(1);
+    expect(densityRatioAtAltitude(1000)).toBeCloseTo(0.9711, 3);
+    expect(densityRatioAtAltitude(5000)).toBeCloseTo(0.8617, 3);
+  });
+
+  it("works out from weather: standard day is 0 ft, hot and humid is higher", () => {
+    expect(Math.abs(densityFromWeather(59, 29.92, 0).densityAltitudeFt)).toBeLessThan(50);
+    const hot = densityFromWeather(90, 29.92, 0).densityAltitudeFt;
+    expect(hot).toBeGreaterThan(1800);
+    expect(densityFromWeather(90, 29.92, 80).densityAltitudeFt).toBeGreaterThan(hot);
+  });
+
+  it("slows the car about 1 mph per 1,000 ft", () => {
+    const at = (ft: number) => {
+      const ratio = densityRatioAtAltitude(ft);
+      return simulateQuarterMile({ ...base, curve: airCorrectedCurve(base.curve, ratio), airDensityRatio: ratio });
+    };
+    const sea = at(0);
+    const high = at(4000);
+    expect(sea.trapMph! - high.trapMph!).toBeGreaterThan(2.5);
+    expect(sea.trapMph! - high.trapMph!).toBeLessThan(6);
+    expect(high.et!).toBeGreaterThan(sea.et!);
+    expect(at(0).et).toBe(simulateQuarterMile(base).et);
+  });
+});
+
+describe("auto shift point", () => {
+  it("picks a multiple of 50 between peak power and the curve's end that's at least as quick as either end", () => {
+    const input = { ...base, knownSixtyFtS: null };
+    const started = performance.now();
+    const rpm = bestShiftRpm(input);
+    const elapsed = performance.now() - started;
+    const peak = curvePeaks(base.curve).hp.rpm;
+    const top = base.curve[base.curve.length - 1].rpm;
+    expect(rpm % 50).toBe(0);
+    expect(rpm).toBeGreaterThanOrEqual(Math.ceil(peak / 50) * 50);
+    expect(rpm).toBeLessThanOrEqual(top);
+    const et = (shiftRpm: number) => runQuarterMile({ ...input, shiftRpm }).et!;
+    expect(et(rpm)).toBeLessThanOrEqual(et(Math.ceil(peak / 50) * 50) + 0.002);
+    expect(et(rpm)).toBeLessThanOrEqual(et(Math.floor(top / 50) * 50) + 0.002);
+    expect(elapsed).toBeLessThan(3000);
+  });
+});
+
+describe("comparing runs", () => {
+  const quick = simulateQuarterMile({ ...base, grip: 1.3 });
+  const slow = simulateQuarterMile(base);
+
+  it("reads distance at a time", () => {
+    for (const split of quick.splits) expect(ftAtTime(quick, split.t)).toBeCloseTo(split.ft, 6);
+    expect(ftAtTime(quick, quick.et! + 5)).toBeNull();
+  });
+
+  it("gives the replay state at any time: start, timing marks, finish", () => {
+    expect(stateAtTime(quick, -1)).toMatchObject({ gear: 0, finished: false });
+    expect(stateAtTime(quick, -1).ft).toBeLessThan(2);
+    for (const split of quick.splits.slice(0, -1)) {
+      const state = stateAtTime(quick, split.t);
+      expect(Math.abs(state.ft - split.ft)).toBeLessThan(1.5);
+      expect(Math.abs(state.mph - split.mph)).toBeLessThan(0.5);
+    }
+    expect(stateAtTime(quick, quick.et!)).toMatchObject({ ft: 1320, finished: true });
+    // Past the finish it keeps rolling at its finish-line speed.
+    const end = stateAtTime(quick, quick.et! + 1);
+    expect(end.finished).toBe(true);
+    expect(end.ft).toBeCloseTo(1320 + (quick.splits[quick.splits.length - 1].mph * 5280) / 3600, 6);
+    expect(end.gear).toBe(quick.samples[quick.samples.length - 1].gear);
+    // Distance never goes backwards.
+    let previous = -Infinity;
+    for (let t = 0; t <= quick.et!; t += 0.01) {
+      const { ft } = stateAtTime(quick, t);
+      expect(ft).toBeGreaterThanOrEqual(previous);
+      previous = ft;
+    }
+  });
+
+  it("gives the margin at the stripe in feet: about the slower car's speed times the ET gap", () => {
+    const feet = marginFt(slow, quick)!;
+    const estimate = ((slow.et! - quick.et!) * slow.trapMph! * 5280) / 3600;
+    expect(feet).toBeGreaterThan(0);
+    expect(Math.abs(feet - estimate) / estimate).toBeLessThan(0.05);
+    expect(marginFt(quick, quick)).toBeCloseTo(0, 6);
   });
 });

@@ -23,7 +23,9 @@ import { curvePeaks, torqueAt, type PowerBasis, type PowerCurve } from "./power"
  *    over the shift time, and the torque that releases from the engine's inertia reaches the tires
  *  - automatics (when `automatic` is set): a torque converter instead of the clutch (see below),
  *    optional lock-up per gear, and a trans-brake or foot-brake launch
- * Not modelled: suspension dynamics, tire growth/slip curves, wind, altitude.
+ *  - air density (density altitude): drag scales with it, and callers scale the power curve by it
+ *  - launch control: LAUNCH_CONTROL_GRIP × grip while traction-limited
+ * Not modelled: suspension dynamics, tire growth/slip curves, wind, boost vs altitude.
  *
  * Torque converter (K-factor model). Speed ratio SR = turbine rpm / engine rpm.
  *  - Pump (engine-side) torque = (engine rpm / K)², lb-ft. K is set from the stall speed:
@@ -56,6 +58,11 @@ export type VehicleSetup = {
   rolloutIn: number; // distance rolled before the timer starts; 11.5 in is typical
   /** A measured 60 ft to fit the launch to; null estimates the best 60 ft instead. */
   knownSixtyFtS: number | null;
+  /**
+   * Launch control / traction control: holds the tires at the peak of their slip curve, so the car gets
+   * LAUNCH_CONTROL_GRIP × the grip coefficient whenever it's traction-limited.
+   */
+  launchControl: boolean;
 };
 
 export const DEFAULT_VEHICLE: VehicleSetup = {
@@ -74,6 +81,7 @@ export const DEFAULT_VEHICLE: VehicleSetup = {
   clutchReleaseS: 0.25,
   rolloutIn: 11.5,
   knownSixtyFtS: null,
+  launchControl: false,
 };
 
 export type RunInput = VehicleSetup & {
@@ -84,6 +92,11 @@ export type RunInput = VehicleSetup & {
   axleRatio: number;
   tireDiameterIn: number;
   shiftRpm: number;
+  /**
+   * Air density relative to standard (1 = no correction). Scales aero drag; callers scale the power
+   * curve by it too (see airCorrectedCurve).
+   */
+  airDensityRatio?: number;
   /** Multiplies the available drive force (engine and traction) for the first 60 ft. Used to fit a known 60 ft. */
   launchScale?: number;
   /** End the run early at this distance (ft). Used for fast launch-only searches. */
@@ -121,7 +134,14 @@ const FT_TO_M = 0.3048;
 const FT2_TO_M2 = 0.09290304;
 const MPS_TO_MPH = 2.2369362921;
 const G = 9.80665;
-const AIR_DENSITY = 1.2; // kg/m³, about sea level at 20 °C
+const AIR_DENSITY = 1.2; // kg/m³, about sea level at 20 °C: "standard" air for this sim
+/**
+ * Traction multiplier with launch control. Grip presets are what a driver gets by feel, spinning past
+ * the peak of the tire's slip curve; electronic control holds the peak, where friction runs 15-30%
+ * higher than in a spin. 1.2 puts a stock 2018 Mustang GT (10R80, 460 hp, 4,000 lb) on "Performance
+ * street" at ~11.9 s @ 119 mph, as magazines ran it (11.83-11.98 @ 119).
+ */
+export const LAUNCH_CONTROL_GRIP = 1.2;
 const DT = 0.001;
 const SAMPLE_EVERY = 0.02;
 const MAX_TIME = 60;
@@ -155,14 +175,15 @@ export function simulateQuarterMile(input: RunInput): RunResult {
   // Max tractive force with steady-state weight transfer: the driven axle's load changes by F·h/L,
   // so F = μ(W·f ± F·h/L), solved for F.
   const weightN = mass * G;
+  const grip = input.grip * (input.launchControl ? LAUNCH_CONTROL_GRIP : 1);
   const hOverL = input.cgHeightIn / input.wheelbaseIn;
   const tractionLimitN =
     input.drive === "awd"
-      ? input.grip * weightN
+      ? grip * weightN
       : input.drive === "rear"
-        ? (input.grip * weightN * input.driveWeightFraction) / Math.max(1 - input.grip * hOverL, 0.2)
-        : (input.grip * weightN * input.driveWeightFraction) / (1 + input.grip * hOverL);
-  const dragFactor = 0.5 * AIR_DENSITY * input.dragCoefficient * input.frontalAreaFt2 * FT2_TO_M2;
+        ? (grip * weightN * input.driveWeightFraction) / Math.max(1 - grip * hOverL, 0.2)
+        : (grip * weightN * input.driveWeightFraction) / (1 + grip * hOverL);
+  const dragFactor = 0.5 * AIR_DENSITY * (input.airDensityRatio ?? 1) * input.dragCoefficient * input.frontalAreaFt2 * FT2_TO_M2;
   const rollingN = input.rollingResistance * mass * G;
   const launchRpm = Math.min(auto ? automaticLaunchRpm(auto) : input.launchRpm, shiftRpm);
   const curveMaxRpm = curve[curve.length - 1].rpm;
@@ -450,4 +471,101 @@ export function runQuarterMile(input: RunInput & { knownSixtyFtS: number | null 
     run.warnings.push(`Known 60 ft ${target.toFixed(2)} s not reachable; closest ${reached.toFixed(2)} s`);
   }
   return { ...run, launchRpm: launch.rpm, sixtyFtSource: "known", launchScale };
+}
+
+/** Air density relative to standard (ISA sea level) at a density altitude in feet. */
+export function densityRatioAtAltitude(densityAltitudeFt: number): number {
+  return Math.max(1 - 6.8755856e-6 * densityAltitudeFt, 0.05) ** 4.2558797;
+}
+
+/**
+ * Density altitude (ft) and density ratio from weather: temperature (°F), station barometer (inHg,
+ * uncorrected) and relative humidity (%). Moist air is lighter: density = dry-air part + water-vapor part.
+ */
+export function densityFromWeather(tempF: number, baroInHg: number, humidityPct: number) {
+  const tempC = ((tempF - 32) * 5) / 9;
+  const tempK = tempC + 273.15;
+  const saturationHpa = 6.1078 * 10 ** ((7.5 * tempC) / (tempC + 237.3));
+  const vaporHpa = (Math.min(Math.max(humidityPct, 0), 100) / 100) * saturationHpa;
+  const pressureHpa = baroInHg * 33.8638866667;
+  const density = ((pressureHpa - vaporHpa) * 100) / (287.058 * tempK) + (vaporHpa * 100) / (461.495 * tempK);
+  const ratio = density / 1.225;
+  const densityAltitudeFt = 145442.16 * (1 - ratio ** 0.234969);
+  return { densityAltitudeFt, ratio };
+}
+
+/** Engine torque scaled by air density (naturally aspirated: power follows the air it breathes). */
+export function airCorrectedCurve(curve: PowerCurve, ratio: number): PowerCurve {
+  return ratio === 1 ? curve : curve.map((p) => ({ ...p, torque: p.torque * ratio }));
+}
+
+export const SHIFT_SEARCH_STEP = 50;
+
+/**
+ * Shift rpm (a multiple of 50) that gives the quickest ET for this car, searched from the power peak
+ * to the end of the power curve (torque past the curve's end is unknown). Launch rpm and any known-60 ft
+ * fit are taken from one full run and held, so only the shift point changes.
+ */
+export function bestShiftRpm(input: RunInput & { knownSixtyFtS: number | null }): number {
+  const step = SHIFT_SEARCH_STEP;
+  const peak = curvePeaks(input.curve).hp.rpm;
+  const low = Math.ceil(peak / step) * step;
+  const high = Math.floor(input.curve[input.curve.length - 1].rpm / step) * step;
+  if (high <= low) return Math.round(peak / step) * step;
+  const base = runQuarterMile({ ...input, shiftRpm: high });
+  let best = { rpm: low, et: Infinity };
+  for (let rpm = low; rpm <= high; rpm += step) {
+    const et = simulateQuarterMile({ ...input, shiftRpm: rpm, launchRpm: base.launchRpm, launchScale: base.launchScale }).et ?? Infinity;
+    // Ties (within 0.1 ms) go to the lower rpm.
+    if (et < best.et - 1e-4) best = { rpm, et };
+  }
+  return best.rpm;
+}
+
+// ---------------------------------------------------------------- comparing runs
+
+/**
+ * Where a run is at a timing-slip time, for the pass replay: distance, speed, rpm and gear,
+ * interpolated between samples. Before the clock starts the car sits at the start; past the finish
+ * it keeps rolling at its finish-line speed (cars that didn't finish stop where the run ended).
+ */
+export function stateAtTime(run: RunResult, t: number): { ft: number; mph: number; rpm: number; gear: number; finished: boolean } {
+  const samples = run.samples;
+  if (samples.length === 0) return { ft: 0, mph: 0, rpm: 0, gear: 0, finished: false };
+  const finish = run.splits.find((s) => s.ft === QUARTER_FT);
+  const last = samples[samples.length - 1];
+  if (run.et !== null && t >= run.et) {
+    const mph = finish?.mph ?? last.mph;
+    return { ft: QUARTER_FT + ((mph * 5280) / 3600) * (t - run.et), mph, rpm: last.rpm, gear: last.gear, finished: true };
+  }
+  if (t <= samples[0].t) return { ft: samples[0].ft, mph: samples[0].mph, rpm: samples[0].rpm, gear: samples[0].gear, finished: false };
+  if (t >= last.t) {
+    // Between the last sample and the finish line.
+    if (run.et === null || !finish) return { ft: last.ft, mph: last.mph, rpm: last.rpm, gear: last.gear, finished: false };
+    const f = (t - last.t) / (run.et - last.t);
+    return { ft: last.ft + f * (QUARTER_FT - last.ft), mph: last.mph + f * (finish.mph - last.mph), rpm: last.rpm, gear: last.gear, finished: false };
+  }
+  const i = samples.findIndex((s) => s.t >= t);
+  const a = samples[i - 1];
+  const b = samples[i];
+  const f = (t - a.t) / (b.t - a.t);
+  return { ft: a.ft + f * (b.ft - a.ft), mph: a.mph + f * (b.mph - a.mph), rpm: a.rpm + f * (b.rpm - a.rpm), gear: f < 1 ? a.gear : b.gear, finished: false };
+}
+
+/** Distance (ft) at a timing-slip time (s), interpolated between samples. */
+export function ftAtTime(run: RunResult, t: number): number | null {
+  const points = [...run.samples.map((s) => ({ ft: s.ft, t: s.t })), ...run.splits.map((s) => ({ ft: s.ft, t: s.t }))].sort((a, b) => a.t - b.t);
+  if (points.length === 0 || t > points[points.length - 1].t) return null;
+  if (t <= points[0].t) return points[0].ft;
+  const i = points.findIndex((p) => p.t >= t);
+  const a = points[i - 1];
+  const b = points[i];
+  return b.t === a.t ? b.ft : a.ft + ((t - a.t) / (b.t - a.t)) * (b.ft - a.ft);
+}
+
+/** How far behind `leader` this car is (ft) when the leader crosses the finish line, or null. */
+export function marginFt(run: RunResult, leader: RunResult): number | null {
+  if (leader.et === null) return null;
+  const at = ftAtTime(run, leader.et);
+  return at === null ? null : QUARTER_FT - at;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 
 type Props = {
   label: string;
@@ -11,13 +11,15 @@ type Props = {
   max?: number;
   hint?: string;
   disabled?: boolean;
+  /** A small control beside the label, e.g. an "Auto" button. */
+  action?: ReactNode;
 };
 
 /**
  * Numeric input that edits a local draft and commits on blur or Enter, so typing an
  * intermediate value ("", "0.") never reaches the calculations.
  */
-export function NumberField({ label, unit, value, onCommit, step, min = 0, max, hint, disabled }: Props) {
+export function NumberField({ label, unit, value, onCommit, step, min = 0, max, hint, disabled, action }: Props) {
   const id = useId();
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
@@ -31,7 +33,14 @@ export function NumberField({ label, unit, value, onCommit, step, min = 0, max, 
 
   return (
     <div className="field">
-      <label htmlFor={id}>{label}</label>
+      {action ? (
+        <div className="field-label-row">
+          <label htmlFor={id}>{label}</label>
+          {action}
+        </div>
+      ) : (
+        <label htmlFor={id}>{label}</label>
+      )}
       <div className="input-wrap">
         <input
           id={id}

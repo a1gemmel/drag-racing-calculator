@@ -59,11 +59,13 @@ frontend/
   src/offline.ts     "Download offline copy": captures the page before React renders (first import in main.tsx),
                      embeds current settings, saves as drag-racing-calculator.html via a Blob (no fetch)
   src/shareToken.ts  share links: whole setup <-> short versioned binary token in the URL fragment (FORWARD-COMPATIBLE, see below)
-  src/shareToken.golden.json, src/shareToken.v1-schema.json  frozen fixtures guarding old tokens
+  src/shareToken.golden.json, src/shareToken.v1-schema.json, src/shareToken.v0.5.0-schema.json  frozen fixtures guarding old tokens
   src/appState.ts    AppSettings + DEFAULT_SETTINGS; parseSettings (type-checked merge over defaults),
                      embedSettings / readEmbeddedSettings (<script type="application/json" id="saved-settings">)
   src/automatic.ts   AutomaticSetup (converter, launch, lock-up, shift time, loss), defaults, launchRpm, lockedInGear
   src/customTransmissions.ts  CustomTransmission -> family under manufacturer "Custom"; customProblems validation
+  src/components/CarTabs.tsx  car tabs over the setup cards ([+] copies the open car, rename, remove)
+  src/components/InfoTip.tsx  small "i" tooltip (launch control)
   src/components/AutomaticPane.tsx  sidebar pane shown when an automatic is selected
   src/components/CustomTransmissionDialog.tsx  create / copy / edit / delete custom transmissions
   src/tires.ts       parseTireSize; ROLLING_DIAMETER_FACTOR = 0.97 applied to size-derived diameters only
@@ -111,7 +113,10 @@ Data
   L43/L45/L50/W56, Muncie M20 — 56 variants. Each variant has an optional `source` citation; only the
   four Aisin entries still lack one. TKX wide-ratio sets fixed to 3.27/1.98/1.34/1.00/0.72.
   Automatics (v0.2.0-0.2.1): Powerglide, TH350, TH400, C4, C6, 4L60E, 4L80E, 8HP70, 8HP45, 727 TorqueFlite,
-  545RFE, 65RFE, 10R80, 8L90.
+  545RFE, 65RFE, 10R80, 8L90, AOD (v0.5.0). Manuals added v0.5.0: Richmond Super T-10 (5 sets from Richmond's catalog;
+  the 2.88 Y set has no published ratios, left out), Saginaw 4-speed (4 groove-count variants, Advance Adapters values;
+  Chevy Hardcore differs by 0.01-0.04 on some 2nd/3rd gears, noted in `source`), Nissan CD009 (350Z/G35; no Nissan
+  document found, enthusiast/spec sources agree on 3.794-0.794, reverse 3.446).
 - Public sources disagree on several values (T5 Ford 5.0 year breaks and ODs, NV4500 reverse ratios,
   T56 Cobra 5th gear). Choices made are documented per entry in `source` strings; treat these as the
   first entries to re-check if a user reports a wrong ratio.
@@ -152,6 +157,8 @@ engineering choices; public converter sources give stall rules of thumb but not 
   coupling point (COUPLING_CAPACITY in quarterMile.ts), linear torque-ratio fall, linear coupling phase.
   Coupling point clamped to SR 0.6-0.95 (dragzine: stator freewheels around SR ~0.8).
 - Default stall torque ratio 2.0 for every automatic.
+- AOD (v0.5.0): 2800 stall, 6% slip, lock-up "top" (4th is a direct mechanical drive through the split-torque input
+  shaft; 3rd's 60/40 mechanical split isn't modelled), 0.22 s / 15% shift loss, 15% loss (known for parasitic loss).
 - v0.2.1 additions (same reasoning as the matching older units): 8HP45 like the 8HP70 but 11% loss; 727 like the
   TH400 (3000 stall); 545RFE/65RFE 2400 stall, 6% slip, lock-up clutch off, 0.22 s / 15% shift loss, 14% / 15%
   loss; 10R80 and 8L90 like the 8HP70 (2400 stall, 4% slip, lock-up 2nd & up, 0.15 s / 10%, 12% loss).
@@ -253,14 +260,18 @@ section as release notes. (Older `build-1`/`build-2` releases predate versioning
   the first 60 ft (`launchScale`, 0.02-4) to hit the entered 60 ft; the rest of the pass runs normally
   from there. See `runQuarterMile` in quarterMile.ts.
 - **Offline copy:** header button downloads the page itself with the on-screen settings embedded; the saved
-  file opens with them as defaults. New settings must be added to AppSettings, DEFAULT_SETTINGS,
-  App's useState initializers, currentSettings() and a new field in TOKEN_SCHEMA (shareToken.ts). Hidden in `npm run dev` (the dev page isn't standalone).
-- **Share links (v0.4.0):** the URL fragment is a share token (`#ASHAAzGCOTmA6wZa…`) for the whole setup
-  (search text and filter excluded). Fragment rather than query params: works from file://, never sent to a
-  server. Updated with replaceState (debounced 250 ms); no fragment while the setup equals DEFAULT_SETTINGS. On load
-  a valid token wins over embedded offline-copy settings; a pasted fragment (hashchange) reloads. Header
-  "Copy link" copies it. Format: base64url(version byte 1 + protobuf-style message), fields tagged with numeric ids,
-  only values differing from each field's frozen base are written; the format is documented in shareToken.ts.
+  file opens with them as defaults. New settings must be added to the types and defaults in
+  appState.ts (per-car settings go in CarSetup / DEFAULT_CAR, or inside power / vehicle), parseSettings if it's a new
+  top-level group, App's state and currentSettings(), and a new field in TOKEN_SCHEMA (shareToken.ts; per-car fields
+  also in CAR_ELEMENT). Hidden in `npm run dev` (the dev page isn't standalone).
+- **Share links (v0.4.0, v0.5.0):** a share token (`#ASHAAzGCOTmA6wZa…`) for the whole setup (all cars, conditions;
+  search text and filter excluded) in the URL fragment. Fragment rather than query params: works from file://, never
+  sent to a server. Since v0.5.0 (owner request) the address bar is NOT updated as settings change; the header
+  "Copy link" button builds the link. On load a valid token wins over embedded offline-copy settings; a fragment pasted
+  into an open page (hashchange) reloads it. Format: base64url(version byte 1 + protobuf-style message), fields tagged
+  with numeric ids, only values differing from each field's frozen base are written; documented in shareToken.ts.
+  The token keeps the pre-v0.5.0 one-car layout: the first car's fields at the top level (`toTokenView`), further cars
+  in `extraCars` (elements reuse the per-car ids), `carName`, `carColor`, `activeCar`, `conditions`.
 
 ## Share token compatibility (hard rule)
 
@@ -276,9 +287,10 @@ bookmark and post these links. When changing settings or `src/shareToken.ts`:
 - A removed setting keeps its field with `retired: true`. A renamed setting keeps its id (update the path in
   the fixtures only for a pure rename).
 - The version byte changes only for an incompatible format change; keep decoders for every older version.
-- `src/shareToken.golden.json` (tokens and the complete setup each decodes to) and
-  `src/shareToken.v1-schema.json` (the field table at v1) are frozen: never edit or delete entries, only add.
-  When a release adds fields, add a golden token that uses them. Don't "fix" a failing compatibility test
+- `src/shareToken.golden.json` (tokens and the complete setup each decodes to, in `toTokenView` layout) and the
+  schema snapshots (`src/shareToken.v1-schema.json` = v0.4.0, `src/shareToken.v0.5.0-schema.json`) are frozen: never
+  edit or delete entries, only add. When a release adds fields, add golden tokens that use them and a new
+  `shareToken.v<version>-schema.json` snapshot listed in SCHEMA_SNAPSHOTS (shareToken.test.ts). Don't "fix" a failing compatibility test
   by changing the fixtures.
 
 - **1/8-mile trap (v0.2.2):** the trap method has a 1/4 / 1/8 mile toggle (`power.trapDistance`, separate
@@ -288,6 +300,46 @@ bookmark and post these links. When changing settings or `src/shareToken.ts`:
 - **Trap-speed weight:** the trap method has its own race-weight field (`power.trapWeightLb`, the weight on
   that pass). Editing it also sets the sim's race weight; editing the sim's race weight does not touch it,
   so power stays fixed and ET responds to weight.
+- **Cars / compare (v0.5.0):** `AppSettings.cars: CarSetup[]` (max 6) + `activeCar`; per car: name, search/filter,
+  transmission pick, tire, axle, shift rpm, power, vehicle, autoSetups. Global: gearsetView, chartView, conditions,
+  customTransmissions (a custom rename/delete reaches every car). `parseSettings` also reads the pre-v0.5.0 flat shape
+  (one car). The setup cards (Transmission, Engine, Axle & tires, Car) sit in `.car-setup` under CarTabs; the quarter-mile
+  card runs every car (`SimCar[]`, results cached by input JSON). One car: traces coloured by gear with shift markers.
+  Several: each car in its color (`CarSetup.color` #rrggbb from the tab's color picker, else CAR_COLORS = GEAR_COLORS
+  order by tab index; [+] starts a new car on its palette color), one segment per gear alternating the car color and a
+  50% white tint (`gearShade`; owner asked for alternating over a gradient), car names as end labels (LineChart
+  `endLabels`, per-series `endLabel`). Speed chart mode: Time (speed vs s) | Distance (speed vs ft) | Completion (ft vs s,
+  dotted horizontal 1/8 and 1/4 lines via LineChart `hMarkers`) (UI state, not saved): defaults to completion when
+  comparing, time for one car, resets when the car count crosses 1. The engine rpm chart always runs on distance (ft).
+  Dots (LineChart `dots`) at each car's
+  1/8 and 1/4 with "ET @ trap mph" hover text. Tiles show the winner (quickest ET); the comparison table is in finishing
+  order (DNF last), Δ ET and margin in feet vs the winner (`marginFt`: how far short of 1,320 ft a car is when the
+  winner finishes), open tab's row bold; shown for one car too (Δ column hidden). Under the RPM chart: a shifts-only
+  table with a car picker that follows the open tab. A gap-to-winner chart was tried and removed at the owner's request.
+- **Pass replay (v0.5.0):** `PassReplay.tsx`, under the summary/comparison table, for one car or several: SVG strip with
+  lanes, timing marks (60', 330', 1/8, 1,000', 1/4), cars placed by `stateAtTime(run, t)` (interpolated ft/mph/rpm/gear on
+  the timing-slip clock; past the ET a car rolls on at its finish-line speed and leaves the clipped strip, the clock runs
+  1.5 s past the last finisher). The card remounts it (key = JSON of every car's sim input + air density) on any
+  setting change, which stops and rewinds it; names, colors and the open tab don't. Play/Pause (requestAnimationFrame), 1× / ½× / ¼×, range scrubber,
+  clock, per-car readouts (ft · mph, gear · rpm; ET @ trap once finished) and a WIN label on the quickest car once it
+  finishes (compare only). Timeslip/shift tables show the open car. [+] copies the open car.
+- **Auto shift point (v0.5.0):** "Auto" beside Shift at runs `bestShiftRpm`: 50 rpm steps from peak hp to the end of the
+  power curve (never past it: torque beyond the curve is unknown), launch rpm/known-60 ft fit held from one full run,
+  quickest ET wins (ties to the lower rpm), at the current track conditions. ~125 ms. Often lands at the curve's end with
+  wide-ratio boxes, since power past the peak still beats the power after the drop.
+- **Track conditions (v0.5.0):** top of the quarter-mile card: Standard (no correction) | Density altitude (ft) |
+  Weather (°F, uncorrected/station inHg, RH %) -> DA via dry+vapor density and the ISA relation (quarterMile.ts
+  `densityFromWeather`, `densityRatioAtAltitude`). Density ratio σ (vs ISA sea level) scales engine torque
+  (`airCorrectedCurve`, naturally aspirated assumption; boost not modelled) and aero drag. Power inputs are treated as
+  standard-air numbers; DA 0 gives exactly the Standard result. ~1 mph per 1,000 ft at the default car.
+- **Launch control (v0.5.0):** `vehicle.launchControl` multiplies grip by `LAUNCH_CONTROL_GRIP` = 1.2 (electronics hold
+  the slip-curve peak; peak vs spinning friction is 15-30%). Calibrated so a 2018 Mustang GT (10R80, 460 hp, 4,000 lb,
+  3.55, 26.6") on "Performance street" runs 11.85 @ 118.8 vs magazine 11.83-11.98 @ 119 (test guards 11.75-12.05).
+  The owner asked for a tooltip on this toggle (InfoTip, text set by the owner: "More accurate 60 foot calculation for
+  late-model cars"), an exception to the numbers-only copy rule.
+- **Trap RPM (v0.5.0):** its own tile (rpm and gear at 1,320 ft) instead of the 1/4 tile hover.
+- **Powerglide gearsets (v0.5.0):** ATI's aftermarket low gears (1.58-2.18, 2nd 1.00) added as "x.xx Low (aftermarket)"
+  variants, source ATI gear set catalog.
 - **Tire construction (v0.4.1):** tire presets set grip and rolling resistance together (`TIRE_PRESETS` in
   QuarterMileCard.tsx; constants in tires.ts). Radials 0.015; bias-ply slick 0.021 (+40%; published bias vs radial
   rolling-resistance gaps are ~14-150% by pressure/load). That costs ~0.65 mph of trap at the default car, matching
@@ -303,20 +355,32 @@ bookmark and post these links. When changing settings or `src/shareToken.ts`:
 - Which transmissions to add to the catalog?
 - Repo directory name is misspelled (`transmssion`); rename intended?
 
-## Input layout (v0.3.0)
+## Input layout (v0.3.0, revised v0.5.0)
 
-No sidebar. The page is one column of cards, each pairing inputs (left, `.split-inputs`) with the results they
-drive (right): Transmission (picker, ratios, custom links, then a "Shifts & clutch" `Subgroup` for manuals or the
-automatic's "Converter & shifts" | stats strip, RPM chart, gearset tables), Engine (`PowerInputs` + shift-point subgroup |
-`PowerCurves`: torque and hp on one chart, same numeric axis like a dyno sheet, peaks labelled via LineChart
-`pointLabels`), then Axle & tires (grip coefficient, driven-axle weight and rollout under Advanced) and Car (only race
-weight visible; the rest under Advanced) side by side (`.input-grid`), then the quarter-mile results card. Cards stack below 1100 px (split) and 900 px (pair). Manual drivetrain loss sits
-with the manual transmission settings (an automatic's is in its Advanced). The trap method keeps its own race
-weight in Engine (it drives Car's race weight one way, as before).
+No sidebar. Car tabs over the setup cards, then the quarter-mile card. Setup cards:
+- Transmission: picker, ratio chips, custom links, then "Shifts & clutch" (`ManualInputs`) or the automatic's
+  "Converter & shifts". A "Gearing" disclosure in the header shows/hides the stats strip, RPM vs road speed chart and
+  gearset tables (`split-results`): open for one car, folded when comparing (resets when the car count crosses 1);
+  folded, the inputs spread into columns (`.split.collapsed`).
+- Engine: `PowerInputs` + "Shift point" (with Auto) | `PowerCurves` (torque and hp on one chart, peaks labelled).
+- Car (`CarInputs`): race weight, axle ratio, driven wheels, launch control, 60 ft (best/known); Advanced: driven-axle
+  weight, CG height, wheelbase, aero. Tires (`TireInputs` + TireField): diameter/size, grip preset; Advanced: grip
+  coefficient, rolling resistance, rollout. Car and Tires side by side (`.card-pair`).
+Quarter-mile card order: air conditions, tiles (winner), timing table (comparing) or one-line `TimeslipStrip` (one car),
+speed chart, rpm chart, shifts table, pass replay. Cards stack below 1100 px (split) and 900 px (pair). The trap method
+keeps its own race weight in Engine (it drives Car's race weight one way).
 
 ## Design system (2026-11-24 redesign)
 
-- Dark only. Tokens live at the top of `styles.css`; chart surface is `--surface` #15181b.
+- Dark only. Tokens live at the top of `styles.css`; chart surface is `--surface` #15181b. `--text-3` is #8b929a
+  (5.6:1; the old #6f767e was 3.9:1). Solid accent only for the brand mark, primary buttons (Play), the open car tab,
+  focus rings and the hero tile. Selected segments and the open Gearing button use a soft accent tint
+  (`--control-active` 16% accent, warm text #ffe3da); plain neutral grey was tried and the owner found it lifeless.
+  Text buttons and subgroup titles use `--accent-light` #ff8a6b; card titles have a 4 px accent bar; cards lighten
+  toward the top (`--card-top`).
+- Charts (LineChart, GearChart, replay strip) draw in real pixels: `useMeasuredWidth` (ResizeObserver) sets the svg
+  width, so 11 px text stays 11 px on any screen. Y axis title rotated left of the ticks, x title centred below.
+  Distance axes use fixed ticks at the timing marks (`xTicks`/`yTicks` props).
 - Gear colors: fixed order in `GEAR_COLORS` (App.tsx), the dark-mode categorical palette from the dataviz
   skill, validated for CVD separation against #15181b. Color follows the gear index — never reorder.
 - Accent #ff5a36. UI chrome only; never use the accent for data marks.

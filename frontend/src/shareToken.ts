@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS, parseSettings, type AppSettings } from "./appState";
+import { parseSettings, type AppSettings } from "./appState";
 
 /**
  * Share tokens: the whole setup as one short URL-safe string (the page's URL fragment).
@@ -62,75 +62,105 @@ const AUTOMATIC_FIELDS: readonly Field[] = [
   num(11, "drivetrainLoss", 0.13),
 ];
 
+// Per-car fields. The first car's sit at the top level (where every car's settings were before
+// v0.5.0, so older tokens are simply a one-car setup); further cars are `extraCars` elements that
+// reuse the same ids.
+const SELECTED_MODEL = str(1, "selectedModel", "Muncie M20");
+const SELECTED_VARIANT = str(2, "selectedVariantName", "66-70 Wide Ratio");
+const TIRE_MODE = enm(3, "tireMode", ["diameter", "size"], "diameter");
+const TIRE_DIAMETER = num(4, "tireDiameterIn", 26);
+const TIRE_SIZE = str(5, "tireSize", "275/55R15");
+const AXLE_RATIO = num(6, "axleRatio", 3.73);
+const SHIFT_RPM = num(7, "shiftRpm", 6500);
+const POWER: Field = {
+  id: 10,
+  key: "power",
+  kind: "message",
+  fields: [
+    enm(1, "method", ["trap", "peak", "dyno"], "trap"),
+    enm(2, "trapDistance", ["quarter", "eighth"], "quarter"),
+    num(3, "trapMph", 110),
+    num(4, "trapEighthMph", 88),
+    num(5, "trapWeightLb", 3700),
+    num(6, "trapPeakRpm", 6000),
+    {
+      id: 7,
+      key: "peak",
+      kind: "message",
+      fields: [num(1, "peakHp", 430), num(2, "peakHpRpm", 5900), num(3, "peakTorque", 424), num(4, "peakTorqueRpm", 4600)],
+    },
+    enm(8, "peakBasis", ["crank", "wheel"], "crank"),
+    {
+      id: 9,
+      key: "dyno",
+      kind: "list",
+      element: [num(1, "rpm", 0), num(2, "torque", 0)],
+      base: [
+        { rpm: 2000, torque: 330 },
+        { rpm: 3000, torque: 375 },
+        { rpm: 4000, torque: 410 },
+        { rpm: 4600, torque: 424 },
+        { rpm: 5200, torque: 410 },
+        { rpm: 5900, torque: 383 },
+        { rpm: 6500, torque: 330 },
+      ],
+    },
+    enm(10, "dynoBasis", ["crank", "wheel"], "crank"),
+  ],
+};
+const VEHICLE: Field = {
+  id: 11,
+  key: "vehicle",
+  kind: "message",
+  fields: [
+    num(1, "weightLb", 3700),
+    num(2, "drivetrainLoss", 0.11),
+    num(3, "grip", 1),
+    enm(4, "drive", ["rear", "front", "awd"], "rear"),
+    num(5, "driveWeightFraction", 0.5),
+    num(6, "cgHeightIn", 20),
+    num(7, "wheelbaseIn", 105),
+    num(8, "dragCoefficient", 0.35),
+    num(9, "frontalAreaFt2", 22),
+    num(10, "rollingResistance", 0.015),
+    num(11, "shiftTimeS", 0.15),
+    num(12, "launchRpm", 3500),
+    num(13, "clutchReleaseS", 0.25),
+    num(14, "rolloutIn", 11.5),
+    { id: 15, key: "knownSixtyFtS", kind: "nullableNumber", base: null },
+    { id: 16, key: "launchControl", kind: "boolean", base: false },
+  ],
+};
+const AUTO_SETUPS: Field = { id: 13, key: "autoSetups", kind: "map", value: AUTOMATIC_FIELDS };
+
+const CAR_ELEMENT: readonly Field[] = [
+  SELECTED_MODEL,
+  SELECTED_VARIANT,
+  TIRE_MODE,
+  TIRE_DIAMETER,
+  TIRE_SIZE,
+  AXLE_RATIO,
+  SHIFT_RPM,
+  POWER,
+  VEHICLE,
+  AUTO_SETUPS,
+  str(14, "name", ""),
+  str(15, "color", ""),
+];
+
 /** The token schema. Append only; see the rules above. */
 export const TOKEN_SCHEMA: readonly Field[] = [
-  str(1, "selectedModel", "Muncie M20"),
-  str(2, "selectedVariantName", "66-70 Wide Ratio"),
-  enm(3, "tireMode", ["diameter", "size"], "diameter"),
-  num(4, "tireDiameterIn", 26),
-  str(5, "tireSize", "275/55R15"),
-  num(6, "axleRatio", 3.73),
-  num(7, "shiftRpm", 6500),
+  SELECTED_MODEL,
+  SELECTED_VARIANT,
+  TIRE_MODE,
+  TIRE_DIAMETER,
+  TIRE_SIZE,
+  AXLE_RATIO,
+  SHIFT_RPM,
   enm(8, "gearsetView", ["ladder", "cruising"], "cruising"),
   enm(9, "chartView", ["shifts", "full"], "shifts"),
-  {
-    id: 10,
-    key: "power",
-    kind: "message",
-    fields: [
-      enm(1, "method", ["trap", "peak", "dyno"], "trap"),
-      enm(2, "trapDistance", ["quarter", "eighth"], "quarter"),
-      num(3, "trapMph", 110),
-      num(4, "trapEighthMph", 88),
-      num(5, "trapWeightLb", 3700),
-      num(6, "trapPeakRpm", 6000),
-      {
-        id: 7,
-        key: "peak",
-        kind: "message",
-        fields: [num(1, "peakHp", 430), num(2, "peakHpRpm", 5900), num(3, "peakTorque", 424), num(4, "peakTorqueRpm", 4600)],
-      },
-      enm(8, "peakBasis", ["crank", "wheel"], "crank"),
-      {
-        id: 9,
-        key: "dyno",
-        kind: "list",
-        element: [num(1, "rpm", 0), num(2, "torque", 0)],
-        base: [
-          { rpm: 2000, torque: 330 },
-          { rpm: 3000, torque: 375 },
-          { rpm: 4000, torque: 410 },
-          { rpm: 4600, torque: 424 },
-          { rpm: 5200, torque: 410 },
-          { rpm: 5900, torque: 383 },
-          { rpm: 6500, torque: 330 },
-        ],
-      },
-      enm(10, "dynoBasis", ["crank", "wheel"], "crank"),
-    ],
-  },
-  {
-    id: 11,
-    key: "vehicle",
-    kind: "message",
-    fields: [
-      num(1, "weightLb", 3700),
-      num(2, "drivetrainLoss", 0.11),
-      num(3, "grip", 1),
-      enm(4, "drive", ["rear", "front", "awd"], "rear"),
-      num(5, "driveWeightFraction", 0.5),
-      num(6, "cgHeightIn", 20),
-      num(7, "wheelbaseIn", 105),
-      num(8, "dragCoefficient", 0.35),
-      num(9, "frontalAreaFt2", 22),
-      num(10, "rollingResistance", 0.015),
-      num(11, "shiftTimeS", 0.15),
-      num(12, "launchRpm", 3500),
-      num(13, "clutchReleaseS", 0.25),
-      num(14, "rolloutIn", 11.5),
-      { id: 15, key: "knownSixtyFtS", kind: "nullableNumber", base: null },
-    ],
-  },
+  POWER,
+  VEHICLE,
   {
     id: 12,
     key: "customTransmissions",
@@ -143,7 +173,24 @@ export const TOKEN_SCHEMA: readonly Field[] = [
       { id: 4, key: "automatic", kind: "message", optional: true, fields: AUTOMATIC_FIELDS },
     ],
   },
-  { id: 13, key: "autoSetups", kind: "map", value: AUTOMATIC_FIELDS },
+  AUTO_SETUPS,
+  // v0.5.0: car tabs and track conditions.
+  str(14, "carName", "Car 1"),
+  { id: 15, key: "extraCars", kind: "list", base: [], element: CAR_ELEMENT },
+  num(16, "activeCar", 0),
+  {
+    id: 17,
+    key: "conditions",
+    kind: "message",
+    fields: [
+      enm(1, "mode", ["standard", "da", "weather"], "standard"),
+      num(2, "densityAltitudeFt", 0),
+      num(3, "tempF", 70),
+      num(4, "baroInHg", 29.92),
+      num(5, "humidityPct", 40),
+    ],
+  },
+  str(18, "carColor", ""),
 ];
 
 // ---------------------------------------------------------------- bytes
@@ -462,15 +509,35 @@ export function decodeTokenRaw(token: string): Record<string, unknown> | null {
   }
 }
 
-/** The share token for `settings` (search text and the manufacturer filter aren't part of a setup). */
+/**
+ * Settings in the token's layout: the first car's fields at the top level (as before v0.5.0), further
+ * cars in `extraCars`. Search text and the manufacturer filter aren't part of a setup.
+ */
+export function toTokenView(settings: AppSettings): Record<string, unknown> {
+  const [first, ...rest] = settings.cars;
+  const { name, color, query: _q, scope: _s, ...firstFields } = first;
+  return {
+    ...firstFields,
+    carName: name,
+    carColor: color,
+    gearsetView: settings.gearsetView,
+    chartView: settings.chartView,
+    customTransmissions: settings.customTransmissions,
+    extraCars: rest.map(({ query: _qq, scope: _ss, ...car }) => car),
+    activeCar: settings.activeCar,
+    conditions: settings.conditions,
+  };
+}
+
+/** The share token for `settings`. */
 export function settingsToToken(settings: AppSettings): string {
-  return toBase64Url([TOKEN_FORMAT_VERSION, ...encodeMessage(TOKEN_SCHEMA, settings as unknown as Record<string, unknown>)]);
+  return toBase64Url([TOKEN_FORMAT_VERSION, ...encodeMessage(TOKEN_SCHEMA, toTokenView(settings))]);
 }
 
 /** Settings from a token (with or without a leading "#"), or null if it isn't a valid token. */
 export function settingsFromToken(token: string): AppSettings | null {
   const raw = decodeTokenRaw(token);
-  return raw ? parseSettings({ ...raw, query: DEFAULT_SETTINGS.query, scope: DEFAULT_SETTINGS.scope }) : null;
+  return raw ? parseSettings(raw) : null;
 }
 
 /** Flat description of the schema (path, id path, kind, base, enum values), for the compatibility tests. */
@@ -483,10 +550,4 @@ export function describeSchema(fields: readonly Field[] = TOKEN_SCHEMA, path = "
     const children = sub ?? element ?? value;
     return [entry, ...(children ? describeSchema(children, at, id) : [])];
   });
-}
-
-/** Whether `settings` is the app's current default setup (search text and filter aside). */
-export function isDefaultSetup(settings: AppSettings): boolean {
-  const strip = ({ query: _q, scope: _s, ...rest }: AppSettings) => rest;
-  return same(strip(settings), strip(DEFAULT_SETTINGS));
 }
