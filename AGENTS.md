@@ -267,7 +267,9 @@ section as release notes. (Older `build-1`/`build-2` releases predate versioning
 - **Share links (v0.4.0, v0.5.0):** a share token (`#ASHAAzGCOTmA6wZa…`) for the whole setup (all cars, conditions;
   search text and filter excluded) in the URL fragment. Fragment rather than query params: works from file://, never
   sent to a server. Since v0.5.0 (owner request) the address bar is NOT updated as settings change; the header
-  "Copy link" button builds the link. On load a valid token wins over embedded offline-copy settings; a fragment pasted
+  "Copy link" button builds the link (`shareUrl`: the page's own address over http(s); from file:// it uses `PUBLIC_URL`,
+  https://andrewgemmel.com/applications/drag-racing-calculator/, where the website build publishes the latest release —
+  update it if the site path changes). On load a valid token wins over embedded offline-copy settings; a fragment pasted
   into an open page (hashchange) reloads it. Format: base64url(version byte 1 + protobuf-style message), fields tagged
   with numeric ids, only values differing from each field's frozen base are written; documented in shareToken.ts.
   The token keeps the pre-v0.5.0 one-car layout: the first car's fields at the top level (`toTokenView`), further cars

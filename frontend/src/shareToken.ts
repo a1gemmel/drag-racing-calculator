@@ -529,6 +529,18 @@ export function toTokenView(settings: AppSettings): Record<string, unknown> {
   };
 }
 
+/**
+ * Where the app is published (the website's build copies the latest release here). Share links made
+ * in a copy opened from disk (file://) point here, since a file path on one computer is no use to anyone else.
+ */
+export const PUBLIC_URL = "https://andrewgemmel.com/applications/drag-racing-calculator/";
+
+/** The share link for a token, from the page's address: the page itself when served over http(s), else PUBLIC_URL. */
+export function shareUrl(pageHref: string, token: string): string {
+  const served = /^https?:/i.test(pageHref);
+  return `${served ? pageHref.split("#")[0] : PUBLIC_URL}#${token}`;
+}
+
 /** The share token for `settings`. */
 export function settingsToToken(settings: AppSettings): string {
   return toBase64Url([TOKEN_FORMAT_VERSION, ...encodeMessage(TOKEN_SCHEMA, toTokenView(settings))]);

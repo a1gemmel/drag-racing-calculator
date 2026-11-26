@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CAR, DEFAULT_CONDITIONS, DEFAULT_SETTINGS, type AppSettings } from "./appState";
 import { GENERIC_AUTOMATIC } from "./automatic";
-import { decodeTokenRaw, describeSchema, settingsFromToken, settingsToToken, TOKEN_SCHEMA, toTokenView } from "./shareToken";
+import { decodeTokenRaw, describeSchema, PUBLIC_URL, settingsFromToken, settingsToToken, shareUrl, TOKEN_SCHEMA, toTokenView } from "./shareToken";
 import golden from "./shareToken.golden.json";
 import v1Schema from "./shareToken.v1-schema.json";
 import v050Schema from "./shareToken.v0.5.0-schema.json";
@@ -125,5 +125,19 @@ describe("share token round trip", () => {
   it("defaults to standard air", () => {
     expect(settingsFromToken("ATGRBQ")?.conditions).toEqual(DEFAULT_CONDITIONS);
     expect(TOKEN_SCHEMA.length).toBeGreaterThan(0);
+  });
+});
+
+describe("share link address", () => {
+  it("uses the page's own address when it's served over http(s)", () => {
+    expect(shareUrl("https://andrewgemmel.com/applications/drag-racing-calculator/#OLD", "ATGRBQ")).toBe(
+      "https://andrewgemmel.com/applications/drag-racing-calculator/#ATGRBQ",
+    );
+    expect(shareUrl("http://localhost:5173/", "ATGRBQ")).toBe("http://localhost:5173/#ATGRBQ");
+  });
+
+  it("points a downloaded copy's links at the published site", () => {
+    expect(shareUrl("file:///C:/Users/me/Downloads/drag-racing-calculator.html#OLD", "ATGRBQ")).toBe(`${PUBLIC_URL}#ATGRBQ`);
+    expect(PUBLIC_URL).toMatch(/^https:\/\/.+\/$/);
   });
 });

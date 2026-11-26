@@ -16,7 +16,13 @@ export const offlineCopyAvailable = !import.meta.env.DEV;
 const doctype = document.doctype ? `<!doctype ${document.doctype.name}>\n` : "";
 // Captured without any settings from an earlier download; fresh ones are embedded per download.
 const pageClone = document.documentElement.cloneNode(true) as HTMLElement;
-pageClone.querySelector(`#${SETTINGS_ELEMENT_ID}`)?.remove();
+const savedSettings = pageClone.querySelector(`#${SETTINGS_ELEMENT_ID}`);
+if (savedSettings) {
+  // embedSettings adds a line break after the tag; take it out too, so copies of copies don't grow.
+  const next = savedSettings.nextSibling;
+  if (next?.nodeType === Node.TEXT_NODE && next.textContent?.startsWith("\n")) next.textContent = next.textContent.slice(1);
+  savedSettings.remove();
+}
 const pageSource = doctype + pageClone.outerHTML;
 
 export function downloadOfflineCopy(settings: AppSettings) {

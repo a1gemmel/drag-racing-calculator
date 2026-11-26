@@ -2,6 +2,11 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.5.1 — 2026-11-25
+
+- Copy link in a downloaded offline copy now links to the published site instead of a file on your computer.
+- Downloading an offline copy from an offline copy no longer adds a stray blank line each time.
+
 ## v0.5.0 — 2026-11-25 — The Racer Update
 
 - Compare cars: the setup cards sit under car tabs. [+] adds a car (a copy of the open one), tabs can be renamed, recolored and removed, and the quarter-mile charts overlay every car, labelled by name, alternating dark and light at every shift.

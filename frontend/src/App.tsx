@@ -15,7 +15,7 @@ import { Subgroup } from "./components/Subgroup";
 import { TireField, type TireMode } from "./components/TireField";
 import { MAX_CAR_NAME, MAX_CARS, readEmbeddedSettings, type AppSettings, type CarSetup, type TrackConditions } from "./appState";
 import { CarTabs } from "./components/CarTabs";
-import { settingsFromToken, settingsToToken } from "./shareToken";
+import { settingsFromToken, settingsToToken, shareUrl } from "./shareToken";
 import { downloadOfflineCopy, OFFLINE_FILE_NAME, offlineCopyAvailable, offlineCopyKb } from "./offline";
 import { buildCurve, type PowerState } from "./power";
 import { airCorrectedCurve, bestShiftRpm, type VehicleSetup } from "./quarterMile";
@@ -198,9 +198,9 @@ export function App() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
-  const shareUrl = () => `${window.location.href.split("#")[0]}#${settingsToToken(currentSettings())}`;
   const copyLink = () => {
-    const url = shareUrl();
+    // From a downloaded copy (file://) the link points at the published site instead of a local file.
+    const url = shareUrl(window.location.href, settingsToToken(currentSettings()));
     navigator.clipboard?.writeText(url).then(
       () => {
         setLinkCopied(true);
