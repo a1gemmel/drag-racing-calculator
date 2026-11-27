@@ -1223,5 +1223,299 @@
    },
    "mode": "full"
   }
+ },
+ {
+  "version": "0.9.0",
+  "token": "AVoPKcIFMdACOaAOQdIFSfACqAEBsgEKA4DSBoC5BoCgBg",
+  "settings": {
+   "selectedModel": "Muncie M20",
+   "selectedVariantName": "66-70 Wide Ratio",
+   "tireMode": "diameter",
+   "tireDiameterIn": 26,
+   "tireSize": "275/55R15",
+   "axleRatio": 3.73,
+   "shiftRpm": 6500,
+   "shiftByGear": true,
+   "gearShiftRpms": [
+    6800,
+    6600,
+    6400
+   ],
+   "power": {
+    "method": "trap",
+    "trapDistance": "quarter",
+    "trapMph": 110,
+    "trapEighthMph": 88,
+    "trapWeightLb": 3700,
+    "trapPeakRpm": 6000,
+    "peak": {
+     "peakHp": 430,
+     "peakHpRpm": 5900,
+     "peakTorque": 424,
+     "peakTorqueRpm": 4600
+    },
+    "peakBasis": "crank",
+    "dyno": [
+     {
+      "rpm": 2000,
+      "torque": 330
+     },
+     {
+      "rpm": 3000,
+      "torque": 375
+     },
+     {
+      "rpm": 4000,
+      "torque": 410
+     },
+     {
+      "rpm": 4600,
+      "torque": 424
+     },
+     {
+      "rpm": 5200,
+      "torque": 410
+     },
+     {
+      "rpm": 5900,
+      "torque": 383
+     },
+     {
+      "rpm": 6500,
+      "torque": 330
+     }
+    ],
+    "dynoBasis": "crank"
+   },
+   "vehicle": {
+    "weightLb": 3700,
+    "drivetrainLoss": 0.11,
+    "grip": 1,
+    "drive": "rear",
+    "driveWeightFraction": 0.44,
+    "cgHeightIn": 21,
+    "wheelbaseIn": 114,
+    "dragCoefficient": 0.45,
+    "frontalAreaFt2": 23,
+    "rollingResistance": 0.015,
+    "shiftTimeS": 0.15,
+    "launchRpm": 3500,
+    "clutchReleaseS": 0.25,
+    "rolloutIn": 11.5,
+    "knownSixtyFtS": null,
+    "launchControl": false
+   },
+   "autoSetups": {},
+   "carName": "Car 1",
+   "carColor": "",
+   "gearsetView": "cruising",
+   "chartView": "shifts",
+   "customTransmissions": [],
+   "extraCars": [],
+   "activeCar": 0,
+   "conditions": {
+    "mode": "standard",
+    "densityAltitudeFt": 0,
+    "tempF": 70,
+    "baroInHg": 29.92,
+    "humidityPct": 40
+   },
+   "simple": {
+    "hp": 400,
+    "weightLb": 3700,
+    "grip": 1,
+    "rollingResistance": 0.015,
+    "knownSixtyFtS": null
+   },
+   "mode": "auto"
+  }
+ },
+ {
+  "version": "0.9.0",
+  "token": "AVoPKcIFMdACOaAOQdIFSfACei4BLDmAhAdaDynCBTHQAjmgDkHSBUnwAnIFQ2FyIDKoAQGyAQoDwN4GoNgGkfBDgQEQsgEHAoDrBuDLBg",
+  "settings": {
+   "selectedModel": "Muncie M20",
+   "selectedVariantName": "66-70 Wide Ratio",
+   "tireMode": "diameter",
+   "tireDiameterIn": 26,
+   "tireSize": "275/55R15",
+   "axleRatio": 3.73,
+   "shiftRpm": 6500,
+   "shiftByGear": false,
+   "gearShiftRpms": [
+    7000,
+    6750
+   ],
+   "power": {
+    "method": "trap",
+    "trapDistance": "quarter",
+    "trapMph": 110,
+    "trapEighthMph": 88,
+    "trapWeightLb": 3700,
+    "trapPeakRpm": 6000,
+    "peak": {
+     "peakHp": 430,
+     "peakHpRpm": 5900,
+     "peakTorque": 424,
+     "peakTorqueRpm": 4600
+    },
+    "peakBasis": "crank",
+    "dyno": [
+     {
+      "rpm": 2000,
+      "torque": 330
+     },
+     {
+      "rpm": 3000,
+      "torque": 375
+     },
+     {
+      "rpm": 4000,
+      "torque": 410
+     },
+     {
+      "rpm": 4600,
+      "torque": 424
+     },
+     {
+      "rpm": 5200,
+      "torque": 410
+     },
+     {
+      "rpm": 5900,
+      "torque": 383
+     },
+     {
+      "rpm": 6500,
+      "torque": 330
+     }
+    ],
+    "dynoBasis": "crank"
+   },
+   "vehicle": {
+    "weightLb": 3700,
+    "drivetrainLoss": 0.11,
+    "grip": 1,
+    "drive": "rear",
+    "driveWeightFraction": 0.44,
+    "cgHeightIn": 21,
+    "wheelbaseIn": 114,
+    "dragCoefficient": 0.45,
+    "frontalAreaFt2": 23,
+    "rollingResistance": 0.015,
+    "shiftTimeS": 0.15,
+    "launchRpm": 3500,
+    "clutchReleaseS": 0.25,
+    "rolloutIn": 11.5,
+    "knownSixtyFtS": null,
+    "launchControl": false
+   },
+   "autoSetups": {},
+   "carName": "Car 1",
+   "carColor": "",
+   "gearsetView": "cruising",
+   "chartView": "shifts",
+   "customTransmissions": [],
+   "extraCars": [
+    {
+     "name": "Car 2",
+     "color": "",
+     "selectedModel": "Muncie M20",
+     "selectedVariantName": "66-70 Wide Ratio",
+     "tireMode": "diameter",
+     "tireDiameterIn": 26,
+     "tireSize": "275/55R15",
+     "axleRatio": 3.73,
+     "shiftRpm": 7200,
+     "shiftByGear": true,
+     "gearShiftRpms": [
+      6900,
+      6850,
+      6950.5
+     ],
+     "power": {
+      "method": "trap",
+      "trapDistance": "quarter",
+      "trapMph": 110,
+      "trapEighthMph": 88,
+      "trapWeightLb": 3700,
+      "trapPeakRpm": 6000,
+      "peak": {
+       "peakHp": 430,
+       "peakHpRpm": 5900,
+       "peakTorque": 424,
+       "peakTorqueRpm": 4600
+      },
+      "peakBasis": "crank",
+      "dyno": [
+       {
+        "rpm": 2000,
+        "torque": 330
+       },
+       {
+        "rpm": 3000,
+        "torque": 375
+       },
+       {
+        "rpm": 4000,
+        "torque": 410
+       },
+       {
+        "rpm": 4600,
+        "torque": 424
+       },
+       {
+        "rpm": 5200,
+        "torque": 410
+       },
+       {
+        "rpm": 5900,
+        "torque": 383
+       },
+       {
+        "rpm": 6500,
+        "torque": 330
+       }
+      ],
+      "dynoBasis": "crank"
+     },
+     "vehicle": {
+      "weightLb": 3700,
+      "drivetrainLoss": 0.11,
+      "grip": 1,
+      "drive": "rear",
+      "driveWeightFraction": 0.44,
+      "cgHeightIn": 21,
+      "wheelbaseIn": 114,
+      "dragCoefficient": 0.45,
+      "frontalAreaFt2": 23,
+      "rollingResistance": 0.015,
+      "shiftTimeS": 0.15,
+      "launchRpm": 3500,
+      "clutchReleaseS": 0.25,
+      "rolloutIn": 11.5,
+      "knownSixtyFtS": null,
+      "launchControl": false
+     },
+     "autoSetups": {}
+    }
+   ],
+   "activeCar": 1,
+   "conditions": {
+    "mode": "standard",
+    "densityAltitudeFt": 0,
+    "tempF": 70,
+    "baroInHg": 29.92,
+    "humidityPct": 40
+   },
+   "simple": {
+    "hp": 400,
+    "weightLb": 3700,
+    "grip": 1,
+    "rollingResistance": 0.015,
+    "knownSixtyFtS": null
+   },
+   "mode": "auto"
+  }
  }
 ]

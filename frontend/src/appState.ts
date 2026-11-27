@@ -21,7 +21,12 @@ export type CarSetup = {
   tireDiameterIn: number;
   tireSize: string;
   axleRatio: number;
+  /** Upshift rpm (every gear, or only the top gear's limit when shiftByGear is on). */
   shiftRpm: number;
+  /** Separate upshift rpm per gear. */
+  shiftByGear: boolean;
+  /** Per-gear upshift rpms (index 0 = 1-2); gears past the end use shiftRpm. Kept when shiftByGear is off. */
+  gearShiftRpms: number[];
   power: PowerState;
   vehicle: VehicleSetup;
   /** Automatic settings the user changed, by transmission model; others use the transmission's defaults. */
@@ -73,6 +78,8 @@ export const DEFAULT_CAR: CarSetup = {
   tireSize: "275/55R15",
   axleRatio: 3.73,
   shiftRpm: 6500,
+  shiftByGear: false,
+  gearShiftRpms: [],
   power: DEFAULT_POWER,
   // The default car is a classic muscle car: its Advanced fields (weight split, CG, wheelbase, aero) come from that preset.
   vehicle: { ...DEFAULT_VEHICLE, ...presetPatch(CAR_PRESETS.find((preset) => preset.id === "muscle")!, "rear") },
@@ -134,8 +141,10 @@ function mergeInto<T>(defaults: T, raw: unknown, path = ""): T {
       // Nullable numbers (e.g. a known 60 ft that's off by default).
       if (value === null || (typeof value === "number" && Number.isFinite(value))) result[key] = value;
     } else if (Array.isArray(fallback)) {
-      // Only array in settings is the dyno table: rows of { rpm, torque }.
-      if (Array.isArray(value)) {
+      if (key === "gearShiftRpms") {
+        if (Array.isArray(value)) result[key] = value.filter((n) => typeof n === "number" && Number.isFinite(n) && n > 0).slice(0, 20);
+      } else if (Array.isArray(value)) {
+        // The other array in settings is the dyno table: rows of { rpm, torque }.
         const rows = value.filter(
           (row): row is { rpm: number; torque: number } =>
             isObject(row) && Number.isFinite(row.rpm) && Number.isFinite(row.torque),

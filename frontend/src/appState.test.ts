@@ -10,6 +10,13 @@ describe("parseSettings", () => {
     expect(parseSettings("nope")).toEqual(DEFAULT_SETTINGS);
   });
 
+  it("reads per-gear shift points, dropping bad entries", () => {
+    const car = parseSettings({ cars: [{ shiftByGear: true, gearShiftRpms: [6800, "x", -1, 6400, Number.NaN] }] }).cars[0];
+    expect(car.shiftByGear).toBe(true);
+    expect(car.gearShiftRpms).toEqual([6800, 6400]);
+    expect(parseSettings({ cars: [{ gearShiftRpms: "6800" }] }).cars[0].gearShiftRpms).toEqual([]);
+  });
+
   it("takes valid fields, keeps defaults for bad ones, drops unknown ones", () => {
     const settings = parseSettings({
       axleRatio: 4.56,

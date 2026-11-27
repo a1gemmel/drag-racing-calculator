@@ -94,7 +94,10 @@ export type RunInput = VehicleSetup & {
   gearRatios: number[];
   axleRatio: number;
   tireDiameterIn: number;
+  /** Upshift rpm, and the rev limit in the top gear (or wherever the car holds a gear). */
   shiftRpm: number;
+  /** Upshift rpm per gear (index 0 = the 1-2 shift); gears without an entry shift at shiftRpm. */
+  gearShiftRpms?: number[];
   /**
    * Air density relative to standard (1 = no correction). Scales aero drag; callers scale the power
    * curve by it too (see airCorrectedCurve).
@@ -167,6 +170,16 @@ const SPLIT_POINTS = [
 ];
 const TRAP_POINTS = [594, 1254];
 
+/** Rpm to upshift out of `gear` (0-based), or the rev limit in the top gear. */
+export function upshiftRpm(input: Pick<RunInput, "shiftRpm" | "gearShiftRpms" | "gearRatios">, gear: number): number {
+  return gear < input.gearRatios.length - 1 ? (input.gearShiftRpms?.[gear] ?? input.shiftRpm) : input.shiftRpm;
+}
+
+/** Highest rpm the car runs to: the top-gear limit or any per-gear shift point. */
+export function maxShiftRpm(input: Pick<RunInput, "shiftRpm" | "gearShiftRpms" | "gearRatios">): number {
+  return Math.max(...input.gearRatios.map((_, gear) => upshiftRpm(input, gear)), input.shiftRpm);
+}
+
 export function simulateQuarterMile(input: RunInput): RunResult {
   const warnings: string[] = [];
   const { curve, gearRatios, axleRatio, tireDiameterIn, shiftRpm } = input;
@@ -194,10 +207,11 @@ export function simulateQuarterMile(input: RunInput): RunResult {
         : (grip * weightN * input.driveWeightFraction) / (1 + grip * hOverL);
   const dragFactor = 0.5 * AIR_DENSITY * (input.airDensityRatio ?? 1) * input.dragCoefficient * input.frontalAreaFt2 * FT2_TO_M2;
   const rollingN = input.rollingResistance * mass * G;
-  const launchRpm = Math.min(auto ? automaticLaunchRpm(auto) : input.launchRpm, shiftRpm);
+  const launchRpm = Math.min(auto ? automaticLaunchRpm(auto) : input.launchRpm, upshiftRpm(input, 0));
   const curveMaxRpm = curve[curve.length - 1].rpm;
-  if (shiftRpm > curveMaxRpm) {
-    warnings.push(`Power curve ends at ${curveMaxRpm.toLocaleString()} rpm; torque held flat to ${shiftRpm.toLocaleString()} rpm`);
+  const highestRpm = maxShiftRpm(input);
+  if (highestRpm > curveMaxRpm) {
+    warnings.push(`Power curve ends at ${curveMaxRpm.toLocaleString()} rpm; torque held flat to ${highestRpm.toLocaleString()} rpm`);
   }
 
   const RAD_TO_RPM = 60 / (2 * Math.PI);
@@ -243,7 +257,7 @@ export function simulateQuarterMile(input: RunInput): RunResult {
     const resistN = dragFactor * v * v + (v > 0 ? rollingN : 0);
     const shifting = shiftTimer > 0;
     const engineRpm = omega * RAD_TO_RPM;
-    const limiter = engineRpm >= shiftRpm && !upshiftPulls(gear, v);
+    const limiter = engineRpm >= upshiftRpm(input, gear) && !upshiftPulls(gear, v);
     // Manuals coast through a shift; automatics keep the throttle open (power shift).
     const engineNm = (shifting && !converter && !dct) || limiter ? 0 : torqueNm(engineRpm) * scale;
     let accel: number;
@@ -338,7 +352,7 @@ export function simulateQuarterMile(input: RunInput): RunResult {
       // Manual: clutch back in at the new gear. Automatic: the converter takes up the difference,
       // unless the new gear is locked up.
       if (shiftTimer <= 0 && (!converter || lockedInGear(auto!, gear, gearRatios.length))) omega = u * k;
-    } else if ((converter || clutchLocked) && omega * RAD_TO_RPM >= shiftRpm && upshiftPulls(gear, v)) {
+    } else if ((converter || clutchLocked) && omega * RAD_TO_RPM >= upshiftRpm(input, gear) && upshiftPulls(gear, v)) {
       gear += 1;
       // A power shift takes at least one step, so the engine's inertia always goes through the clutches.
       shiftTimer = converter || dct ? Math.max(shiftTimeS, DT) : shiftTimeS;
@@ -438,10 +452,11 @@ function sixtyFoot(input: RunInput) {
  */
 export function bestLaunchRpm(input: RunInput) {
   const tried: { rpm: number; sixty: number }[] = [];
-  for (let rpm = MIN_LAUNCH_RPM; rpm <= input.shiftRpm; rpm += LAUNCH_SEARCH_STEP) {
+  const firstShift = upshiftRpm(input, 0);
+  for (let rpm = MIN_LAUNCH_RPM; rpm <= firstShift; rpm += LAUNCH_SEARCH_STEP) {
     tried.push({ rpm, sixty: sixtyFoot({ ...input, launchRpm: rpm }) });
   }
-  if (tried.length === 0) return { rpm: input.shiftRpm, sixty: sixtyFoot({ ...input, launchRpm: input.shiftRpm }) };
+  if (tried.length === 0) return { rpm: firstShift, sixty: sixtyFoot({ ...input, launchRpm: firstShift }) };
   const quickest = Math.min(...tried.map((c) => c.sixty));
   const peakRpm = input.curve.reduce((best, p) => (p.torque > best.torque ? p : best)).rpm;
   return tried
@@ -457,7 +472,7 @@ export function bestLaunchRpm(input: RunInput) {
 export function runQuarterMile(input: RunInput & { knownSixtyFtS: number | null }): QuarterMileRun {
   // Automatics launch from their trans-brake / foot-brake rpm; manuals search for the best launch rpm.
   const launch = input.automatic
-    ? { rpm: Math.min(automaticLaunchRpm(input.automatic), input.shiftRpm) }
+    ? { rpm: Math.min(automaticLaunchRpm(input.automatic), upshiftRpm(input, 0)) }
     : bestLaunchRpm(input);
   const launched = { ...input, launchRpm: launch.rpm };
   const target = input.knownSixtyFtS;
@@ -526,14 +541,46 @@ export function bestShiftRpm(input: RunInput & { knownSixtyFtS: number | null })
   const low = Math.ceil(peak / step) * step;
   const high = Math.floor(input.curve[input.curve.length - 1].rpm / step) * step;
   if (high <= low) return Math.round(peak / step) * step;
-  const base = runQuarterMile({ ...input, shiftRpm: high });
+  const single = { ...input, gearShiftRpms: undefined };
+  const base = runQuarterMile({ ...single, shiftRpm: high });
   let best = { rpm: low, et: Infinity };
   for (let rpm = low; rpm <= high; rpm += step) {
-    const et = simulateQuarterMile({ ...input, shiftRpm: rpm, launchRpm: base.launchRpm, launchScale: base.launchScale }).et ?? Infinity;
+    const et = simulateQuarterMile({ ...single, shiftRpm: rpm, launchRpm: base.launchRpm, launchScale: base.launchScale }).et ?? Infinity;
     // Ties (within 0.1 ms) go to the lower rpm.
     if (et < best.et - 1e-4) best = { rpm, et };
   }
   return best.rpm;
+}
+
+/**
+ * Per-gear shift rpms (index 0 = the 1-2 shift) for the quickest ET: starts from bestShiftRpm for every
+ * gear, then searches each shift in turn (1-2 first) over the same range with the others held. The top
+ * gear's limit (shiftRpm) is left as it is. Launch rpm and any known-60 ft fit are held from one run.
+ */
+export function bestGearShiftRpms(input: RunInput & { knownSixtyFtS: number | null }): number[] {
+  const step = SHIFT_SEARCH_STEP;
+  const shiftCount = input.gearRatios.length - 1;
+  if (shiftCount <= 0) return [];
+  const start = bestShiftRpm(input);
+  const peak = curvePeaks(input.curve).hp.rpm;
+  const low = Math.ceil(peak / step) * step;
+  const high = Math.floor(input.curve[input.curve.length - 1].rpm / step) * step;
+  const rpms = Array.from({ length: shiftCount }, () => start);
+  if (high <= low) return rpms;
+  const base = runQuarterMile({ ...input, gearShiftRpms: rpms });
+  const et = (gearShiftRpms: number[]) =>
+    simulateQuarterMile({ ...input, gearShiftRpms, launchRpm: base.launchRpm, launchScale: base.launchScale }).et ?? Infinity;
+  for (let gear = 0; gear < shiftCount; gear++) {
+    let best = { rpm: rpms[gear], et: et(rpms) };
+    for (let rpm = low; rpm <= high; rpm += step) {
+      if (rpm === rpms[gear]) continue;
+      const trial = rpms.map((value, index) => (index === gear ? rpm : value));
+      const time = et(trial);
+      if (time < best.et - 1e-4 || (Math.abs(time - best.et) <= 1e-4 && rpm < best.rpm)) best = { rpm, et: Math.min(time, best.et) };
+    }
+    rpms[gear] = best.rpm;
+  }
+  return rpms;
 }
 
 // ---------------------------------------------------------------- comparing runs
@@ -629,7 +676,7 @@ export type TopSpeed = {
  * `airDensityRatio`, as for the run.
  */
 export function topSpeed(input: RunInput): TopSpeed | null {
-  const { curve, gearRatios, shiftRpm } = input;
+  const { curve, gearRatios } = input;
   if (curve.length === 0 || gearRatios.length === 0) return null;
   const { engineRpm, speedAt, surplusN } = steadyForces(input);
   const STEP = 0.02; // m/s
@@ -638,7 +685,7 @@ export function topSpeed(input: RunInput): TopSpeed | null {
   gearRatios.forEach((_, gear) => {
     const surplus = (v: number) => surplusN(gear, v);
     const vStart = speedAt(gear, curve[0].rpm);
-    const vCap = speedAt(gear, shiftRpm);
+    const vCap = speedAt(gear, upshiftRpm(input, gear));
     if (vStart >= vCap || surplus(vStart) < 0) return;
     let v = vStart;
     let limit: TopSpeed["limit"] = "rpm";

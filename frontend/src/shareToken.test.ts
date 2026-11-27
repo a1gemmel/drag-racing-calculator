@@ -6,9 +6,10 @@ import golden from "./shareToken.golden.json";
 import v1Schema from "./shareToken.v1-schema.json";
 import v050Schema from "./shareToken.v0.5.0-schema.json";
 import v060Schema from "./shareToken.v0.6.0-schema.json";
+import v090Schema from "./shareToken.v0.9.0-schema.json";
 
 /** Frozen schema snapshots, one per release that added fields. Never edit; add one when a release adds fields. */
-const SCHEMA_SNAPSHOTS = { "0.4.0 (v1)": v1Schema, "0.5.0": v050Schema, "0.6.0": v060Schema } as Record<string, Record<string, unknown>[]>;
+const SCHEMA_SNAPSHOTS = { "0.4.0 (v1)": v1Schema, "0.5.0": v050Schema, "0.6.0": v060Schema, "0.9.0": v090Schema } as Record<string, Record<string, unknown>[]>;
 
 /**
  * FROZEN (shareToken.golden.json): tokens written by released versions and the complete setup each

@@ -12,10 +12,11 @@ type Props = {
   gears: Gear[];
   tireDiameter: number;
   axleRatio: number;
-  shiftRpm: number;
+  /** Upshift rpm out of each gear (the last entry is the top gear's limit). */
+  shiftRpms: number[];
   /**
-   * "shifts": each gear runs from where the previous upshift lands up to shiftRpm, with the drops drawn.
-   * "full": each gear runs from FULL_RANGE_START_RPM up to shiftRpm. 1st always starts at LAUNCH_RPM.
+   * "shifts": each gear runs from where the previous upshift lands up to its shift rpm, with the drops drawn.
+   * "full": each gear runs from FULL_RANGE_START_RPM up to its shift rpm. 1st always starts at LAUNCH_RPM.
    */
   view: "shifts" | "full";
 };
@@ -42,11 +43,12 @@ export function niceStep(max: number, maxTicks: number) {
   return multiplier * magnitude;
 }
 
-export function GearChart({ gears, tireDiameter, axleRatio, shiftRpm, view }: Props) {
+export function GearChart({ gears, tireDiameter, axleRatio, shiftRpms, view }: Props) {
   const [boxRef, measuredWidth] = useMeasuredWidth<HTMLDivElement>(720);
   const { view: VIEW, plot: PLOT } = chartGeometry(measuredWidth);
   const [hover, setHover] = useState<Hover>(null);
-  const topRpm = shiftRpm;
+  const shiftKey = shiftRpms.join(",");
+  const topRpm = Math.max(...shiftRpms, 1);
   const speedAt = (rpm: number, ratio: number) => speedMph(rpm, tireDiameter, ratio, axleRatio);
 
   const lines = useMemo<Line[]>(
@@ -57,16 +59,17 @@ export function GearChart({ gears, tireDiameter, axleRatio, shiftRpm, view }: Pr
             ...gear,
             index,
             start: { x: speedAt(FULL_RANGE_START_RPM, gear.ratio), y: FULL_RANGE_START_RPM },
-            end: { x: speedAt(shiftRpm, gear.ratio), y: shiftRpm },
+            end: { x: speedAt(shiftRpms[index], gear.ratio), y: shiftRpms[index] },
           };
         }
         // 1st gear pulls away from LAUNCH_RPM; later gears start where the previous upshift lands.
-        const startSpeed = index === 0 ? speedAt(LAUNCH_RPM, gear.ratio) : speedAt(shiftRpm, gears[index - 1].ratio);
+        const startSpeed = index === 0 ? speedAt(LAUNCH_RPM, gear.ratio) : speedAt(shiftRpms[index - 1], gears[index - 1].ratio);
         const startRpm = index === 0 ? LAUNCH_RPM : rpmForSpeed(startSpeed, tireDiameter, gear.ratio, axleRatio);
-        return { ...gear, index, start: { x: startSpeed, y: startRpm }, end: { x: speedAt(shiftRpm, gear.ratio), y: shiftRpm } };
+        return { ...gear, index, start: { x: startSpeed, y: startRpm }, end: { x: speedAt(shiftRpms[index], gear.ratio), y: shiftRpms[index] } };
       }),
     // speedAt only closes over tireDiameter and axleRatio, which are listed.
-    [gears, shiftRpm, view, tireDiameter, axleRatio],
+    // shiftKey stands for shiftRpms, a new array on every render.
+    [gears, shiftKey, view, tireDiameter, axleRatio],
   );
 
   const maxSpeedRaw = Math.max(...lines.map((line) => line.end.x), 1);
@@ -144,7 +147,7 @@ export function GearChart({ gears, tireDiameter, axleRatio, shiftRpm, view }: Pr
         {view === "shifts" &&
           lines.slice(1).map((line) => (
             <g key={`drop-${line.label}`}>
-              <line className="shift-drop" x1={x(line.start.x)} x2={x(line.start.x)} y1={y(shiftRpm)} y2={y(line.start.y)} />
+              <line className="shift-drop" x1={x(line.start.x)} x2={x(line.start.x)} y1={y(shiftRpms[line.index - 1])} y2={y(line.start.y)} />
               <circle className="shift-dot" cx={x(line.start.x)} cy={y(line.start.y)} r={4} style={{ fill: line.color }} />
             </g>
           ))}

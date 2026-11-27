@@ -2,6 +2,12 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.9.0 — 2026-11-26
+
+- Shift point by gear: the Shift point setting has a Single / By gear toggle. By gear shows one rpm for each upshift (1-2, 2-3, …) plus the top gear's limit; the quarter-mile pass, top speed, RPM chart, shift drops and ratio ladder use them.
+- Auto in By gear mode searches each upshift in turn for the quickest ET.
+- Share links and offline copies keep the per-gear shift points.
+
 ## v0.8.2 — 2026-11-26
 
 - The body preset moved out of Advanced into the main Car inputs, renamed Aero Preset. The fields it sets stay under Advanced; when Advanced is closed, its header flashes instead.

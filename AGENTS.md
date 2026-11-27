@@ -345,6 +345,11 @@ bookmark and post these links. When changing settings or `src/shareToken.ts`:
   setting change, which stops and rewinds it; names, colors and the open tab don't. Play/Pause (requestAnimationFrame), 1× / ½× / ¼×, range scrubber,
   clock, per-car readouts (ft · mph, gear · rpm; ET @ trap once finished) and a WIN label on the quickest car once it
   finishes (compare only). Timeslip/shift tables show the open car. [+] copies the open car.
+- **Shift by gear (v0.9.0, owner request):** `CarSetup.shiftByGear` + `gearShiftRpms` (index 0 = 1-2; missing entries use
+  `shiftRpm`; kept when toggled off). Token fields 21 / 22 at the top level and in extraCars elements. Sim input
+  `gearShiftRpms`, resolved by `upshiftRpm(input, gear)` (quarterMile.ts); `shiftRpm` stays the top gear's limit (field
+  "<nth> limit") and the launch rpm cap uses the 1-2 shift. Auto in By gear mode runs `bestGearShiftRpms`: starts at
+  bestShiftRpm, then one pass searching each shift (1-2 first) with the others held.
 - **Auto shift point (v0.5.0):** "Auto" beside Shift at runs `bestShiftRpm`: 50 rpm steps from peak hp to the end of the
   power curve (never past it: torque beyond the curve is unknown), launch rpm/known-60 ft fit held from one full run,
   quickest ET wins (ties to the lower rpm), at the current track conditions. ~125 ms. Often lands at the curve's end with

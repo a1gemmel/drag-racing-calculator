@@ -89,6 +89,7 @@ button { cursor: pointer; }
 .field { display: grid; gap: 6px; min-width: 0; }
 .field label { color: var(--text-2); font-size: 0.8rem; font-weight: 500; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.shift-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; }
 .hint { color: var(--text-3); font-size: 0.75rem; }
 
 input, select {

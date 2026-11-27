@@ -72,6 +72,9 @@ const TIRE_DIAMETER = num(4, "tireDiameterIn", 26);
 const TIRE_SIZE = str(5, "tireSize", "275/55R15");
 const AXLE_RATIO = num(6, "axleRatio", 3.73);
 const SHIFT_RPM = num(7, "shiftRpm", 6500);
+// v0.9.0: shift points by gear. Same ids at the top level and in extraCars elements.
+const SHIFT_BY_GEAR: Field = { id: 21, key: "shiftByGear", kind: "boolean", base: false };
+const GEAR_SHIFT_RPMS: Field = { id: 22, key: "gearShiftRpms", kind: "numbers", base: [] };
 const POWER: Field = {
   id: 10,
   key: "power",
@@ -146,6 +149,8 @@ const CAR_ELEMENT: readonly Field[] = [
   AUTO_SETUPS,
   str(14, "name", ""),
   str(15, "color", ""),
+  SHIFT_BY_GEAR,
+  GEAR_SHIFT_RPMS,
 ];
 
 /** The token schema. Append only; see the rules above. */
@@ -205,6 +210,8 @@ export const TOKEN_SCHEMA: readonly Field[] = [
     ],
   },
   enm(20, "mode", ["auto", "simple", "full"], "auto"),
+  SHIFT_BY_GEAR,
+  GEAR_SHIFT_RPMS,
 ];
 
 // ---------------------------------------------------------------- bytes

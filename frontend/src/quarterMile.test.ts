@@ -3,6 +3,7 @@ import { buildCurve, DEFAULT_POWER, estimateFromTrap } from "./power";
 import {
   airCorrectedCurve,
   bestLaunchRpm,
+  bestGearShiftRpms,
   bestShiftRpm,
   DEFAULT_VEHICLE,
   densityFromWeather,
@@ -232,6 +233,34 @@ describe("auto shift point", () => {
     expect(et(rpm)).toBeLessThanOrEqual(et(Math.ceil(peak / 50) * 50) + 0.002);
     expect(et(rpm)).toBeLessThanOrEqual(et(Math.floor(top / 50) * 50) + 0.002);
     expect(elapsed).toBeLessThan(3000);
+  });
+});
+
+describe("shift points by gear", () => {
+  it("upshifts each gear at its own rpm", () => {
+    const gearShiftRpms = [5600, 6000, 6300, 6100];
+    const run = simulateQuarterMile({ ...base, gearShiftRpms });
+    expect(run.shifts.map((s) => s.toGear)).toEqual([1, 2, 3]); // 4th to 5th is past the finish line
+    run.shifts.forEach((_, index) => {
+      // Engine rpm climbs to the gear's own shift point (samples every 20 ms) and no further.
+      const peak = Math.max(...run.samples.filter((sample) => sample.gear === index && !sample.shifting).map((sample) => sample.rpm));
+      expect(peak).toBeLessThanOrEqual(gearShiftRpms[index] + 1);
+      expect(peak).toBeGreaterThan(gearShiftRpms[index] - 250);
+    });
+    // Same rpm in every gear is the single shift point.
+    expect(simulateQuarterMile({ ...base, gearShiftRpms: [6500, 6500, 6500, 6500] }).et).toBe(simulateQuarterMile(base).et);
+  });
+
+  it("auto finds per-gear shifts at least as quick as the best single shift point", () => {
+    const input = { ...base, knownSixtyFtS: null };
+    const single = bestShiftRpm(input);
+    const started = performance.now();
+    const rpms = bestGearShiftRpms(input);
+    expect(performance.now() - started).toBeLessThan(5000);
+    expect(rpms).toHaveLength(base.gearRatios.length - 1);
+    for (const rpm of rpms) expect(rpm % 50).toBe(0);
+    const et = (extra: Partial<RunInput>) => runQuarterMile({ ...input, ...extra }).et!;
+    expect(et({ gearShiftRpms: rpms })).toBeLessThanOrEqual(et({ shiftRpm: single }) + 0.002);
   });
 });
 

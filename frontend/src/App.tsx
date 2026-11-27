@@ -20,7 +20,7 @@ import type { SimpleSetup } from "./simplePass";
 import { settingsFromToken, settingsToToken, shareUrl } from "./shareToken";
 import { downloadOfflineCopy, OFFLINE_FILE_NAME, offlineCopyAvailable, offlineCopyKb } from "./offline";
 import { buildCurve, type PowerState } from "./power";
-import { airCorrectedCurve, bestShiftRpm, topSpeed, type VehicleSetup } from "./quarterMile";
+import { airCorrectedCurve, bestGearShiftRpms, bestShiftRpm, maxShiftRpm, topSpeed, upshiftRpm, type VehicleSetup } from "./quarterMile";
 import type { TransmissionFamily } from "./catalog";
 import { parseTireSize } from "./tires";
 import { ALL_SCOPE, filterFamilies, resolveSelection, scopeOptions } from "./transmissionSearch";
@@ -66,6 +66,11 @@ function resolveMode(saved: AppSettings["mode"]): { mode: "simple" | "full"; byS
 }
 
 /** What the page needs from one car's setup: its transmission pick, gears, tire, power curve, automatic setup. */
+/** Per-gear upshift rpms for a car with `gearCount` gears (undefined when it shifts every gear at one rpm). */
+function gearShifts(car: CarSetup, gearCount: number): number[] | undefined {
+  return car.shiftByGear ? Array.from({ length: Math.max(gearCount - 1, 0) }, (_, i) => car.gearShiftRpms[i] ?? car.shiftRpm) : undefined;
+}
+
 function deriveCar(car: CarSetup, families: TransmissionFamily[]) {
   const filteredFamilies = filterFamilies(families, car.scope, car.query);
   // The user's last pick. If a search or filter hides it, resolveSelection falls back to the first match.
@@ -119,7 +124,7 @@ export function App() {
   const [customDraft, setCustomDraft] = useState<CustomTransmission | null>(null);
   const [editingCustom, setEditingCustom] = useState<string | null>(null);
   const families = useMemo(() => [...transmissionFamilies, ...customTransmissions.map(customFamily)], [customTransmissions]);
-  const { query, scope, selectedModel, selectedVariantName, tireMode, tireDiameterIn, tireSize, axleRatio, shiftRpm, power, vehicle, autoSetups } = car;
+  const { query, scope, selectedModel, selectedVariantName, tireMode, tireDiameterIn, tireSize, axleRatio, shiftRpm, shiftByGear, power, vehicle, autoSetups } = car;
   const setQuery = (value: string) => updateCar({ query: value });
   const setScope = (value: string) => updateCar({ scope: value });
   const setSelectedModel = (value: string) => updateCar({ selectedModel: value });
@@ -274,6 +279,7 @@ export function App() {
               axleRatio: cars[index].axleRatio,
               tireDiameterIn: item.tireDiameter,
               shiftRpm: cars[index].shiftRpm,
+              gearShiftRpms: gearShifts(cars[index], item.gears.length),
             },
             active: index === activeCar,
           },
@@ -287,10 +293,26 @@ export function App() {
   const autoShift = () => {
     if (!activeSim) return;
     const air = airFor(conditions);
-    setShiftRpm(bestShiftRpm({ ...activeSim.input, curve: airCorrectedCurve(activeSim.input.curve, air.ratio), airDensityRatio: air.ratio }));
+    const input = { ...activeSim.input, curve: airCorrectedCurve(activeSim.input.curve, air.ratio), airDensityRatio: air.ratio };
+    if (shiftByGear) updateCar({ gearShiftRpms: bestGearShiftRpms(input) });
+    else setShiftRpm(bestShiftRpm(input));
   };
+  // Upshift rpm out of each gear (the top gear's is its limit).
+  const shiftPlan = { shiftRpm, gearShiftRpms: gearShifts(car, gears.length), gearRatios: gears.map((g) => g.ratio) };
+  const shiftAt = (gearIndex: number) => upshiftRpm(shiftPlan, gearIndex);
+  const setGearShift = (gearIndex: number, value: number) =>
+    updateCar((current) => ({
+      gearShiftRpms: Array.from({ length: Math.max(gears.length - 1, current.gearShiftRpms.length) }, (_, i) =>
+        i === gearIndex ? value : (current.gearShiftRpms[i] ?? current.shiftRpm),
+      ),
+    }));
 
-  const topRpm = shiftRpm;
+  const autoButton = (
+    <button type="button" className="mini-button" onClick={autoShift} disabled={!activeSim} title="Quickest ET for this car">
+      Auto
+    </button>
+  );
+  const topRpm = gears.length ? maxShiftRpm(shiftPlan) : shiftRpm;
   // Top speed held back by power vs drag, at the current track conditions (null without a power curve).
   const topAir = airFor(conditions);
   const top = activeSim
@@ -299,11 +321,11 @@ export function App() {
   const speedAt = (rpm: number, ratio: number) => speedMph(rpm, tireDiameter, ratio, axleRatio);
   const rpmAt = (mph: number, ratio: number) => rpmForSpeed(mph, tireDiameter, ratio, axleRatio);
 
-  // RPM after each upshift made at topRpm, and the size of the drop.
+  // RPM after each upshift (at its shift point), and the size of the drop.
   const shifts = gears.slice(1).map((gear, index) => {
     const from = gears[index];
-    const landing = rpmAt(speedAt(topRpm, from.ratio), gear.ratio);
-    return { from, to: gear, landing, drop: topRpm - landing, step: 1 - gear.ratio / from.ratio };
+    const landing = rpmAt(speedAt(shiftAt(index), from.ratio), gear.ratio);
+    return { from, to: gear, landing, drop: shiftAt(index) - landing, step: 1 - gear.ratio / from.ratio };
   });
   const biggestShift = shifts.reduce<(typeof shifts)[number] | null>(
     (best, shift) => (best === null || shift.drop > best.drop ? shift : best),
@@ -514,24 +536,24 @@ export function App() {
                         <span role="tooltip" id="top-speed-tip" className="info-tip-text">
                           {top.limit === "drag"
                             ? `Drag-limited: above this speed, aero drag and rolling resistance take more than the power reaching the wheels in ${gears[top.gear]?.label}.`
-                            : `Rpm-limited: ${gears[top.gear]?.label} reaches the ${topRpm.toLocaleString()} rpm shift point with power to spare.`}
+                            : `Rpm-limited: ${gears[top.gear]?.label} reaches the ${shiftAt(top.gear).toLocaleString()} rpm shift point with power to spare.`}
                         </span>
                       ) : null}
                       <p className="stat-label">Top speed</p>
                       <p className="stat-value">
-                        {(top ? top.mph : speedAt(topRpm, topGear.ratio)).toFixed(0)}
+                        {(top ? top.mph : speedAt(shiftAt(gears.length - 1), topGear.ratio)).toFixed(0)}
                         <span>mph</span>
                       </p>
                       <p className="stat-note">
                         {top
                           ? `${gears[top.gear]?.label} at ${(Math.round(top.rpm / 10) * 10).toLocaleString()} rpm`
-                          : `${topGear.label} at ${topRpm.toLocaleString()} rpm`}
+                          : `${topGear.label} at ${shiftAt(gears.length - 1).toLocaleString()} rpm`}
                       </p>
                     </div>
                     <div className="stat">
                       <p className="stat-label">1st gear runs to</p>
                       <p className="stat-value">
-                        {speedAt(topRpm, gears[0].ratio).toFixed(0)}
+                        {speedAt(shiftAt(0), gears[0].ratio).toFixed(0)}
                         <span>mph</span>
                       </p>
                       <p className="stat-note">Ratio {gears[0].ratio.toFixed(2)}</p>
@@ -579,7 +601,7 @@ export function App() {
                         gears={gears}
                         tireDiameter={tireDiameter}
                         axleRatio={axleRatio}
-                        shiftRpm={shiftRpm}
+                        shiftRpms={gears.map((_, index) => shiftAt(index))}
                         view={chartView}
                       />
                     </section>
@@ -618,7 +640,7 @@ export function App() {
                                   Lands at
                                 </th>
                                 <th scope="col" className="num">
-                                  Speed at {topRpm.toLocaleString()}
+                                  {shiftByGear ? "Speed at shift" : `Speed at ${shiftRpm.toLocaleString()}`}
                                 </th>
                               </tr>
                             </thead>
@@ -640,7 +662,7 @@ export function App() {
                                     </td>
                                     <td className="num">{shift ? `−${Math.round(shift.step * 100)}%` : "—"}</td>
                                     <td className="num">{shift ? `${Math.round(shift.landing).toLocaleString()} rpm` : "—"}</td>
-                                    <td className="num">{speedAt(topRpm, gear.ratio).toFixed(1)} mph</td>
+                                    <td className="num">{speedAt(shiftAt(index), gear.ratio).toFixed(1)} mph</td>
                                   </tr>
                                 );
                               })}
@@ -708,21 +730,41 @@ export function App() {
             <div className="split">
               <div className="split-inputs">
                 <PowerInputs state={power} onChange={changePower} error={powerCurve.error} drivetrainLoss={drivetrainLoss} />
-                <Subgroup title="Shift point">
-                  <NumberField
-                    label="Shift at"
-                    unit="rpm"
-                    step={50}
-                    min={500}
-                    max={20000}
-                    value={shiftRpm}
-                    onCommit={setShiftRpm}
-                    action={
-                      <button type="button" className="mini-button" onClick={autoShift} disabled={!activeSim} title="Quickest ET for this car">
-                        Auto
-                      </button>
-                    }
-                  />
+                <Subgroup
+                  title="Shift point"
+                  action={
+                    <Segmented<"single" | "gear">
+                      label="Shift point"
+                      size="small"
+                      value={shiftByGear ? "gear" : "single"}
+                      onChange={(mode) => updateCar({ shiftByGear: mode === "gear" })}
+                      options={[
+                        { value: "single", label: "Single" },
+                        { value: "gear", label: "By gear" },
+                      ]}
+                    />
+                  }
+                >
+                  {shiftByGear && gears.length > 1 ? (
+                    <div className="shift-grid">
+                      {gears.slice(0, -1).map((_, index) => (
+                        <NumberField
+                          key={index}
+                          label={`${index + 1}-${index + 2}`}
+                          unit="rpm"
+                          step={50}
+                          min={500}
+                          max={20000}
+                          value={shiftAt(index)}
+                          onCommit={(value) => setGearShift(index, value)}
+                          action={index === 0 ? autoButton : undefined}
+                        />
+                      ))}
+                      <NumberField label={`${gears[gears.length - 1].label} limit`} unit="rpm" step={50} min={500} max={20000} value={shiftRpm} onCommit={setShiftRpm} />
+                    </div>
+                  ) : (
+                    <NumberField label="Shift at" unit="rpm" step={50} min={500} max={20000} value={shiftRpm} onCommit={setShiftRpm} action={autoButton} />
+                  )}
                 </Subgroup>
               </div>
               <PowerCurves curve={powerCurve.curve} basis={powerCurve.basis} />
