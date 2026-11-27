@@ -13,22 +13,25 @@ type Props = {
   disabled?: boolean;
   /** A small control beside the label, e.g. an "Auto" button. */
   action?: ReactNode;
+  /** How the value is shown in the box (default String), e.g. a fixed number of decimals. */
+  format?: (value: number) => string;
 };
 
 /**
  * Numeric input that edits a local draft and commits on blur or Enter, so typing an
  * intermediate value ("", "0.") never reaches the calculations.
  */
-export function NumberField({ label, unit, value, onCommit, step, min = 0, max, hint, disabled, action }: Props) {
+export function NumberField({ label, unit, value, onCommit, step, min = 0, max, hint, disabled, action, format = String }: Props) {
   const id = useId();
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
+  const [draft, setDraft] = useState(format(value));
+  // format is usually an inline function, so only a new value resets the draft.
+  useEffect(() => setDraft(format(value)), [value]);
 
   const commit = () => {
     const parsed = Number.parseFloat(draft);
     const valid = Number.isFinite(parsed) && parsed >= min && (max === undefined || parsed <= max);
     if (valid && parsed !== value) onCommit(parsed);
-    else setDraft(String(value));
+    else setDraft(format(value));
   };
 
   return (
@@ -55,7 +58,7 @@ export function NumberField({ label, unit, value, onCommit, step, min = 0, max, 
           onBlur={commit}
           onKeyDown={(event) => {
             if (event.key === "Enter") commit();
-            if (event.key === "Escape") setDraft(String(value));
+            if (event.key === "Escape") setDraft(format(value));
           }}
           aria-describedby={hint ? `${id}-hint` : undefined}
         />

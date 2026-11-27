@@ -226,7 +226,7 @@ For each commit:
 4. `npm run build` runs `scripts/version.mjs check` first and fails if package.json, the lockfile and the
    newest changelog section disagree, the section lists no changes, or versions aren't newest-first.
 
-The page footer shows `v<version> <short sha>` linking to the commit on GitHub, and a Changelog button
+The page footer shows `v<version> <short sha>` linking to the commit on GitHub, then the title of the newest titled changelog section at or below this version (v0.9.2), and a Changelog button
 that opens CHANGELOG.md in a modal. Both are baked in at build time (`define` in vite.config.ts;
 `GITHUB_SHA` in CI, `git rev-parse HEAD` locally). Releases are tagged `vX.Y.Z` with the changelog
 section as release notes. (Older `build-1`/`build-2` releases predate versioning.)
@@ -345,6 +345,12 @@ bookmark and post these links. When changing settings or `src/shareToken.ts`:
   setting change, which stops and rewinds it; names, colors and the open tab don't. Play/Pause (requestAnimationFrame), 1× / ½× / ¼×, range scrubber,
   clock, per-car readouts (ft · mph, gear · rpm; ET @ trap once finished) and a WIN label on the quickest car once it
   finishes (compare only). Timeslip/shift tables show the open car. [+] copies the open car.
+- **Axle optimizer (v0.9.2, owner request):** "Optimize" on the Car card's Axle ratio runs `bestAxleRatio` (quarterMile.ts)
+  over `COMMON_AXLE_RATIOS` (src/axleRatios.ts: Ford 9", GM 12-bolt car, Dana 60 ratios from retailer listings, cited
+  per family) plus the current ratio. All screened with the current launch held, the five quickest re-run with their own
+  launch search; known 60 ft fit held; ties keep the current ratio. ~0.4 s, so the button shows "Optimizing…" first.
+  Hover tooltip "Simulate to find the best axle ratio (experimental)" (owner text; an exception to the numbers-only copy
+  rule). The axle field always shows two decimals (NumberField `format`) and rounds typed ratios to 0.01.
 - **Shift by gear (v0.9.0, owner request):** `CarSetup.shiftByGear` + `gearShiftRpms` (index 0 = 1-2; missing entries use
   `shiftRpm`; kept when toggled off). Token fields 21 / 22 at the top level and in extraCars elements. Sim input
   `gearShiftRpms`, resolved by `upshiftRpm(input, gear)` (quarterMile.ts); `shiftRpm` stays the top gear's limit (field

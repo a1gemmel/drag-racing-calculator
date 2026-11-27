@@ -1,3 +1,4 @@
+import { COMMON_AXLE_RATIOS } from "./axleRatios";
 import { launchRpm as automaticLaunchRpm, lockedInGear, type AutomaticSetup } from "./automatic";
 import { curvePeaks, torqueAt, type PowerBasis, type PowerCurve } from "./power";
 
@@ -581,6 +582,29 @@ export function bestGearShiftRpms(input: RunInput & { knownSixtyFtS: number | nu
     rpms[gear] = best.rpm;
   }
   return rpms;
+}
+
+/**
+ * Axle ratio with the quickest ET for this car, at its shift points as set, from the ring-and-pinion ratios
+ * sold for the Ford 9 in, GM 12-bolt car and Dana 60 (COMMON_AXLE_RATIOS) plus the car's current ratio.
+ * Every ratio is screened holding the current launch; the five quickest are re-run with their own launch
+ * rpm search (manuals). A known 60 ft is fitted once at the current ratio and that fit is held. Ties
+ * (within 0.1 ms) go to the current ratio.
+ */
+export function bestAxleRatio(input: RunInput & { knownSixtyFtS: number | null }, ratios: readonly number[] = COMMON_AXLE_RATIOS): number {
+  const base = runQuarterMile(input);
+  const current = input.axleRatio;
+  const screened = ratios
+    .filter((ratio) => ratio !== current)
+    .map((ratio) => ({ ratio, et: simulateQuarterMile({ ...input, axleRatio: ratio, launchRpm: base.launchRpm, launchScale: base.launchScale }).et ?? Infinity }))
+    .sort((a, b) => a.et - b.et)
+    .slice(0, 5);
+  let best = { ratio: current, et: base.et ?? Infinity };
+  for (const { ratio } of screened) {
+    const et = runQuarterMile({ ...input, axleRatio: ratio, knownSixtyFtS: null, launchScale: base.launchScale }).et ?? Infinity;
+    if (et < best.et - 1e-4) best = { ratio, et };
+  }
+  return best.ratio;
 }
 
 // ---------------------------------------------------------------- comparing runs

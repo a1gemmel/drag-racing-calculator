@@ -20,7 +20,7 @@ import type { SimpleSetup } from "./simplePass";
 import { settingsFromToken, settingsToToken, shareUrl } from "./shareToken";
 import { downloadOfflineCopy, OFFLINE_FILE_NAME, offlineCopyAvailable, offlineCopyKb } from "./offline";
 import { buildCurve, type PowerState } from "./power";
-import { airCorrectedCurve, bestGearShiftRpms, bestShiftRpm, maxShiftRpm, topSpeed, upshiftRpm, type VehicleSetup } from "./quarterMile";
+import { airCorrectedCurve, bestAxleRatio, bestGearShiftRpms, bestShiftRpm, maxShiftRpm, topSpeed, upshiftRpm, type VehicleSetup } from "./quarterMile";
 import type { TransmissionFamily } from "./catalog";
 import { parseTireSize } from "./tires";
 import { ALL_SCOPE, filterFamilies, resolveSelection, scopeOptions } from "./transmissionSearch";
@@ -290,6 +290,13 @@ export function App() {
   const { gears } = derived[activeCar] ?? derived[0];
   // Shift point with the quickest ET for the open car, at the current track conditions.
   const activeSim = simCars.find((item) => item.active);
+  // Axle ratio with the quickest ET for the open car, at its shift points and the current track conditions.
+  const optimizeAxle = activeSim
+    ? () => {
+        const air = airFor(conditions);
+        return bestAxleRatio({ ...activeSim.input, curve: airCorrectedCurve(activeSim.input.curve, air.ratio), airDensityRatio: air.ratio });
+      }
+    : null;
   const autoShift = () => {
     if (!activeSim) return;
     const air = airFor(conditions);
@@ -782,7 +789,7 @@ export function App() {
                 </div>
               </header>
               <div className="input-grid">
-                <CarInputs vehicle={vehicle} onVehicleChange={setVehicle} axleRatio={axleRatio} onAxleRatioChange={setAxleRatio} />
+                <CarInputs vehicle={vehicle} onVehicleChange={setVehicle} axleRatio={axleRatio} onAxleRatioChange={setAxleRatio} optimizeAxle={optimizeAxle} />
               </div>
             </section>
             <section className="card">

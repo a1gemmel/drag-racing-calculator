@@ -88,7 +88,13 @@ export function CarInputs({
   onVehicleChange,
   axleRatio,
   onAxleRatioChange,
-}: VehicleProps & { axleRatio: number; onAxleRatioChange: (ratio: number) => void }) {
+  optimizeAxle,
+}: VehicleProps & {
+  axleRatio: number;
+  onAxleRatioChange: (ratio: number) => void;
+  /** Quickest-ET axle ratio for this car (null when the car can't be simulated). */
+  optimizeAxle?: (() => number) | null;
+}) {
   const set = (patch: Partial<VehicleSetup>) => onVehicleChange({ ...vehicle, ...patch });
   // Bumped on each preset pick: remounting the Advanced fields replays their flash, showing what the preset set.
   const [presetFlash, setPresetFlash] = useState(0);
@@ -104,10 +110,50 @@ export function CarInputs({
   };
   // Last known 60 ft typed in, kept while the user flips back to the estimate.
   const [lastKnownSixty, setLastKnownSixty] = useState(vehicle.knownSixtyFtS ?? 2.0);
+  // The sweep takes about a second: show the busy label first, then run it.
+  const [optimizing, setOptimizing] = useState(false);
+  const runOptimize = () => {
+    if (!optimizeAxle || optimizing) return;
+    setOptimizing(true);
+    window.setTimeout(() => {
+      try {
+        onAxleRatioChange(optimizeAxle());
+      } finally {
+        setOptimizing(false);
+      }
+    }, 30);
+  };
   return (
     <>
       <NumberField label="Race weight" unit="lb" step={10} min={200} max={20000} value={vehicle.weightLb} onCommit={(weightLb) => set({ weightLb })} />
-      <NumberField label="Axle ratio" unit=":1" step={0.01} min={0.5} value={axleRatio} onCommit={onAxleRatioChange} />
+      <NumberField
+        label="Axle ratio"
+        unit=":1"
+        step={0.01}
+        min={0.5}
+        value={axleRatio}
+        format={(ratio) => ratio.toFixed(2)}
+        onCommit={(ratio) => onAxleRatioChange(Math.round(ratio * 100) / 100)}
+        action={
+          optimizeAxle !== undefined ? (
+            <span className="has-tip tip-right">
+              <button
+                type="button"
+                className="mini-button"
+                onClick={runOptimize}
+                disabled={!optimizeAxle || optimizing}
+                aria-busy={optimizing}
+                aria-describedby="axle-optimize-tip"
+              >
+                {optimizing ? "Optimizing…" : "Optimize"}
+              </button>
+              <span role="tooltip" id="axle-optimize-tip" className="info-tip-text">
+                Simulate to find the best axle ratio (experimental)
+              </span>
+            </span>
+          ) : null
+        }
+      />
       <div className="field">
         <span className="field-label">Driven wheels</span>
         <Segmented

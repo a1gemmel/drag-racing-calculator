@@ -2,6 +2,12 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
+## v0.9.2 — 2026-11-26
+
+- Optimize beside Axle ratio: picks the quickest-ET ratio from the ring-and-pinion ratios sold for the Ford 9", GM 12-bolt passenger car and Dana 60, plus the ratio entered, at the car's shift points and track conditions.
+- The page footer always shows the name of the latest titled update (now The Jake Update).
+- The Axle ratio field always shows two decimals (3.70, not 3.7); typed ratios round to two decimals.
+
 ## v0.9.1 — 2026-11-26 — The Jake Update
 
 - The changelog names v0.9.0 The Jake Update.

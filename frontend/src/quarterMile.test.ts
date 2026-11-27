@@ -3,6 +3,7 @@ import { buildCurve, DEFAULT_POWER, estimateFromTrap } from "./power";
 import {
   airCorrectedCurve,
   bestLaunchRpm,
+  bestAxleRatio,
   bestGearShiftRpms,
   bestShiftRpm,
   DEFAULT_VEHICLE,
@@ -16,6 +17,7 @@ import {
   type RunInput,
 } from "./quarterMile";
 import { transmissionFamilies } from "./catalog";
+import { COMMON_AXLE_RATIOS } from "./axleRatios";
 import { curvePeaks } from "./power";
 import { BIAS_PLY_ROLLING, RADIAL_ROLLING } from "./tires";
 
@@ -261,6 +263,27 @@ describe("shift points by gear", () => {
     for (const rpm of rpms) expect(rpm % 50).toBe(0);
     const et = (extra: Partial<RunInput>) => runQuarterMile({ ...input, ...extra }).et!;
     expect(et({ gearShiftRpms: rpms })).toBeLessThanOrEqual(et({ shiftRpm: single }) + 0.002);
+  });
+});
+
+describe("axle ratio optimizer", () => {
+  it("picks the quickest of the listed ratios and the current one", () => {
+    const input = { ...base, knownSixtyFtS: null };
+    const started = performance.now();
+    const axle = bestAxleRatio(input);
+    const elapsed = performance.now() - started;
+    expect([...COMMON_AXLE_RATIOS, base.axleRatio]).toContain(axle);
+    const et = (axleRatio: number) => runQuarterMile({ ...input, axleRatio }).et!;
+    for (const ratio of [base.axleRatio, ...COMMON_AXLE_RATIOS]) expect(et(axle)).toBeLessThanOrEqual(et(ratio) + 0.001);
+    expect(elapsed).toBeLessThan(3000);
+  });
+
+  it("keeps the current ratio when nothing listed is quicker", () => {
+    const input = { ...base, knownSixtyFtS: null };
+    const best = bestAxleRatio(input);
+    // An unlisted current ratio stays when the only alternative is slower.
+    expect(bestAxleRatio({ ...input, axleRatio: best }, [7.17])).toBe(best);
+    expect(bestAxleRatio({ ...input, axleRatio: 3.77 }, [best])).toBe(best);
   });
 });
 

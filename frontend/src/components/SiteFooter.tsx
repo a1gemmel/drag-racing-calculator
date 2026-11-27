@@ -7,7 +7,9 @@ import { renderMarkdown } from "../markdown";
 export function SiteFooter() {
   const dialog = useRef<HTMLDialogElement>(null);
   const parsed = useMemo(() => parseChangelog(CHANGELOG), []);
-  const currentTitle = parsed.sections.find((section) => section.version === APP_VERSION)?.title;
+  // The newest titled update at or before this version (sections are newest first), so a patch keeps its release's name.
+  const currentIndex = parsed.sections.findIndex((section) => section.version === APP_VERSION);
+  const currentTitle = parsed.sections.slice(Math.max(currentIndex, 0)).find((section) => section.title)?.title;
   const label = `v${APP_VERSION}${SHORT_SHA ? ` ${SHORT_SHA}` : ""}`;
   // Versions only: the file's heading and intro (about semver) are for the repo, not the page.
   const changelog = useMemo(
