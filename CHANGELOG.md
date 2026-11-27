@@ -2,7 +2,11 @@
 
 All notable changes to Drag Racing Calculator. Versions follow [Semantic Versioning](https://semver.org); every commit to `main` is a new version.
 
-## v0.9.0 — 2026-11-26
+## v0.9.1 — 2026-11-26 — The Jake Update
+
+- The changelog names v0.9.0 The Jake Update.
+
+## v0.9.0 — 2026-11-26 — The Jake Update
 
 - Shift point by gear: the Shift point setting has a Single / By gear toggle. By gear shows one rpm for each upshift (1-2, 2-3, …) plus the top gear's limit; the quarter-mile pass, top speed, RPM chart, shift drops and ratio ladder use them.
 - Auto in By gear mode searches each upshift in turn for the quickest ET.
